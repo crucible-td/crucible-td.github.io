@@ -103,7 +103,7 @@ Two failure signatures this catches and `npm run sim` cannot:
   rule wave 4 cannot satisfy, which is worth checking before you add one.
 - **"N tower(s) still unbought"** at the end of a winning run. The plan ran out
   of things to buy before the wallet ran out of gold, so the run was never
-  purchase-limited. The committed plan currently ends with **655 gold unspent**,
+  purchase-limited. The committed plan currently ends with **610 gold unspent**,
   which means the late economy pays far more than there is to spend it on.
 
 The cross-check the campaign exists to make visible: the Vat is the opening

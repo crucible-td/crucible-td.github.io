@@ -54,7 +54,9 @@ describe('transmutation table', () => {
     expect(TRANSMUTATION.VAPOR.HEAT).toEqual({ kind: 'speed', mult: 1.8 });
     expect(TRANSMUTATION.VAPOR.COLD).toEqual({ kind: 'transmute', to: 'MOLTEN' });
     expect(TRANSMUTATION.VAPOR.KINETIC).toEqual({ kind: 'none' });
-    expect(TRANSMUTATION.VAPOR.SOLVENT).toEqual({ kind: 'damage', amount: 1 });
+    // Two hits, so two Vats. At 1 damage it took four, and wave 6's hint
+    // ("chill it or dissolve it") was offering an option that did not exist.
+    expect(TRANSMUTATION.VAPOR.SOLVENT).toEqual({ kind: 'damage', amount: 2 });
   });
 
   it('keeps the intended kill line intact: HEAT -> COLD -> KINETIC', () => {

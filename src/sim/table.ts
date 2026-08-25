@@ -76,11 +76,12 @@ export const TRANSMUTATION: Record<State, Record<Element, Outcome>> = {
     // Passes straight through. Stamps cannot even target it.
     KINETIC: { kind: 'none' },
     // Vapor has 4 integrity and moves at 2.5, so one Vat lands roughly a single
-    // hit as a Vapor crosses its range: four Vats to dissolve one. DESIGN.md
-    // calls this a slow kill, and at 1 damage it is closer to no kill at all.
-    // Left alone deliberately -- raising it is a difficulty change to the
-    // Vapor waves, not part of any trap, and belongs in its own pass.
-    SOLVENT: { kind: 'damage', amount: 1 },
+    // hit as a Vapor crosses its range. At 1 damage that meant four Vats to
+    // dissolve one Vapor, which made "chill it or dissolve it" false advice:
+    // dissolving was not a real option at any price a player would pay. At 2
+    // it is two Vats -- still the slow, expensive answer next to a Chiller,
+    // which is what a slow kill should feel like, but an answer that exists.
+    SOLVENT: { kind: 'damage', amount: 2 },
   },
 };
 

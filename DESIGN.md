@@ -36,7 +36,7 @@ This is the whole game. Four elements × five states.
 | **SLAG** | → MOLTEN | *nothing* | **destroyed** | *nothing* |
 | **MOLTEN** | speeds up +40% ⚠ | → CRYSTAL | **splits into 3 MOLTEN** ⚠ | → SLAG |
 | **CRYSTAL** | → MOLTEN ⚠ | *nothing* | **SHATTERED — bonus gold** ✅ | *nothing* |
-| **VAPOR** | speeds up +80% ⚠ | → MOLTEN | passes through | dissipates (slow kill) |
+| **VAPOR** | speeds up +80% ⚠ | → MOLTEN | passes through | dissipates (two hits) |
 
 ⚠ = the trap. These are the cells that punish careless placement.
 
