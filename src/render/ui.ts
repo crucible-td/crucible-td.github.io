@@ -79,8 +79,15 @@ export class Ui {
     el('wave').textContent = `${Math.min(world.waveIndex + 1, WAVES.length)}/${WAVES.length}`;
 
     for (const [id, btn] of this.buttons) {
+      const affordable = world.gold >= TOWERS[id].cost;
       btn.setAttribute('aria-pressed', String(id === selected));
-      btn.disabled = world.gold < TOWERS[id].cost;
+      // The selected tower stays clickable even once it is unaffordable, so it
+      // can always be toggled back off. Disabling it stranded the selection:
+      // a disabled button fires no click, so the only ways out were Escape or
+      // right-click, neither of which is discoverable. Placement is guarded by
+      // placeTower regardless, so an unaffordable click still builds nothing.
+      btn.disabled = !affordable && id !== selected;
+      btn.classList.toggle('unaffordable', !affordable);
     }
 
     const start = el<HTMLButtonElement>('startWave');

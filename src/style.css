@@ -92,6 +92,10 @@ canvas {
 .tower:hover { border-color: var(--slot); }
 .tower[aria-pressed="true"] { background: #2b2420; border-color: var(--slot); }
 .tower:disabled { opacity: 0.42; cursor: not-allowed; }
+/* Dimmed for "you cannot afford this" independently of `disabled`, so the
+   selected tower can look unaffordable while staying clickable to deselect. */
+.tower.unaffordable { opacity: 0.42; }
+.tower.unaffordable[aria-pressed='true'] { opacity: 0.62; cursor: pointer; }
 
 .tower .row { display: flex; justify-content: space-between; align-items: baseline; }
 .tower .name { font-weight: 600; }
