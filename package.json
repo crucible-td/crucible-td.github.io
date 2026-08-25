@@ -8,7 +8,8 @@
     "build": "vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "sim": "node src/headless.ts"
+    "sim": "node src/headless.ts",
+    "campaign": "node src/campaign.ts"
   },
   "devDependencies": {
     "@types/node": "^26.3.0",

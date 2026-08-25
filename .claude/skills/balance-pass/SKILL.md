@@ -67,7 +67,50 @@ shatter counts rising with wave size is the economy working as designed; a wave
 that pays far less than its neighbours is a balance problem even at 100% win
 rate, because it starves the player of the next tower.
 
-## 3. Diagnose from `leaksByState`
+## 3. Measure affordability, not just survivability
+
+`npm run sim` places towers free and hands every wave a fresh twenty lives, so
+it can prove a wave is *survivable* while saying nothing about whether the
+player could have afforded the towers that survived it, or how much damage has
+already accumulated. Those are the two ways a tuning change breaks a real run,
+so check them with the campaign harness:
+
+```bash
+npm run campaign -- --plan "$(cat .claude/skills/balance-pass/reference/plan.txt)" --runs 10
+```
+
+That runs all ten waves on one world -- gold and lives carry over -- buying the
+next tower in the plan at each wave start if and only if the wallet covers it.
+Because it stops at the first tower it cannot afford, an expensive tower at the
+head of the plan blocks the cheap ones behind it, which is how a saving
+strategy differs from a greedy one.
+
+The committed plan in `reference/plan.txt` wins all ten waves on every seed
+tried, ending with **14/20 lives**. Treat that as the number to protect: a
+tuning change that leaves `npm run sim` looking fine but drops the campaign
+below 14 lives has made the game harder for an actual player, not an
+idealised one.
+
+Two failure signatures this catches and `npm run sim` cannot:
+
+- **"LOST on wave N" with gold to spare.** The wave was survivable; the player
+  just could not buy the answer in time. Fix the economy or the wave, not the
+  table. Wave 4 is the pressure point -- it is all Molten, Cold is the only
+  clean answer, and a 65-gold Chiller is right at the edge of what the first
+  three waves pay for.
+- **"N tower(s) still unbought"** at the end of a winning run. The plan ran out
+  of things to buy before the wallet ran out of gold, so the run was never
+  purchase-limited. The committed plan currently ends with **924 gold unspent**,
+  which means the late economy pays far more than there is to spend it on.
+
+An unhandled cross-check the campaign makes visible: the Vat is the opening
+purchase the economy is designed around, but `MOLTEN/SOLVENT` yields VAPOR, so
+a Vat bought later -- once Molten is in the feed -- converts Molten into the
+most expensive state in the game. In the committed plan this is exactly what
+costs the run its only six lives, on wave 4. There is no sell mechanic, so
+every such purchase is permanent.
+
+## 4. Diagnose from `leaksByState`
 
 The leak breakdown names the broken table cell almost every time. Map the
 leaking state back to what should have consumed it:
@@ -101,7 +144,7 @@ leaking state back to what should have consumed it:
   saturated downstream, not failing upstream.
 - **SLAG leaking** -- rare; means Solvent stripped Ore but no Kinetic followed.
 
-## 4. Edit the smallest thing that could work
+## 5. Edit the smallest thing that could work
 
 In order of preference, because each is a wider blast radius than the last:
 
@@ -126,7 +169,7 @@ The repo's PostToolUse hook typechecks and tests after any edit under `src/` or
 `tests/`, so a forgotten test update surfaces immediately -- but only for edits
 made with the Write or Edit tools, not for shell-based edits.
 
-## 5. Re-measure, and check the two invariants
+## 6. Re-measure, and check the two invariants
 
 Re-run the command from step 1 and compare against the baseline table. Report
 the change as a before/after on the waves that moved, not as prose.
@@ -149,7 +192,7 @@ Second, no wave may sit at 100% win with zero leaks *and* below its neighbours
 in gold: that is a wave the player can ignore, which is worse than a wave they
 lose.
 
-## 6. Report
+## 7. Report
 
 Say what leaked, what you changed and why, and the before/after numbers. If a
 proposed edit did not fix the measured problem, say so and leave it reverted
