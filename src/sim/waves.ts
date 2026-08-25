@@ -77,9 +77,12 @@ export const WAVES: Wave[] = [
   {
     hint: 'Full pour. Everything you have learned, at once.',
     groups: [
-      { state: 'ORE', count: 20, gap: 26, delay: 0 },
-      { state: 'MOLTEN', count: 10, gap: 48, delay: 180 },
-      { state: 'VAPOR', count: 8, gap: 60, delay: 360 },
+      { state: 'ORE', count: 16, gap: 30, delay: 0 },
+      { state: 'MOLTEN', count: 8, gap: 56, delay: 180 },
+      // Vapor is the wall here: fast, costs 3 lives, and only Cold or Solvent
+      // touch it. Five is beatable with a real chiller bank; eight was not
+      // beatable at all -- `npm run sim` said so before a human ever played it.
+      { state: 'VAPOR', count: 5, gap: 80, delay: 360 },
       { state: 'CRYSTAL', count: 8, gap: 55, delay: 600 },
     ],
   },

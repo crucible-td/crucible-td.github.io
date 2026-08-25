@@ -43,7 +43,16 @@ export function createWorld(seed = 1): World {
     projectiles: [],
     waveIndex: 0,
     spawnQueue: [],
-    stats: { transmutes: 0, splits: 0, shatters: 0, kills: 0, leaks: 0, livesLost: 0, goldEarned: 0 },
+    stats: {
+      transmutes: 0,
+      splits: 0,
+      shatters: 0,
+      kills: 0,
+      leaks: 0,
+      leaksByState: { ORE: 0, SLAG: 0, MOLTEN: 0, CRYSTAL: 0, VAPOR: 0 },
+      livesLost: 0,
+      goldEarned: 0,
+    },
     events: [],
     nextId: 1,
   };
@@ -192,6 +201,7 @@ function advanceCharges(w: World): void {
       const cost = STATES[c.state].leakCost;
       w.lives -= cost;
       w.stats.leaks++;
+      w.stats.leaksByState[c.state]++;
       w.stats.livesLost += cost;
       emit(w, 'leak', c, `-${cost}`);
     }

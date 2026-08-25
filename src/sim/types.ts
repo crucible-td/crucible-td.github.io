@@ -106,6 +106,8 @@ export interface Stats {
   shatters: number;
   kills: number;
   leaks: number;
+  /** Which states got through -- the single most useful balance diagnostic. */
+  leaksByState: Record<State, number>;
   livesLost: number;
   goldEarned: number;
 }
