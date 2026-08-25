@@ -69,10 +69,36 @@ If a change makes those two converge, the change removed the game's whole point.
   (`crucible.place('forge',5,4)`, `crucible.startWave()`, `crucible.advance(1200)`).
   Handy because requestAnimationFrame pauses in a hidden tab.
 
-## Deliberately not built yet
+## Automated checks (hook)
 
-No `.claude/skills`, no hooks, no subagents -- those are the owner's to write,
-and the codebase was shaped to make them easy: deterministic sim, flat balance
-data, and a harness with `--json` output.
+A `PostToolUse` hook runs `npm run typecheck && npm test` after any edit to a
+`.ts` file under `src/` or `tests/`. It lives in
+`.claude/hooks/check-after-edit.sh` and is wired up in `.claude/settings.json`.
 
-M2 scope: upgrade branches, more maps, audio, save/load.
+On failure it exits 2 and prints the compiler/test output to stderr, which is
+Claude Code's convention for "block and feed this back to the model" -- so a
+broken edit surfaces immediately instead of being discovered later. Edits to
+other file types exit 0 without running anything.
+
+To change what it checks, edit the script; to disable it, remove the block from
+`.claude/settings.json`. Hooks are reloaded when a session starts, so changes
+to either file take effect in the next session.
+
+## Where the project stands
+
+The M1 vertical slice is complete and verified: 5 states, the full
+transmutation table, 4 towers, 10 waves, the per-transmutation economy, build
+UI, and the headless harness. `npm test` (23 tests), `npm run typecheck`, and
+`npm run build` all pass, and the browser build has been confirmed to reproduce
+the headless numbers exactly.
+
+Still deliberately unbuilt, and left as the owner's own AI-tooling exercise:
+
+- **A `balance-pass` skill** that calls `npm run sim -- --all-waves --json`,
+  reads the per-state leak breakdown, and proposes table edits. The most
+  valuable one to write, because its success criterion is measurable.
+- **A balance-analyst subagent**, worth adding only after that skill exists,
+  and best pinned to a cheaper model in its frontmatter.
+
+M2 game scope: upgrade branches (ones that change table behaviour, not just
+numbers), more maps, audio, save/load.
