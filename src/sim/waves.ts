@@ -62,28 +62,31 @@ export const WAVES: Wave[] = [
     hint: 'Everything at once.',
     groups: [
       { state: 'ORE', count: 16, gap: 32, delay: 0 },
-      { state: 'MOLTEN', count: 6, gap: 70, delay: 240 },
-      { state: 'VAPOR', count: 4, gap: 100, delay: 480 },
+      { state: 'MOLTEN', count: 8, gap: 62, delay: 240 },
+      { state: 'VAPOR', count: 6, gap: 85, delay: 460 },
     ],
   },
   {
     hint: 'Heavy processing load. Parallel lines pay off here.',
     groups: [
-      { state: 'MOLTEN', count: 12, gap: 45, delay: 0 },
-      { state: 'CRYSTAL', count: 6, gap: 80, delay: 200 },
-      { state: 'VAPOR', count: 6, gap: 85, delay: 420 },
+      // Overlapping on purpose: the groups are timed to arrive on top of each
+      // other rather than in sequence, so this wave tests parallel lines
+      // instead of raw throughput -- which is what the hint promises.
+      { state: 'MOLTEN', count: 16, gap: 32, delay: 0 },
+      { state: 'CRYSTAL', count: 8, gap: 52, delay: 160 },
+      { state: 'VAPOR', count: 10, gap: 58, delay: 320 },
     ],
   },
   {
     hint: 'Full pour. Everything you have learned, at once.',
     groups: [
       { state: 'ORE', count: 16, gap: 30, delay: 0 },
-      { state: 'MOLTEN', count: 8, gap: 56, delay: 180 },
+      { state: 'MOLTEN', count: 11, gap: 48, delay: 180 },
       // Vapor is the wall here: fast, costs 3 lives, and only Cold or Solvent
       // touch it. Five is beatable with a real chiller bank; eight was not
       // beatable at all -- `npm run sim` said so before a human ever played it.
-      { state: 'VAPOR', count: 5, gap: 80, delay: 360 },
-      { state: 'CRYSTAL', count: 8, gap: 55, delay: 600 },
+      { state: 'VAPOR', count: 8, gap: 66, delay: 350 },
+      { state: 'CRYSTAL', count: 11, gap: 48, delay: 580 },
     ],
   },
 ];

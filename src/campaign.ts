@@ -197,8 +197,9 @@ function printRun(r: CampaignResult): void {
   console.log(`\n${verdict}, ${r.goldLeft} gold left, ${r.towersBuilt} towers built.`);
   if (r.planRemaining > 0) {
     console.log(
-      `${r.planRemaining} tower(s) still unbought -- the plan ran out of things to buy before the ` +
-        `wallet ran out of gold, so this run was not purchase-limited.`,
+      `${r.planRemaining} tower(s) never bought, with ${r.goldLeft} gold still in hand. The run ` +
+        `ended before the plan did -- if that gold figure is large, the late economy is paying ` +
+        `for towers there is no longer any wave left to place them for.`,
     );
   }
 }

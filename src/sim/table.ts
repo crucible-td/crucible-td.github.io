@@ -67,7 +67,7 @@ export const TRANSMUTATION: Record<State, Record<Element, Outcome>> = {
     HEAT: { kind: 'transmute', to: 'MOLTEN' },
     COLD: { kind: 'none' },
     // The payoff cell.
-    KINETIC: { kind: 'destroy', gold: 6, shatter: true },
+    KINETIC: { kind: 'destroy', gold: 5, shatter: true },
     SOLVENT: { kind: 'none' },
   },
   VAPOR: {

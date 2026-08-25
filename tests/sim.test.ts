@@ -67,8 +67,11 @@ describe('the transmutation economy', () => {
     applyElement(w, c, 'KINETIC');
     expect(c.alive).toBe(false);
     expect(w.stats.shatters).toBe(1);
-    // 2 transmutes + shatter bonus, versus 1 gold for chipping it to death.
-    expect(w.gold).toBe(ECONOMY.startGold + 2 * ECONOMY.goldPerTransmute + 6);
+    // 2 transmutes + the 5g shatter bonus, versus 1 gold for chipping it to
+    // death. DESIGN.md specifies 1g per state change and a 5g shatter; the
+    // economy briefly paid 2 and 6, which funded a seventeen-tower board and a
+    // flawless run by wave 7.
+    expect(w.gold).toBe(ECONOMY.startGold + 2 * ECONOMY.goldPerTransmute + 5);
     expect(w.gold).toBeGreaterThan(ECONOMY.startGold + ECONOMY.goldPerKill);
   });
 

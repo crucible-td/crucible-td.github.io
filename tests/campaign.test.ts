@@ -21,7 +21,7 @@ describe('reference campaign', () => {
     const r = runCampaign(PLAN, 1, 20000);
     expect(r.won).toBe(true);
     expect(r.wavesCleared).toBe(10);
-    expect(r.livesLeft).toBe(20);
+    expect(r.livesLeft).toBe(12);
   });
 
   it('wins on every seed tried, not just the lucky one', () => {
@@ -43,9 +43,24 @@ describe('reference campaign', () => {
     expect(wave4?.livesLost).toBe(0);
   });
 
-  it('finishes with gold it could not spend, showing the late economy overpays', () => {
+  it('stays tense to the end instead of being decided by wave 7', () => {
+    // Roughly half the life bar spent, all of it in the back third. Waves 1-7
+    // clean and waves 8-10 biting is the shape; if lives start drifting back
+    // toward 20 the difficulty has quietly drained away again, and the cause
+    // is almost always ECONOMY.waveClearBonus funding too much board.
     const r = runCampaign(PLAN, 1, 20000);
-    expect(r.planRemaining).toBe(0);
-    expect(r.goldLeft).toBeGreaterThan(500);
+    const early = r.waves.filter((w) => w.wave <= 7).reduce((n, w) => n + w.livesLost, 0);
+    const late = r.waves.filter((w) => w.wave >= 8).reduce((n, w) => n + w.livesLost, 0);
+    expect(early).toBeLessThanOrEqual(1);
+    expect(late).toBeGreaterThanOrEqual(5);
+  });
+
+  it('runs out of waves rather than gold, so the economy is not overpaying', () => {
+    // Previously this ended with 924 gold and nothing left to buy. Some slack
+    // is fine -- the plan outlasting the run is healthy -- but a large figure
+    // here means the late economy pays for board the player cannot place.
+    const r = runCampaign(PLAN, 1, 20000);
+    expect(r.planRemaining).toBe(3);
+    expect(r.goldLeft).toBeLessThan(500);
   });
 });

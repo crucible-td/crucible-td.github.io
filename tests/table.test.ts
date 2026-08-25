@@ -46,7 +46,7 @@ describe('transmutation table', () => {
   it('CRYSTAL: shattering is the payoff, heat undoes your work', () => {
     expect(TRANSMUTATION.CRYSTAL.HEAT).toEqual({ kind: 'transmute', to: 'MOLTEN' });
     expect(TRANSMUTATION.CRYSTAL.COLD).toEqual({ kind: 'none' });
-    expect(TRANSMUTATION.CRYSTAL.KINETIC).toEqual({ kind: 'destroy', gold: 6, shatter: true });
+    expect(TRANSMUTATION.CRYSTAL.KINETIC).toEqual({ kind: 'destroy', gold: 5, shatter: true });
     expect(TRANSMUTATION.CRYSTAL.SOLVENT).toEqual({ kind: 'none' });
   });
 

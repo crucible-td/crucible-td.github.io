@@ -60,7 +60,7 @@ re-running `npm run sim -- --all-waves`. The report's per-state leak breakdown
 
 Reference points from the current tuning, all measurable:
 
-- Correct order (Forge -> Chiller -> Stamp) on wave 1: 6 shatters, 0 leaks, 85 gold.
+- Correct order (Forge -> Chiller -> Stamp) on wave 1: 6 shatters, 0 leaks, 59 gold.
 - Wrong order (Forge -> Stamp -> Chiller): 0 shatters, 6 splits, 12 leaks, run lost.
 
 If a change makes those two converge, the change removed the game's whole point.

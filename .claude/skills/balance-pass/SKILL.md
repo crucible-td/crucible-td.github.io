@@ -46,21 +46,23 @@ npm run sim -- --all-waves --loadout "$(cat .claude/skills/balance-pass/referenc
 
 | wave | win% | leaks | gold | shatters | what leaks |
 |---|---|---|---|---|---|
-| 1 | 100 | 0.00 | 105 | 6 | -- |
-| 2 | 100 | 0.00 | 162 | 10 | -- |
-| 3 | 100 | 0.00 | 203 | 14 | -- |
-| 4 | 100 | 0.00 | 100 | 6 | -- |
-| 5 | 100 | 0.00 | 257 | 18 | -- |
-| 6 | 100 | 0.00 | 100 | 5 | -- |
-| 7 | 100 | 0.00 | 139 | 6 | -- |
-| 8 | 100 | 0.00 | 340 | 26 | -- |
-| 9 | 100 | 2.00 | 329 | 26 | MOLTEN 2 |
-| 10 | 100 | 1.02 | 492 | 40 | MOLTEN 1.02 |
+| 1 | 100 | 0.00 | 69 | 6 | -- |
+| 2 | 100 | 0.00 | 105 | 10 | -- |
+| 3 | 100 | 0.00 | 133 | 14 | -- |
+| 4 | 100 | 0.00 | 65 | 6 | -- |
+| 5 | 100 | 0.00 | 167 | 18 | -- |
+| 6 | 100 | 0.00 | 62 | 5 | -- |
+| 7 | 100 | 0.00 | 83 | 6 | -- |
+| 8 | 100 | 1.52 | 266 | 32 | MOLTEN 1.52 |
+| 9 | 100 | 3.00 | 277 | 35 | MOLTEN 3 |
+| 10 | 100 | 6.88 | 358 | 45 | ORE 1, MOLTEN 5.88 |
 
-The small residual leaks on waves 9 and 10 are deliberate headroom: the
-reference build should clear the game while still being visibly stressed at the
-end, so that a regression shows up as new leaks rather than being absorbed
-silently by an overbuilt board.
+Waves 1-7 are clean and waves 8-10 ramp -- 1.52, 3.00, 6.88 leaks -- which is
+the shape to preserve. The reference build should clear the game while being
+visibly stressed at the end, so a regression shows up as new leaks rather than
+being absorbed by an overbuilt board. A flat tail means the board is
+overbuilt; a dip in the middle (wave 9 once sat at 0.02 between neighbours at
+1.52 and 6.88) means that wave is skippable and should be reshaped.
 
 Read the table for shape, not just for failures. Gold climbing steadily and
 shatter counts rising with wave size is the economy working as designed; a wave
@@ -86,13 +88,12 @@ head of the plan blocks the cheap ones behind it, which is how a saving
 strategy differs from a greedy one.
 
 The committed plan in `reference/plan.txt` wins all ten waves on every seed
-tried, ending with **20/20 lives**. Treat that as the number to protect: a
-tuning change that leaves `npm run sim` looking fine but drops the campaign
-below 20 lives has made the game harder for an actual player, not an
-idealised one. It is a clean sweep by design -- the plan represents competent
-play, and competent play should not be bleeding lives. Do not read the clean
-sweep as slack to spend: the reference build is deliberately generous, and the
-same waves still leak under the `npm run sim` baseline in section 2.
+tried, averaging **12.5 of 20 lives left** (12 on seed 1). Treat both halves as
+the thing to protect: 100% won means the game stays fair, and roughly half the
+life bar spent means it stays tense. A change that keeps the win rate but sends
+lives back toward 20 has quietly removed the difficulty; one that drops the win
+rate below 100% has made the reference plan unviable, which is a different and
+worse problem.
 
 Two failure signatures this catches and `npm run sim` cannot:
 
@@ -103,8 +104,11 @@ Two failure signatures this catches and `npm run sim` cannot:
   rule wave 4 cannot satisfy, which is worth checking before you add one.
 - **"N tower(s) still unbought"** at the end of a winning run. The plan ran out
   of things to buy before the wallet ran out of gold, so the run was never
-  purchase-limited. The committed plan currently ends with **610 gold unspent**,
-  which means the late economy pays far more than there is to spend it on.
+  purchase-limited. The committed plan ends with 3 towers unbought and **330
+  gold unspent** -- it now runs out of *waves* rather than gold, which is the
+  healthy version of this signal. When it ended with 924 gold spare and nothing
+  left to buy, the late economy was paying far more than there was to spend
+  it on.
 
 The cross-check the campaign exists to make visible: the Vat is the opening
 purchase the economy is designed around, so any rule that punishes owning one
@@ -186,9 +190,9 @@ npm run sim -- --wave 1 --loadout "forge@5,4 chiller@1,8 stamp@8,10" --runs 20
 npm run sim -- --wave 1 --loadout "forge@5,4 stamp@1,8 chiller@8,10" --runs 20
 ```
 
-Correct order (Forge -> Chiller -> Stamp) must give **6 shatters, 0 leaks, 85
+Correct order (Forge -> Chiller -> Stamp) must give **6 shatters, 0 leaks, 59
 gold, 100% win**. Wrong order (Forge -> Stamp -> Chiller) must give **0
-shatters, 6 splits, 12 leaks, 0% win**. If a change makes those two converge,
+shatters, 6 splits, 12 leaks, 16 gold, 0% win**. If a change makes those two converge,
 the change removed the reason the game exists -- revert it, whatever it did to
 the win rates.
 
