@@ -1,0 +1,258 @@
+{
+  "loadout": [
+    {
+      "def": "forge",
+      "col": 2,
+      "row": 1
+    },
+    {
+      "def": "forge",
+      "col": 5,
+      "row": 1
+    },
+    {
+      "def": "forge",
+      "col": 5,
+      "row": 5
+    },
+    {
+      "def": "chiller",
+      "col": 5,
+      "row": 9
+    },
+    {
+      "def": "chiller",
+      "col": 8,
+      "row": 9
+    },
+    {
+      "def": "chiller",
+      "col": 8,
+      "row": 13
+    },
+    {
+      "def": "stamp",
+      "col": 11,
+      "row": 9
+    },
+    {
+      "def": "chiller",
+      "col": 12,
+      "row": 13
+    },
+    {
+      "def": "chiller",
+      "col": 14,
+      "row": 9
+    },
+    {
+      "def": "stamp",
+      "col": 14,
+      "row": 7
+    },
+    {
+      "def": "chiller",
+      "col": 18,
+      "row": 7
+    },
+    {
+      "def": "stamp",
+      "col": 18,
+      "row": 3
+    },
+    {
+      "def": "stamp",
+      "col": 19,
+      "row": 9
+    },
+    {
+      "def": "stamp",
+      "col": 22,
+      "row": 11
+    }
+  ],
+  "runs": 50,
+  "seed": 1,
+  "results": [
+    {
+      "wave": 1,
+      "runs": 50,
+      "winRate": 100,
+      "avgLivesLost": 0,
+      "avgLeaks": 0,
+      "avgGold": 105,
+      "avgTicks": 1738,
+      "avgSplits": 0,
+      "avgShatters": 6,
+      "leaksByState": {
+        "ORE": 0,
+        "SLAG": 0,
+        "MOLTEN": 0,
+        "CRYSTAL": 0,
+        "VAPOR": 0
+      }
+    },
+    {
+      "wave": 2,
+      "runs": 50,
+      "winRate": 100,
+      "avgLivesLost": 0,
+      "avgLeaks": 0,
+      "avgGold": 162,
+      "avgTicks": 1802,
+      "avgSplits": 0,
+      "avgShatters": 10,
+      "leaksByState": {
+        "ORE": 0,
+        "SLAG": 0,
+        "MOLTEN": 0,
+        "CRYSTAL": 0,
+        "VAPOR": 0
+      }
+    },
+    {
+      "wave": 3,
+      "runs": 50,
+      "winRate": 100,
+      "avgLivesLost": 0,
+      "avgLeaks": 0,
+      "avgGold": 203,
+      "avgTicks": 1966,
+      "avgSplits": 0,
+      "avgShatters": 14,
+      "leaksByState": {
+        "ORE": 0,
+        "SLAG": 0,
+        "MOLTEN": 0,
+        "CRYSTAL": 0,
+        "VAPOR": 0
+      }
+    },
+    {
+      "wave": 4,
+      "runs": 50,
+      "winRate": 100,
+      "avgLivesLost": 0,
+      "avgLeaks": 0,
+      "avgGold": 100,
+      "avgTicks": 1393,
+      "avgSplits": 0,
+      "avgShatters": 6,
+      "leaksByState": {
+        "ORE": 0,
+        "SLAG": 0,
+        "MOLTEN": 0,
+        "CRYSTAL": 0,
+        "VAPOR": 0
+      }
+    },
+    {
+      "wave": 5,
+      "runs": 50,
+      "winRate": 100,
+      "avgLivesLost": 0,
+      "avgLeaks": 0,
+      "avgGold": 257,
+      "avgTicks": 1995,
+      "avgSplits": 0,
+      "avgShatters": 18,
+      "leaksByState": {
+        "ORE": 0,
+        "SLAG": 0,
+        "MOLTEN": 0,
+        "CRYSTAL": 0,
+        "VAPOR": 0
+      }
+    },
+    {
+      "wave": 6,
+      "runs": 50,
+      "winRate": 100,
+      "avgLivesLost": 0,
+      "avgLeaks": 0,
+      "avgGold": 100,
+      "avgTicks": 1783,
+      "avgSplits": 0,
+      "avgShatters": 5,
+      "leaksByState": {
+        "ORE": 0,
+        "SLAG": 0,
+        "MOLTEN": 0,
+        "CRYSTAL": 0,
+        "VAPOR": 0
+      }
+    },
+    {
+      "wave": 7,
+      "runs": 50,
+      "winRate": 100,
+      "avgLivesLost": 0,
+      "avgLeaks": 0,
+      "avgGold": 139,
+      "avgTicks": 1775,
+      "avgSplits": 0,
+      "avgShatters": 6,
+      "leaksByState": {
+        "ORE": 0,
+        "SLAG": 0,
+        "MOLTEN": 0,
+        "CRYSTAL": 0,
+        "VAPOR": 0
+      }
+    },
+    {
+      "wave": 8,
+      "runs": 50,
+      "winRate": 100,
+      "avgLivesLost": 0,
+      "avgLeaks": 0,
+      "avgGold": 340,
+      "avgTicks": 1946,
+      "avgSplits": 0,
+      "avgShatters": 26,
+      "leaksByState": {
+        "ORE": 0,
+        "SLAG": 0,
+        "MOLTEN": 0,
+        "CRYSTAL": 0,
+        "VAPOR": 0
+      }
+    },
+    {
+      "wave": 9,
+      "runs": 50,
+      "winRate": 100,
+      "avgLivesLost": 4,
+      "avgLeaks": 2,
+      "avgGold": 329,
+      "avgTicks": 2026,
+      "avgSplits": 2,
+      "avgShatters": 26,
+      "leaksByState": {
+        "ORE": 0,
+        "SLAG": 0,
+        "MOLTEN": 2,
+        "CRYSTAL": 0,
+        "VAPOR": 0
+      }
+    },
+    {
+      "wave": 10,
+      "runs": 50,
+      "winRate": 100,
+      "avgLivesLost": 2.04,
+      "avgLeaks": 1.02,
+      "avgGold": 491.84,
+      "avgTicks": 2404,
+      "avgSplits": 2,
+      "avgShatters": 39.98,
+      "leaksByState": {
+        "ORE": 0,
+        "SLAG": 0,
+        "MOLTEN": 1.02,
+        "CRYSTAL": 0,
+        "VAPOR": 0
+      }
+    }
+  ]
+}

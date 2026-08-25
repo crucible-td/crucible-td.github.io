@@ -1,0 +1,1 @@
+forge@2,1 forge@5,1 forge@5,5 chiller@5,9 chiller@8,9 chiller@8,13 stamp@11,9 chiller@12,13 chiller@14,9 stamp@14,7 chiller@18,7 stamp@18,3 stamp@19,9 stamp@22,11
