@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Crucible</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header id="hud">
+        <h1>Crucible</h1>
+        <div class="readouts">
+          <span class="readout"><b id="gold">0</b><small>gold</small></span>
+          <span class="readout"><b id="lives">0</b><small>lives</small></span>
+          <span class="readout"><b id="wave">0/0</b><small>wave</small></span>
+        </div>
+      </header>
+
+      <main>
+        <canvas id="board" width="960" height="600"></canvas>
+        <p id="hint"></p>
+      </main>
+
+      <aside id="build">
+        <h2>Build</h2>
+        <div id="towerList"></div>
+        <button id="startWave">Start wave</button>
+        <details id="tableRef">
+          <summary>Transmutation table</summary>
+          <div id="tableBody"></div>
+        </details>
+      </aside>
+    </div>
+
+    <div id="overlay" hidden>
+      <div class="panel">
+        <h2 id="overlayTitle"></h2>
+        <p id="overlayBody"></p>
+        <button id="restart">Run it again</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
