@@ -34,7 +34,7 @@ This is the whole game. Four elements × five states.
 |---|---|---|---|---|
 | **ORE** | → MOLTEN | *nothing* (bounces) | chip (very slow) | → SLAG |
 | **SLAG** | → MOLTEN | *nothing* | **destroyed** | *nothing* |
-| **MOLTEN** | speeds up +40% ⚠ | → CRYSTAL | **splits into 3 MOLTEN** ⚠ | → VAPOR |
+| **MOLTEN** | speeds up +40% ⚠ | → CRYSTAL | **splits into 3 MOLTEN** ⚠ | → SLAG |
 | **CRYSTAL** | → MOLTEN ⚠ | *nothing* | **SHATTERED — bonus gold** ✅ | *nothing* |
 | **VAPOR** | speeds up +80% ⚠ | → MOLTEN | passes through | dissipates (slow kill) |
 
@@ -67,7 +67,9 @@ Starter four, one per element:
 - **Forge** (Heat) — short range, fast, cheap. The line's entry point.
 - **Chiller** (Cold) — medium range, slow rate. Expensive early.
 - **Stamp** (Kinetic) — ground-only, tight range, huge burst. Useless out of position.
-- **Vat** (Solvent) — slow, applies over an area. The utility tower.
+- **Vat** (Solvent) — slow, applies over an area. The utility tower. Solvent
+  strips whatever it touches down to Slag, so a Vat always leaves the Stamp
+  something it can finish.
 
 Upgrade branches change *table behaviour*, not just numbers — e.g. a Stamp
 upgrade that stops splitting Molten, letting you break the ordering rule at

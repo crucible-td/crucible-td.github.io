@@ -21,7 +21,7 @@ describe('reference campaign', () => {
     const r = runCampaign(PLAN, 1, 20000);
     expect(r.won).toBe(true);
     expect(r.wavesCleared).toBe(10);
-    expect(r.livesLeft).toBe(14);
+    expect(r.livesLeft).toBe(20);
   });
 
   it('wins on every seed tried, not just the lucky one', () => {
@@ -31,14 +31,16 @@ describe('reference campaign', () => {
     }
   });
 
-  it('loses its lives to Vapor on wave 4, where a Vat meets Molten', () => {
-    // MOLTEN/SOLVENT yields VAPOR, so the second Vat upgrades wave 4's Molten
-    // into the most expensive state in the game. This is the intended cost of
-    // the opening the economy is built around -- if it ever moves, the Vat's
-    // role in the early game has changed.
+  it('does not strand wave 4 as Vapor when a lone Vat meets Molten', () => {
+    // Wave 4 is all Molten and affords exactly one tower. MOLTEN/SOLVENT used
+    // to yield VAPOR, so the Vat the opening economy teaches converted the
+    // whole wave into the fastest, most expensive state in the game and could
+    // not finish it -- two Vats dissolve a Vapor, and wave 4 only ever affords
+    // one. Quenching to SLAG instead leaves it killable by the Stamps the
+    // player already owns. A regression here is that trap coming back.
     const wave4 = runCampaign(PLAN, 1, 20000).waves.find((w) => w.wave === 4);
-    expect(wave4?.leaksByState.VAPOR).toBe(2);
-    expect(wave4?.livesLost).toBe(6);
+    expect(wave4?.leaksByState.VAPOR).toBe(0);
+    expect(wave4?.livesLost).toBe(0);
   });
 
   it('finishes with gold it could not spend, showing the late economy overpays', () => {

@@ -50,7 +50,17 @@ export const TRANSMUTATION: Record<State, Record<Element, Outcome>> = {
     COLD: { kind: 'transmute', to: 'CRYSTAL' },
     // THE TRAP. Profitable if you are ready for three; fatal if you are not.
     KINETIC: { kind: 'split', into: 'MOLTEN', count: 3 },
-    SOLVENT: { kind: 'transmute', to: 'VAPOR' },
+    // Quenched, not vaporised. Solvent strips things down to Slag wherever it
+    // finds them, so the Vat has one coherent job and the Stamp finishes it.
+    //
+    // This used to yield VAPOR, and that was the game's one genuinely unfair
+    // cell. Wave 4 is all Molten and the player can afford exactly one tower
+    // there, so a lone Vat -- the tower the 120-gold opening forces them to
+    // learn -- converted the whole wave into the fastest, most expensive state
+    // in the game and then could not finish it. Two Vats can dissolve a Vapor;
+    // one never could, and wave 4 only ever affords one. With no sell mechanic
+    // the run was simply over, with nothing on screen explaining why.
+    SOLVENT: { kind: 'transmute', to: 'SLAG' },
   },
   CRYSTAL: {
     // Undoes your own work -- keep Forges away from the end of the line.
@@ -65,6 +75,11 @@ export const TRANSMUTATION: Record<State, Record<Element, Outcome>> = {
     COLD: { kind: 'transmute', to: 'MOLTEN' },
     // Passes straight through. Stamps cannot even target it.
     KINETIC: { kind: 'none' },
+    // Vapor has 4 integrity and moves at 2.5, so one Vat lands roughly a single
+    // hit as a Vapor crosses its range: four Vats to dissolve one. DESIGN.md
+    // calls this a slow kill, and at 1 damage it is closer to no kill at all.
+    // Left alone deliberately -- raising it is a difficulty change to the
+    // Vapor waves, not part of any trap, and belongs in its own pass.
     SOLVENT: { kind: 'damage', amount: 1 },
   },
 };

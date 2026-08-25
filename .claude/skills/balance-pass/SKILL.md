@@ -86,29 +86,33 @@ head of the plan blocks the cheap ones behind it, which is how a saving
 strategy differs from a greedy one.
 
 The committed plan in `reference/plan.txt` wins all ten waves on every seed
-tried, ending with **14/20 lives**. Treat that as the number to protect: a
+tried, ending with **20/20 lives**. Treat that as the number to protect: a
 tuning change that leaves `npm run sim` looking fine but drops the campaign
-below 14 lives has made the game harder for an actual player, not an
-idealised one.
+below 20 lives has made the game harder for an actual player, not an
+idealised one. It is a clean sweep by design -- the plan represents competent
+play, and competent play should not be bleeding lives. Do not read the clean
+sweep as slack to spend: the reference build is deliberately generous, and the
+same waves still leak under the `npm run sim` baseline in section 2.
 
 Two failure signatures this catches and `npm run sim` cannot:
 
 - **"LOST on wave N" with gold to spare.** The wave was survivable; the player
   just could not buy the answer in time. Fix the economy or the wave, not the
-  table. Wave 4 is the pressure point -- it is all Molten, Cold is the only
-  clean answer, and a 65-gold Chiller is right at the edge of what the first
-  three waves pay for.
+  table. Wave 4 is the pressure point -- it is all Molten, and it affords
+  exactly one tower. Any rule that needs *two* towers to resolve safely is a
+  rule wave 4 cannot satisfy, which is worth checking before you add one.
 - **"N tower(s) still unbought"** at the end of a winning run. The plan ran out
   of things to buy before the wallet ran out of gold, so the run was never
-  purchase-limited. The committed plan currently ends with **924 gold unspent**,
+  purchase-limited. The committed plan currently ends with **655 gold unspent**,
   which means the late economy pays far more than there is to spend it on.
 
-An unhandled cross-check the campaign makes visible: the Vat is the opening
-purchase the economy is designed around, but `MOLTEN/SOLVENT` yields VAPOR, so
-a Vat bought later -- once Molten is in the feed -- converts Molten into the
-most expensive state in the game. In the committed plan this is exactly what
-costs the run its only six lives, on wave 4. There is no sell mechanic, so
-every such purchase is permanent.
+The cross-check the campaign exists to make visible: the Vat is the opening
+purchase the economy is designed around, so any rule that punishes owning one
+punishes the player for learning the game as taught. `MOLTEN/SOLVENT` used to
+yield VAPOR and cost the committed plan six lives on wave 4 for exactly that
+reason; it now quenches to SLAG. There is still no sell mechanic, so a bad
+purchase remains permanent -- weigh that before adding any cell that makes a
+tower situationally harmful.
 
 ## 4. Diagnose from `leaksByState`
 

@@ -38,7 +38,9 @@ describe('transmutation table', () => {
     expect(TRANSMUTATION.MOLTEN.HEAT).toEqual({ kind: 'speed', mult: 1.4 });
     expect(TRANSMUTATION.MOLTEN.COLD).toEqual({ kind: 'transmute', to: 'CRYSTAL' });
     expect(TRANSMUTATION.MOLTEN.KINETIC).toEqual({ kind: 'split', into: 'MOLTEN', count: 3 });
-    expect(TRANSMUTATION.MOLTEN.SOLVENT).toEqual({ kind: 'transmute', to: 'VAPOR' });
+    // Quenched to Slag, which the Stamp can finish. Yielding VAPOR here made a
+    // lone Vat -- all wave 4 can afford -- a run-ending purchase.
+    expect(TRANSMUTATION.MOLTEN.SOLVENT).toEqual({ kind: 'transmute', to: 'SLAG' });
   });
 
   it('CRYSTAL: shattering is the payoff, heat undoes your work', () => {
