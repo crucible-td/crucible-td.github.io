@@ -6,6 +6,7 @@ import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
 import type { Element } from '../sim/types.ts';
 import type { State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { WAVES } from '../sim/waves.ts';
+import type { Speed } from './clock.ts';
 import { availableUpgrades, effective } from '../sim/world.ts';
 import type { World } from '../sim/world.ts';
 
@@ -40,6 +41,8 @@ export interface UiHandlers {
   onCloseInspect(): void;
   /** Hovering a branch previews it on the board; null clears the preview. */
   onPreviewUpgrade(id: UpgradeId | null): void;
+  onTogglePause(): void;
+  onCycleSpeed(): void;
 }
 
 /**
@@ -104,6 +107,8 @@ export class Ui {
     el<HTMLButtonElement>('startWave').addEventListener('click', () => handlers.onStartWave());
     el<HTMLButtonElement>('restart').addEventListener('click', () => handlers.onRestart());
     el<HTMLButtonElement>('inspectClose').addEventListener('click', () => handlers.onCloseInspect());
+    el<HTMLButtonElement>('pause').addEventListener('click', () => handlers.onTogglePause());
+    el<HTMLButtonElement>('speed').addEventListener('click', () => handlers.onCycleSpeed());
   }
 
   private buildTowerMenu(): void {
@@ -148,7 +153,7 @@ export class Ui {
    */
   private shownTower: string | null = null;
 
-  sync(world: World, selected: TowerId | null, inspected: Tower | null): void {
+  sync(world: World, selected: TowerId | null, inspected: Tower | null, speed: Speed): void {
     this.syncInspect(world, inspected);
     el('gold').textContent = String(world.gold);
     el('lives').textContent = String(world.lives);
@@ -176,6 +181,13 @@ export class Ui {
     for (const cell of Array.from(el('tableBody').querySelectorAll<HTMLElement>('[data-el]'))) {
       cell.classList.toggle('active', cell.dataset.el === active);
     }
+
+    const pause = el<HTMLButtonElement>('pause');
+    pause.textContent = speed === 0 ? 'Resume' : 'Pause';
+    pause.classList.toggle('active', speed === 0);
+    const speedBtn = el<HTMLButtonElement>('speed');
+    speedBtn.textContent = `${speed === 0 ? '\u2014' : speed}\u00d7`;
+    speedBtn.classList.toggle('active', speed > 1);
 
     const start = el<HTMLButtonElement>('startWave');
     start.disabled = world.status !== 'idle';

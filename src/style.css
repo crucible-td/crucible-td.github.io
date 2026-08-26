@@ -154,6 +154,23 @@ canvas {
 }
 #startWave:disabled { background: var(--edge); color: var(--dim); cursor: not-allowed; }
 
+#speedControls { display: flex; gap: 6px; margin-top: 6px; }
+#speedControls button {
+  flex: 1;
+  padding: 7px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  color: var(--dim);
+  font: 600 12px/1 inherit;
+  cursor: pointer;
+}
+#speedControls button:hover { color: var(--ink); border-color: var(--dim); }
+/* Lit when the control is doing something other than its default, so "is this
+   paused or just slow?" is answerable at a glance. */
+#speedControls button.active { background: #2b2420; border-color: var(--hot); color: var(--hot); }
+#speed { font-variant-numeric: tabular-nums; }
+
 #tableRef { margin-top: 18px; font-size: 12px; color: var(--dim); }
 #tableRef summary { cursor: pointer; }
 #tableRef table { border-collapse: collapse; margin-top: 8px; width: 100%; }

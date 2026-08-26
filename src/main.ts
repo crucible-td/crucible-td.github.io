@@ -5,14 +5,12 @@
  * ask the renderer to draw whatever came out.
  */
 import { Renderer } from './render/canvas.ts';
+import { createClock, nextSpeed, ticksFor } from './render/clock.ts';
+import type { Speed } from './render/clock.ts';
 import { Ui } from './render/ui.ts';
 import { BOARD } from './sim/path.ts';
 import type { Tower, TowerId, UpgradeId } from './sim/types.ts';
 import { createWorld, placeTower, startWave, step, towerAt, upgradeTower } from './sim/world.ts';
-
-const TICK_MS = 1000 / 60;
-/** Cap catch-up work so a backgrounded tab cannot stall the page on return. */
-const MAX_CATCHUP_MS = 250;
 
 const canvas = document.getElementById('board') as HTMLCanvasElement | null;
 if (!canvas) throw new Error('missing #board canvas');
@@ -25,6 +23,35 @@ let hover: { col: number; row: number } | null = null;
 let inspected: Tower | null = null;
 /** An upgrade being hovered in the panel, previewed on the board. */
 let previewUpgrade: UpgradeId | null = null;
+/** How fast the simulation runs. 0 is paused; the tick itself never changes. */
+let speed: Speed = 1;
+/** The speed to return to when unpausing. */
+let resumeSpeed: Speed = 1;
+
+/**
+ * Pause and speed, as functions rather than inline handlers, because both the
+ * buttons and the keyboard drive them and one implementation is easier to keep
+ * honest than two.
+ *
+ * Each repaints synchronously: while paused no frame advances the sim, so
+ * waiting for the next one would leave the control looking dead at exactly the
+ * moment the player pressed it.
+ */
+function togglePause(): void {
+  if (speed === 0) {
+    speed = resumeSpeed;
+  } else {
+    resumeSpeed = speed;
+    speed = 0;
+  }
+  ui.sync(world, selected, inspected, speed);
+}
+
+function cycleSpeed(): void {
+  speed = nextSpeed(speed === 0 ? resumeSpeed : speed);
+  resumeSpeed = speed;
+  ui.sync(world, selected, inspected, speed);
+}
 
 const ui = new Ui({
   onSelect(id) {
@@ -34,7 +61,7 @@ const ui = new Ui({
     if (selected) inspected = null;
     // Repaint now: picking a tower lights its column in the resistance table,
     // and that should answer "what does this one do" on the same click.
-    ui.sync(world, selected, inspected);
+    ui.sync(world, selected, inspected, speed);
   },
   onUpgrade(tower, id) {
     upgradeTower(world, tower, id);
@@ -42,7 +69,7 @@ const ui = new Ui({
     // tower's actual reach and the ghost ring should stop being drawn.
     previewUpgrade = null;
     // Same reason: the branch is bought now, so the panel should say so now.
-    ui.sync(world, selected, inspected);
+    ui.sync(world, selected, inspected, speed);
   },
   onCloseInspect() {
     inspected = null;
@@ -51,6 +78,8 @@ const ui = new Ui({
   onPreviewUpgrade(id) {
     previewUpgrade = id;
   },
+  onTogglePause: togglePause,
+  onCycleSpeed: cycleSpeed,
   onStartWave() {
     startWave(world);
   },
@@ -83,7 +112,7 @@ canvas.addEventListener('click', () => {
     // requestAnimationFrame is throttled in a background or unfocused tab, so
     // "the panel is showing the tower I clicked before this one" is a real
     // thing a player can see.
-    ui.sync(world, selected, inspected);
+    ui.sync(world, selected, inspected, speed);
     return;
   }
   // Selection persists after a successful build so a line can be laid down in
@@ -105,9 +134,12 @@ window.addEventListener('keydown', (ev) => {
     ev.preventDefault();
     startWave(world);
   }
+  // Digits pick towers and now run 1-5, so the speed controls take letters.
+  if (ev.key === 'p' || ev.key === 'P') togglePause();
+  if (ev.key === 'f' || ev.key === 'F') cycleSpeed();
   const n = Number(ev.key);
-  if (n >= 1 && n <= 4) {
-    const ids: TowerId[] = ['forge', 'chiller', 'stamp', 'vat'];
+  if (n >= 1 && n <= 5) {
+    const ids: TowerId[] = ['forge', 'chiller', 'stamp', 'vat', 'lens'];
     selected = ids[n - 1] ?? null;
   }
 });
@@ -133,21 +165,23 @@ if (import.meta.env.DEV) {
 }
 
 let last = performance.now();
-let accumulator = 0;
+const clock = createClock();
 
 function frame(now: number): void {
-  accumulator = Math.min(accumulator + (now - last), MAX_CATCHUP_MS);
+  // Fixed timestep: the browser and `npm run sim` must agree tick for tick.
+  // Speed changes how many of these run per real second, never their size.
+  const ticks = ticksFor(clock, now - last, speed);
   last = now;
 
-  // Fixed timestep: the browser and `npm run sim` must agree tick for tick.
-  while (accumulator >= TICK_MS) {
+  for (let i = 0; i < ticks; i++) {
     step(world);
     renderer.ingest(world.events);
-    accumulator -= TICK_MS;
   }
 
+  // Rendering continues while paused, so the board stays readable and towers
+  // can still be placed and upgraded -- which is most of the point of a pause.
   renderer.draw(world, hover, selected, inspected, previewUpgrade);
-  ui.sync(world, selected, inspected);
+  ui.sync(world, selected, inspected, speed);
   requestAnimationFrame(frame);
 }
 
