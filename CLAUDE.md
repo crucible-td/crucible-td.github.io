@@ -155,8 +155,9 @@ Still unbuilt, and left as the owner's own AI-tooling exercise:
 - **A balance-analyst subagent**, best pinned to a cheaper model in its
   frontmatter.
 
-Remaining game scope: more towers, synergy/support towers, more maps, audio,
-save/load, and moment-to-moment polish (fast-forward, pause, target priority).
+Remaining work lives in [BACKLOG.md](BACKLOG.md), including the one item with a
+known risk: the game has never been tested on a real phone. Touch placement was
+broken until recently and the fix was only verified against emulated events.
 
 The unspent-gold finding is largely closed. It was 995 at the end of a ten-round
 run with nothing left to buy; lengthening the campaign to twenty rounds and
