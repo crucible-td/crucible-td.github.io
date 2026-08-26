@@ -1,8 +1,8 @@
 import { ECONOMY } from './economy.ts';
 import { PATH_LENGTH, isBuildableCell, cellCentre, pointAt } from './path.ts';
 import { Rng } from './rng.ts';
-import { resolveOutcome } from './table.ts';
-import type { OutcomeOverrides } from './table.ts';
+import { isImmune, resolveResistance } from './resistance.ts';
+import type { ResistanceOverrides } from './resistance.ts';
 import { TOWERS } from './towers.ts';
 import { UPGRADES, upgradesFor } from './upgrades.ts';
 import { STATES } from './types.ts';
@@ -20,8 +20,6 @@ import type {
 } from './types.ts';
 import { WAVES } from './waves.ts';
 
-/** Speed traps stack, but not without limit -- otherwise Vapor outruns the sim. */
-const MAX_SPEED_MULT = 3;
 const PROJECTILE_SPEED = 9;
 const IMPACT_RADIUS = 9;
 const FLASH_TICKS = 8;
@@ -57,9 +55,8 @@ export function createWorld(seed = 1): World {
     waveIndex: 0,
     spawnQueue: [],
     stats: {
-      transmutes: 0,
-      splits: 0,
-      shatters: 0,
+      breaks: 0,
+      wasted: 0,
       kills: 0,
       leaks: 0,
       leaksByState: { ORE: 0, SLAG: 0, MOLTEN: 0, CRYSTAL: 0, VAPOR: 0 },
@@ -79,11 +76,12 @@ export function createWorld(seed = 1): World {
  * Numeric branches are a shallow patch over the tower's own def. Keeping this
  * in one place means firing code never has to know whether a tower is upgraded.
  */
-function effective(t: Tower): { element: Element; range: number; cooldown: number; splash: number; groundOnly: boolean; color: string } {
+function effective(t: Tower): { element: Element; damage: number; range: number; cooldown: number; splash: number; groundOnly: boolean; color: string } {
   const def = TOWERS[t.def];
   const stats = t.upgrade ? UPGRADES[t.upgrade].stats : undefined;
   return {
     element: def.element,
+    damage: stats?.damage ?? def.damage,
     range: stats?.range ?? def.range,
     cooldown: stats?.cooldown ?? def.cooldown,
     splash: stats?.splash ?? def.splash,
@@ -93,7 +91,7 @@ function effective(t: Tower): { element: Element; range: number; cooldown: numbe
 }
 
 /** The table cells this tower rewrites, if its branch rewrites any. */
-function overridesOf(t: Tower): OutcomeOverrides | undefined {
+function overridesOf(t: Tower): ResistanceOverrides | undefined {
   return t.upgrade ? UPGRADES[t.upgrade].overrides : undefined;
 }
 
@@ -159,14 +157,13 @@ export function startWave(w: World): boolean {
 
 // --- simulation -------------------------------------------------------------
 
-function spawnCharge(w: World, state: State, dist: number, splits: number): Charge {
+function spawnCharge(w: World, state: State, dist: number): Charge {
   const c: Charge = {
     id: w.nextId++,
     state,
     dist,
-    integrity: STATES[state].integrity,
+    hp: STATES[state].hp,
     speedMult: 1,
-    splits,
     alive: true,
     flash: 0,
   };
@@ -184,74 +181,72 @@ function emit(w: World, type: SimEvent['type'], c: Charge, text?: string): void 
   w.events.push({ type, x: p.x, y: p.y, state: c.state, ...(text ? { text } : {}) });
 }
 
-function kill(w: World, c: Charge, gold: number, shatter: boolean): void {
+/**
+ * Break the layer a charge is currently wearing.
+ *
+ * Either the charge is finished, or what is underneath steps into its place at
+ * the same point on the lane -- possibly more than one of them. This is the
+ * whole cascade: a Crystal shell becomes two Molten cores, each of which
+ * becomes a Slag remnant, so one charge is five payouts and three different
+ * resistance profiles on its way down the lane.
+ *
+ * The chain is declared in STATES and is strictly inward, so this terminates
+ * however it is called -- there is no cell anywhere that puts a layer back on.
+ */
+function breakLayer(w: World, c: Charge): void {
+  const def = STATES[c.state];
   c.alive = false;
-  award(w, gold);
-  w.stats.kills++;
-  if (shatter) w.stats.shatters++;
-  emit(w, shatter ? 'shatter' : 'destroy', c, `+${gold}`);
+  award(w, def.bounty);
+  w.stats.breaks++;
+  emit(w, 'break', c, `+${def.bounty}`);
+
+  const inner = def.breaksInto;
+  if (inner === null) {
+    w.stats.kills++;
+    emit(w, 'kill', c);
+    return;
+  }
+
+  for (let i = 0; i < def.childCount; i++) {
+    // Children are nudged apart so a splash cannot clear a whole cascade with
+    // one hit, and so the render does not stack them exactly on top of another.
+    const offset = def.childCount === 1 ? 0 : w.rng.range(-12, 12);
+    const child = spawnCharge(w, inner, Math.max(0, c.dist + offset));
+    child.flash = FLASH_TICKS;
+  }
 }
 
 /**
- * Apply one element to one charge and resolve whatever the table says.
+ * Land one hit on one charge.
  *
- * This is the only place outcomes are interpreted. Every gameplay rule flows
- * through here, which is why balance changes are table edits rather than code
- * edits.
+ * The only place damage is resolved. Every gameplay rule flows through the
+ * resistance table and this function, which is why balance changes are table
+ * edits rather than code edits -- do not special-case anything in tower code.
  */
-export function applyElement(w: World, c: Charge, element: Element, overrides?: OutcomeOverrides): void {
+export function applyElement(
+  w: World,
+  c: Charge,
+  element: Element,
+  damage: number,
+  overrides?: ResistanceOverrides,
+): void {
   if (!c.alive) return;
-  const outcome = resolveOutcome(c.state, element, overrides);
+  const mult = resolveResistance(c.state, element, overrides);
 
-  switch (outcome.kind) {
-    case 'none':
-      return;
+  if (mult <= 0) {
+    // Immunity. Counted rather than ignored: shots landing on something they
+    // cannot hurt is the clearest signal that a build has no answer to a layer.
+    w.stats.wasted++;
+    emit(w, 'immune', c, 'immune');
+    return;
+  }
 
-    case 'transmute': {
-      c.state = outcome.to;
-      c.integrity = STATES[outcome.to].integrity;
-      // Cold cleans up a Forge's mess: transmuting resets accumulated speed.
-      c.speedMult = 1;
-      c.flash = FLASH_TICKS;
-      award(w, ECONOMY.goldPerTransmute);
-      w.stats.transmutes++;
-      emit(w, 'transmute', c, STATES[outcome.to].label);
-      return;
-    }
-
-    case 'destroy':
-      kill(w, c, outcome.gold, outcome.shatter === true);
-      return;
-
-    case 'speed':
-      c.speedMult = Math.min(c.speedMult * outcome.mult, MAX_SPEED_MULT);
-      c.flash = FLASH_TICKS;
-      emit(w, 'nothing', c, 'faster!');
-      return;
-
-    case 'damage': {
-      c.integrity -= outcome.amount;
-      c.flash = FLASH_TICKS;
-      if (c.integrity <= 0) kill(w, c, ECONOMY.goldPerKill, false);
-      return;
-    }
-
-    case 'split': {
-      if (c.splits <= 0) {
-        // Lineage already split once; further hits do nothing rather than
-        // multiplying without bound.
-        return;
-      }
-      c.alive = false;
-      w.stats.splits++;
-      emit(w, 'split', c);
-      for (let i = 0; i < outcome.count; i++) {
-        const offset = w.rng.range(-14, 14);
-        const child = spawnCharge(w, outcome.into, Math.max(0, c.dist + offset), c.splits - 1);
-        child.flash = FLASH_TICKS;
-      }
-      return;
-    }
+  c.hp -= damage * mult;
+  c.flash = FLASH_TICKS;
+  if (c.hp <= 0) {
+    breakLayer(w, c);
+  } else {
+    emit(w, 'hit', c);
   }
 }
 
@@ -287,7 +282,7 @@ function findTarget(w: World, t: Tower): Charge | undefined {
     // also stops the tower shooting at it -- that is how the Kiln Forge stops
     // melting the player's own Crystal -- and one that turns 'none' into a
     // real outcome starts it.
-    if (resolveOutcome(c.state, def.element, overrides).kind === 'none') continue;
+    if (isImmune(c.state, def.element, overrides)) continue;
     const p = pointAt(c.dist);
     if (Math.hypot(p.x - t.x, p.y - t.y) > def.range) continue;
     // Target the charge furthest along the lane -- the most urgent one.
@@ -313,6 +308,7 @@ function fireTowers(w: World): void {
       y: t.y,
       targetId: target.id,
       element: def.element,
+      damage: def.damage,
       speed: PROJECTILE_SPEED,
       splash: def.splash,
       color: def.color,
@@ -333,12 +329,12 @@ function advanceProjectiles(w: World): void {
     const dy = tp.y - p.y;
     const d = Math.hypot(dx, dy);
     if (d <= IMPACT_RADIUS) {
-      applyElement(w, target, p.element, p.overrides);
+      applyElement(w, target, p.element, p.damage, p.overrides);
       if (p.splash > 0) {
         for (const c of w.charges) {
           if (!c.alive || c.id === target.id) continue;
           const cp = pointAt(c.dist);
-          if (Math.hypot(cp.x - tp.x, cp.y - tp.y) <= p.splash) applyElement(w, c, p.element, p.overrides);
+          if (Math.hypot(cp.x - tp.x, cp.y - tp.y) <= p.splash) applyElement(w, c, p.element, p.damage, p.overrides);
         }
       }
       p.speed = -1;
@@ -362,7 +358,7 @@ export function step(w: World): void {
   w.tick++;
 
   while (w.spawnQueue.length > 0 && w.spawnQueue[0]!.at <= w.tick) {
-    spawnCharge(w, w.spawnQueue.shift()!.state, 0, 1);
+    spawnCharge(w, w.spawnQueue.shift()!.state, 0);
   }
 
   advanceCharges(w);
@@ -377,7 +373,7 @@ export function step(w: World): void {
   }
 
   if (w.status === 'running' && w.spawnQueue.length === 0 && w.charges.length === 0) {
-    award(w, ECONOMY.waveClearBonus(w.waveIndex + 1));
+    award(w, ECONOMY.roundClearBonus(w.waveIndex + 1));
     w.waveIndex++;
     w.status = w.waveIndex >= WAVES.length ? 'won' : 'idle';
   }

@@ -1,6 +1,5 @@
 /** DOM chrome around the canvas: readouts, build menu, table reference, overlay. */
-import { TRANSMUTATION } from '../sim/table.ts';
-import type { Outcome } from '../sim/table.ts';
+import { RESISTANCE } from '../sim/resistance.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES, upgradesFor } from '../sim/upgrades.ts';
 import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
@@ -15,22 +14,16 @@ function el<T extends HTMLElement>(id: string): T {
   return node as T;
 }
 
-/** Human-readable one-liner for a table cell. */
-export function describeOutcome(o: Outcome): string {
-  switch (o.kind) {
-    case 'none':
-      return '—';
-    case 'transmute':
-      return `→ ${STATES[o.to].label}`;
-    case 'split':
-      return `splits ×${o.count}`;
-    case 'destroy':
-      return o.shatter ? `shatter +${o.gold}` : `destroy +${o.gold}`;
-    case 'speed':
-      return `speeds ×${o.mult}`;
-    case 'damage':
-      return 'chips';
-  }
+/**
+ * Human-readable one-liner for a resistance cell.
+ *
+ * Zero is the one the player most needs to read at a glance, so it gets a word
+ * rather than a number -- an immunity is a wall, not a small multiplier.
+ */
+export function describeOutcome(mult: number): string {
+  if (mult <= 0) return 'immune';
+  if (mult === 1) return '×1';
+  return `×${mult}`;
 }
 
 export interface UiHandlers {
@@ -44,14 +37,14 @@ export interface UiHandlers {
 /**
  * "MOLTEN + Kinetic: splits x3 -> chips" for every cell a branch rewrites.
  *
- * Reuses describeOutcome so the upgrade panel and the transmutation reference
+ * Reuses describeOutcome so the upgrade panel and the resistance reference
  * always describe an Outcome the same way.
  */
 function describeOverrides(id: UpgradeId): string[] {
   const out: string[] = [];
   for (const [state, row] of Object.entries(UPGRADES[id].overrides ?? {})) {
     for (const [element, outcome] of Object.entries(row)) {
-      const before = describeOutcome(TRANSMUTATION[state as State][element as Element]);
+      const before = describeOutcome(RESISTANCE[state as State][element as Element]);
       const label = element[0]! + element.slice(1).toLowerCase();
       // "Vapor + Cold: → Crystal (was → Molten)" -- the new behaviour first,
       // since that is what the player is deciding to buy.
@@ -91,7 +84,7 @@ export class Ui {
 
   private buildTableReference(): void {
     const rows = STATE_IDS.map((s) => {
-      const cells = ELEMENT_IDS.map((e) => `<td>${describeOutcome(TRANSMUTATION[s][e])}</td>`).join('');
+      const cells = ELEMENT_IDS.map((e) => `<td>${describeOutcome(RESISTANCE[s][e])}</td>`).join('');
       return `<tr><th>${STATES[s].label}</th>${cells}</tr>`;
     }).join('');
     el('tableBody').innerHTML =
@@ -143,8 +136,8 @@ export class Ui {
       el('overlayTitle').textContent = world.status === 'won' ? 'Furnace cold' : 'Breach';
       el('overlayBody').textContent =
         world.status === 'won'
-          ? `All ten waves processed. ${world.stats.shatters} shattered, ${world.stats.transmutes} transmutations, ${world.stats.goldEarned} gold earned.`
-          : `The line failed on wave ${world.waveIndex + 1}. ${world.stats.leaks} charges got through; ${world.stats.splits} were split by badly placed Kinetic.`;
+          ? `All ten rounds held. ${world.stats.breaks} layers broken, ${world.stats.kills} charges destroyed, ${world.stats.goldEarned} gold earned.`
+          : `The line failed on round ${world.waveIndex + 1}. ${world.stats.leaks} charges got through, and ${world.stats.wasted} shots landed on something immune to them.`;
     }
   }
 

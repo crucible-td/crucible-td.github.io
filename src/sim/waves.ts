@@ -5,88 +5,95 @@ export interface SpawnGroup {
   count: number;
   /** Ticks between spawns within this group. */
   gap: number;
-  /** Ticks after wave start before this group begins. */
+  /** Ticks after round start before this group begins. */
   delay: number;
 }
 
 export interface Wave {
-  /** Shown in the HUD -- each early wave teaches exactly one table cell. */
+  /** Shown in the HUD -- each early round teaches exactly one immunity. */
   hint: string;
   groups: SpawnGroup[];
 }
 
 /**
- * Ten waves, ordered as a teaching sequence.
+ * Ten rounds, ordered as a teaching sequence.
  *
- * The opening economy matters: 120 starting gold buys a Vat (55) + Stamp (50),
- * which is the cheap Solvent -> Slag -> Kinetic line. The profitable
- * Heat -> Cold -> Kinetic shatter line costs 155 and has to be saved for. The
- * player is meant to discover the expensive line pays for itself.
+ * Rounds 5-10 were scaled up by measurement, not by feel. `npm run diversity`
+ * shows the trade directly: more pressure means fewer builds survive, and past
+ * a point it starts demanding *particular* towers rather than merely enough of
+ * them. At double the counts here, Stamp becomes mandatory and the game has a
+ * right answer again. These numbers sit well below that cliff -- tense, but
+ * still answerable in many ways.
+ *
+ * Round 1 is bare Ore, which nothing is immune to: every opening tower clears
+ * it, at its own pace. That is deliberate and load-bearing -- the player is
+ * meant to pick a tower because they like the look of it, not because it is
+ * the only one that works.
+ *
+ * Immunities then arrive one at a time, each round introducing a single layer
+ * that shuts one element off: Molten ignores Heat, Vapor ignores Kinetic and
+ * floats over ground towers, Crystal ignores Cold. By the last rounds the feed
+ * contains all of them at once, so a build has to answer everything somehow --
+ * but never in one particular way.
  */
 export const WAVES: Wave[] = [
   {
-    hint: 'Raw ore. Strip it with Solvent, then break it.',
-    groups: [{ state: 'ORE', count: 6, gap: 60, delay: 0 }],
+    hint: 'Raw ore. Nothing resists you yet -- open with whatever you fancy.',
+    groups: [{ state: 'ORE', count: 6, gap: 78, delay: 0 }],
   },
   {
-    hint: 'More of the same, faster. One tower will not keep up.',
-    groups: [{ state: 'ORE', count: 10, gap: 42, delay: 0 }],
+    hint: 'More ore, arriving faster. One tower will not keep up for long.',
+    groups: [{ state: 'ORE', count: 11, gap: 48, delay: 0 }],
   },
   {
-    hint: 'Molten arrives. Kinetic will split it -- be ready or be elsewhere.',
+    hint: 'Ore breaks into Slag, and Slag is quick. Watch what you leave behind.',
     groups: [
-      { state: 'ORE', count: 12, gap: 40, delay: 0 },
-      { state: 'MOLTEN', count: 2, gap: 90, delay: 300 },
+      { state: 'ORE', count: 14, gap: 34, delay: 0 },
+      { state: 'SLAG', count: 6, gap: 50, delay: 260 },
     ],
   },
   {
-    hint: 'All molten. Cold turns it to brittle Crystal.',
-    groups: [{ state: 'MOLTEN', count: 6, gap: 75, delay: 0 }],
+    hint: 'Molten. Heat does nothing to it at all -- bring Cold or Solvent.',
+    groups: [{ state: 'MOLTEN', count: 14, gap: 62, delay: 0 }],
   },
   {
-    hint: 'Mixed feed. Your line must handle both.',
+    hint: 'Mixed feed. Heat still clears the ore; something else must take the molten.',
     groups: [
-      { state: 'ORE', count: 14, gap: 36, delay: 0 },
-      { state: 'MOLTEN', count: 4, gap: 80, delay: 200 },
+      { state: 'ORE', count: 27, gap: 32, delay: 0 },
+      { state: 'MOLTEN', count: 10, gap: 70, delay: 180 },
     ],
   },
   {
-    hint: 'Vapor floats over Stamps and ignores Kinetic. Chill it or dissolve it.',
-    groups: [{ state: 'VAPOR', count: 5, gap: 90, delay: 0 }],
+    hint: 'Vapor floats over Stamps and ignores Kinetic. Dissolve it or chill it.',
+    groups: [{ state: 'VAPOR', count: 12, gap: 72, delay: 0 }],
   },
   {
-    hint: 'Pre-crystallised. Free gold if you shatter it -- Heat ruins it.',
-    groups: [{ state: 'CRYSTAL', count: 6, gap: 70, delay: 0 }],
+    hint: 'Crystal. Cold is wasted on it; shatter it, or melt it back down.',
+    groups: [{ state: 'CRYSTAL', count: 10, gap: 88, delay: 0 }],
   },
   {
-    hint: 'Everything at once.',
+    hint: 'Everything so far, together.',
     groups: [
-      { state: 'ORE', count: 16, gap: 32, delay: 0 },
-      { state: 'MOLTEN', count: 8, gap: 62, delay: 240 },
-      { state: 'VAPOR', count: 6, gap: 85, delay: 460 },
+      { state: 'ORE', count: 22, gap: 34, delay: 0 },
+      { state: 'MOLTEN', count: 14, gap: 58, delay: 200 },
+      { state: 'VAPOR', count: 10, gap: 76, delay: 400 },
     ],
   },
   {
-    hint: 'Heavy processing load. Parallel lines pay off here.',
+    hint: 'Heavy shells. Every crystal is three layers of somebody else problem.',
     groups: [
-      // Overlapping on purpose: the groups are timed to arrive on top of each
-      // other rather than in sequence, so this wave tests parallel lines
-      // instead of raw throughput -- which is what the hint promises.
-      { state: 'MOLTEN', count: 16, gap: 32, delay: 0 },
-      { state: 'CRYSTAL', count: 8, gap: 52, delay: 160 },
-      { state: 'VAPOR', count: 10, gap: 58, delay: 320 },
+      { state: 'CRYSTAL', count: 14, gap: 66, delay: 0 },
+      { state: 'MOLTEN', count: 15, gap: 50, delay: 180 },
+      { state: 'VAPOR', count: 12, gap: 68, delay: 340 },
     ],
   },
   {
     hint: 'Full pour. Everything you have learned, at once.',
     groups: [
-      { state: 'ORE', count: 16, gap: 30, delay: 0 },
-      { state: 'MOLTEN', count: 11, gap: 48, delay: 180 },
-      // Vapor is the wall here: fast, costs 3 lives, and only Cold or Solvent
-      // touch it. Five is beatable with a real chiller bank; eight was not
-      // beatable at all -- `npm run sim` said so before a human ever played it.
-      { state: 'VAPOR', count: 8, gap: 66, delay: 350 },
-      { state: 'CRYSTAL', count: 11, gap: 48, delay: 580 },
+      { state: 'ORE', count: 26, gap: 30, delay: 0 },
+      { state: 'MOLTEN', count: 17, gap: 48, delay: 150 },
+      { state: 'VAPOR', count: 15, gap: 58, delay: 320 },
+      { state: 'CRYSTAL', count: 15, gap: 56, delay: 520 },
     ],
   },
 ];

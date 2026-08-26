@@ -1,9 +1,9 @@
-import type { OutcomeOverrides } from './table.ts';
+import type { ResistanceOverrides } from './resistance.ts';
 
-/** Matter states. See DESIGN.md for the design rationale behind each. */
+/** Matter states. Each is a layer an enemy can be wearing. See DESIGN.md. */
 export type State = 'ORE' | 'SLAG' | 'MOLTEN' | 'CRYSTAL' | 'VAPOR';
 
-/** What towers apply. Towers never deal damage directly -- they apply an element. */
+/** What towers apply. A tower's element decides what it is good against. */
 export type Element = 'HEAT' | 'COLD' | 'KINETIC' | 'SOLVENT';
 
 export const STATE_IDS: State[] = ['ORE', 'SLAG', 'MOLTEN', 'CRYSTAL', 'VAPOR'];
@@ -13,38 +13,105 @@ export interface StateDef {
   label: string;
   /** Pixels travelled per tick at speedMult 1. The sim runs at 60 ticks/sec. */
   speed: number;
-  /** Lives lost if a charge in this state reaches the end. */
+  /** Lives lost if a charge wearing this layer reaches the end. */
   leakCost: number;
-  /** Floating states ignore ground-only towers entirely. */
+  /** Floating layers ignore ground-only towers entirely. */
   floats: boolean;
-  /** Hits absorbed by 'damage' outcomes (chipping Ore, dissolving Vapor). */
-  integrity: number;
+  /** Damage this layer absorbs before it breaks. */
+  hp: number;
+  /** Paid when this layer breaks. */
+  bounty: number;
+  /**
+   * What is underneath. Breaking a layer reveals the next one at the same
+   * point on the lane rather than killing the charge -- a Crystal shell breaks
+   * to a Molten core, which cools to Slag, which is the last of it.
+   *
+   * The chain is finite and declared here, so a charge can never regress or
+   * loop: five entities is the most one Crystal can ever become.
+   */
+  breaksInto: State | null;
+  /** How many of the inner layer appear. More than one gives the cascade. */
+  childCount: number;
   color: string;
   /** Drawn radius in px. */
   radius: number;
 }
 
 export const STATES: Record<State, StateDef> = {
-  ORE: { label: 'Ore', speed: 1.1, leakCost: 1, floats: false, integrity: 8, color: '#8c7b6b', radius: 11 },
-  SLAG: { label: 'Slag', speed: 1.0, leakCost: 1, floats: false, integrity: 3, color: '#5f5a55', radius: 10 },
-  MOLTEN: { label: 'Molten', speed: 2.2, leakCost: 2, floats: false, integrity: 3, color: '#ff6b35', radius: 9 },
-  CRYSTAL: { label: 'Crystal', speed: 0.65, leakCost: 1, floats: false, integrity: 4, color: '#7fd8ff', radius: 12 },
-  VAPOR: { label: 'Vapor', speed: 2.5, leakCost: 3, floats: true, integrity: 4, color: '#c9b6ff', radius: 13 },
+  ORE: {
+    label: 'Ore',
+    speed: 1.0,
+    leakCost: 1,
+    floats: false,
+    hp: 12,
+    bounty: 2,
+    breaksInto: 'SLAG',
+    childCount: 1,
+    color: '#8c7b6b',
+    radius: 11,
+  },
+  SLAG: {
+    label: 'Slag',
+    speed: 1.4,
+    leakCost: 1,
+    floats: false,
+    hp: 6,
+    bounty: 1,
+    breaksInto: null,
+    childCount: 0,
+    color: '#5f5a55',
+    radius: 10,
+  },
+  MOLTEN: {
+    label: 'Molten',
+    speed: 1.8,
+    leakCost: 2,
+    floats: false,
+    hp: 14,
+    bounty: 3,
+    breaksInto: 'SLAG',
+    childCount: 1,
+    color: '#ff6b35',
+    radius: 9,
+  },
+  CRYSTAL: {
+    label: 'Crystal',
+    speed: 0.9,
+    leakCost: 2,
+    floats: false,
+    hp: 22,
+    bounty: 4,
+    // The cascade: one Crystal is 22 hp of shell over two Molten cores, each
+    // with its own Slag underneath. Five entities and three resistance
+    // profiles out of a single charge.
+    breaksInto: 'MOLTEN',
+    childCount: 2,
+    color: '#7fd8ff',
+    radius: 12,
+  },
+  VAPOR: {
+    label: 'Vapor',
+    speed: 2.4,
+    leakCost: 3,
+    floats: true,
+    hp: 10,
+    bounty: 3,
+    breaksInto: null,
+    childCount: 0,
+    color: '#c9b6ff',
+    radius: 13,
+  },
 };
 
 export interface Charge {
   id: number;
+  /** The layer currently showing. Resistances and speed come from this. */
   state: State;
   /** Distance travelled along the path, in pixels. */
   dist: number;
-  integrity: number;
+  /** Damage this layer can still absorb. */
+  hp: number;
   speedMult: number;
-  /**
-   * How many more times this charge's lineage may split. Spawned charges get 1;
-   * their children get 0. Without this bound a Stamp parked on a Molten stream
-   * would multiply enemies exponentially and headless runs would never finish.
-   */
-  splits: number;
   alive: boolean;
   /** Ticks of visual highlight remaining. Render-only, but kept deterministic. */
   flash: number;
@@ -62,12 +129,9 @@ export interface Tower {
   upgrade: UpgradeId | null;
 }
 
-/**
- * Upgrade branch ids. Two per tower, mutually exclusive.
- *
- * Declared here rather than in upgrades.ts so that `Tower` can name one without
- * dragging the upgrade data into the type layer.
- */
+export type TowerId = 'forge' | 'chiller' | 'stamp' | 'vat' | 'lens';
+
+/** Upgrade branch ids. Two per tower, mutually exclusive. */
 export type UpgradeId =
   | 'kiln'
   | 'bellows'
@@ -76,22 +140,24 @@ export type UpgradeId =
   | 'dampened'
   | 'wideDie'
   | 'reclaimer'
-  | 'catalyst';
-
-export type TowerId = 'forge' | 'chiller' | 'stamp' | 'vat';
+  | 'catalyst'
+  | 'focus'
+  | 'prism';
 
 export interface TowerDef {
   id: TowerId;
   name: string;
   element: Element;
   cost: number;
+  /** Damage per hit, before the target's resistance multiplier. */
+  damage: number;
   /** Pixels. */
   range: number;
   /** Ticks between shots. */
   cooldown: number;
-  /** Ground-only towers cannot target floating states. */
+  /** Ground-only towers cannot target floating layers. */
   groundOnly: boolean;
-  /** If set, the element is applied to every charge within this radius of impact. */
+  /** If set, the hit also lands on every charge within this radius. */
   splash: number;
   color: string;
   blurb: string;
@@ -103,22 +169,23 @@ export interface Projectile {
   y: number;
   targetId: number;
   element: Element;
+  damage: number;
   speed: number;
   splash: number;
   color: string;
   /**
-   * The firing tower's table overrides, snapshotted at fire time.
+   * The firing tower's resistance overrides, snapshotted at fire time.
    *
-   * `applyElement` never learns which tower fired -- a projectile already
-   * carries copies of its element, splash and colour rather than a reference
-   * back to its tower. Overrides follow that pattern, which keeps a shot's
-   * behaviour fixed at the moment it was fired and survives the tower being
-   * removed mid-flight.
+   * Damage application never learns which tower fired -- a projectile already
+   * carries copies of its element, damage, splash and colour rather than a
+   * reference back to its tower. Overrides follow that pattern, which keeps a
+   * shot's behaviour fixed at the moment it was fired and survives the tower
+   * being removed mid-flight.
    */
-  overrides?: OutcomeOverrides;
+  overrides?: ResistanceOverrides;
 }
 
-export type SimEventType = 'transmute' | 'destroy' | 'shatter' | 'split' | 'leak' | 'nothing';
+export type SimEventType = 'hit' | 'break' | 'kill' | 'leak' | 'immune';
 
 export interface SimEvent {
   type: SimEventType;
@@ -131,12 +198,14 @@ export interface SimEvent {
 export type Status = 'idle' | 'running' | 'won' | 'lost';
 
 export interface Stats {
-  transmutes: number;
-  splits: number;
-  shatters: number;
+  /** Layers broken, including the final one. */
+  breaks: number;
+  /** Charges fully destroyed -- the last layer gone. */
   kills: number;
+  /** Shots that landed on something immune to that element. */
+  wasted: number;
   leaks: number;
-  /** Which states got through -- the single most useful balance diagnostic. */
+  /** Which layers got through -- the single most useful balance diagnostic. */
   leaksByState: Record<State, number>;
   livesLost: number;
   goldEarned: number;

@@ -1,26 +1,19 @@
 /**
- * You are paid for processing, not for killing.
+ * You are paid for breaking layers.
  *
- * Gold is awarded per state change, so long refining chains out-earn one-shot
- * kills and the wallet teaches the strategy without a tutorial.
+ * Every layer carries its own bounty (see STATES), so a Crystal pays out five
+ * times on its way down -- shell, two cores, two remnants -- and a bare Slag
+ * pays once. Depth of enemy, not number of enemies, is what makes a round
+ * lucrative, which is what lets later rounds fund the towers they demand.
  */
 export const ECONOMY = {
   startGold: 120,
   startLives: 20,
-  /** Paid on every transmute -- the core income stream. */
-  goldPerTransmute: 1,
-  /** Paid on a plain kill (chipped Ore, dissolved Vapor, stamped Slag). */
-  goldPerKill: 1,
   /**
-   * Clearing a wave. Scales so later waves fund later towers -- but gently.
-   *
-   * This is the game's difficulty dial, and it is the only one that works.
-   * Per-transmute income scales with how much walks down the lane, so making a
-   * wave bigger also pays for the towers that beat it: wave size alone cannot
-   * create pressure, and raising counts on waves 8-10 measurably did not. The
-   * clear bonus is the one income stream that does not scale with wave size,
-   * so it decides how much board the player owns by wave 10 -- 20 + wave * 5
-   * funded seventeen towers and a flawless run, and this funds fourteen.
+   * Clearing a round. The one income stream that does not scale with how much
+   * walked down the lane, and therefore the game's difficulty dial: it decides
+   * how much board the player owns by the last round. Bounties alone would let
+   * a bigger round pay for the towers that beat it.
    */
-  waveClearBonus: (wave: number): number => 15 + wave * 2,
+  roundClearBonus: (round: number): number => 18 + round * 4,
 } as const;

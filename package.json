@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "sim": "node src/headless.ts",
-    "campaign": "node src/campaign.ts"
+    "campaign": "node src/campaign.ts",
+    "diversity": "node src/diversity.ts"
   },
   "devDependencies": {
     "@types/node": "^26.3.0",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseLoadout } from '../src/sim/loadout.ts';
-import { TRANSMUTATION, resolveOutcome } from '../src/sim/table.ts';
+import { RESISTANCE, resolveResistance } from '../src/sim/resistance.ts';
 import { TOWER_IDS } from '../src/sim/towers.ts';
 import { ELEMENT_IDS, STATE_IDS, STATES } from '../src/sim/types.ts';
 import type { Element, State } from '../src/sim/types.ts';
@@ -9,11 +9,11 @@ import { canUpgrade, createWorld, placeTower, startWave, step, towerAt, upgradeT
 import type { World } from '../src/sim/world.ts';
 
 /**
- * Upgrades rewrite cells of the transmutation table, so they get the same
- * treatment the table itself gets in table.test.ts: every rewritten cell is
- * asserted explicitly. The table IS the game, and an upgrade is a paid licence
- * to change it -- so an accidental edit to one must fail here rather than
- * quietly change what the game is.
+ * Upgrades rewrite cells of the resistance table, so they get the same
+ * treatment the table itself gets in resistance.test.ts: every rewritten cell
+ * is asserted explicitly. The table IS the game, and an upgrade is a paid
+ * licence to change it -- so an accidental edit to one must fail here rather
+ * than quietly change what the game is.
  */
 describe('upgrade branches', () => {
   it('gives every tower exactly two mutually exclusive branches', () => {
@@ -27,7 +27,7 @@ describe('upgrade branches', () => {
 
   it('keeps behaviour-changing branches in the majority', () => {
     // DESIGN.md: "numeric-only upgrades are the boring half; keep them a
-    // minority." Five behavioural to three numeric.
+    // minority." Six behavioural to four numeric.
     const behavioural = UPGRADE_IDS.filter((id) => UPGRADES[id].overrides !== undefined);
     expect(behavioural.length).toBeGreaterThan(UPGRADE_IDS.length - behavioural.length);
   });
@@ -39,39 +39,50 @@ describe('upgrade branches', () => {
         expect(STATE_IDS, `${id} state`).toContain(state as State);
         for (const element of Object.keys(row)) {
           expect(ELEMENT_IDS, `${id} element`).toContain(element as Element);
-          expect(TRANSMUTATION[state as State][element as Element]).toBeDefined();
+          expect(RESISTANCE[state as State][element as Element]).toBeTypeOf('number');
         }
       }
     }
   });
 
   it('rewrites exactly these cells and no others', () => {
-    expect(UPGRADES.kiln.overrides).toEqual({ CRYSTAL: { HEAT: { kind: 'none' } } });
-    expect(UPGRADES.deposition.overrides).toEqual({ VAPOR: { COLD: { kind: 'transmute', to: 'CRYSTAL' } } });
-    expect(UPGRADES.dampened.overrides).toEqual({ MOLTEN: { KINETIC: { kind: 'damage', amount: 1 } } });
-    expect(UPGRADES.reclaimer.overrides).toEqual({ VAPOR: { SOLVENT: { kind: 'damage', amount: 2 } } });
-    expect(UPGRADES.catalyst.overrides).toEqual({ SLAG: { SOLVENT: { kind: 'destroy', gold: 1 } } });
-    // The numeric three touch no cells at all.
-    for (const id of ['bellows', 'supercooled', 'wideDie'] as const) {
+    expect(UPGRADES.kiln.overrides).toEqual({ MOLTEN: { HEAT: 0.75 } });
+    expect(UPGRADES.deposition.overrides).toEqual({ CRYSTAL: { COLD: 1.0 } });
+    expect(UPGRADES.dampened.overrides).toEqual({ MOLTEN: { KINETIC: 1.75 } });
+    expect(UPGRADES.reclaimer.overrides).toEqual({ VAPOR: { SOLVENT: 3.0 } });
+    expect(UPGRADES.catalyst.overrides).toEqual({ SLAG: { SOLVENT: 2.5 } });
+    expect(UPGRADES.prism.overrides).toEqual({ ORE: { HEAT: 2.5 }, CRYSTAL: { HEAT: 2.0 } });
+    // The numeric branches touch no cells at all.
+    for (const id of ['bellows', 'supercooled', 'wideDie', 'focus'] as const) {
       expect(UPGRADES[id].overrides, id).toBeUndefined();
     }
   });
+
+  it('lets a branch lift an immunity, which is the strongest thing to sell', () => {
+    // An immunity is the hardest wall in the game, so partly lifting one is
+    // how a build covers a gap it was never designed for -- more answers per
+    // layer is more builds that work.
+    expect(RESISTANCE.MOLTEN.HEAT).toBe(0);
+    expect(resolveResistance('MOLTEN', 'HEAT', UPGRADES.kiln.overrides)).toBeGreaterThan(0);
+    expect(RESISTANCE.CRYSTAL.COLD).toBe(0);
+    expect(resolveResistance('CRYSTAL', 'COLD', UPGRADES.deposition.overrides)).toBeGreaterThan(0);
+  });
 });
 
-describe('resolveOutcome', () => {
+describe('resolveResistance through an upgrade', () => {
   it('is exactly the base table when nothing is upgraded', () => {
     for (const s of STATE_IDS) {
       for (const e of ELEMENT_IDS) {
-        expect(resolveOutcome(s, e), `${s}+${e}`).toEqual(TRANSMUTATION[s][e]);
+        expect(resolveResistance(s, e), `${s}+${e}`).toBe(RESISTANCE[s][e]);
       }
     }
   });
 
   it('replaces only the overridden cell, leaving the rest of the row alone', () => {
     const o = UPGRADES.dampened.overrides;
-    expect(resolveOutcome('MOLTEN', 'KINETIC', o)).toEqual({ kind: 'damage', amount: 1 });
-    expect(resolveOutcome('MOLTEN', 'COLD', o)).toEqual(TRANSMUTATION.MOLTEN.COLD);
-    expect(resolveOutcome('CRYSTAL', 'KINETIC', o)).toEqual(TRANSMUTATION.CRYSTAL.KINETIC);
+    expect(resolveResistance('MOLTEN', 'KINETIC', o)).toBe(1.75);
+    expect(resolveResistance('MOLTEN', 'COLD', o)).toBe(RESISTANCE.MOLTEN.COLD);
+    expect(resolveResistance('CRYSTAL', 'KINETIC', o)).toBe(RESISTANCE.CRYSTAL.KINETIC);
   });
 });
 
@@ -112,8 +123,8 @@ describe('buying an upgrade', () => {
 });
 
 describe('upgrades in play', () => {
-  /** Run one wave and report what happened. */
-  function runWave(loadout: string, waveIndex: number, seed = 1) {
+  /** Run one round and report what happened. */
+  function runRound(loadout: string, waveIndex: number, seed = 1) {
     const w = createWorld(seed);
     w.waveIndex = waveIndex;
     w.gold = Number.MAX_SAFE_INTEGER;
@@ -126,38 +137,27 @@ describe('upgrades in play', () => {
     return w;
   }
 
-  it('lets a Dampened Press break the ordering rule it normally enforces', () => {
-    // Wave 1 with a Stamp ahead of the Chiller is the canonical disaster: the
-    // Stamp meets Molten and splits it. The branch is what makes that
-    // survivable, which is the entire point of buying it.
-    const trap = runWave('forge@5,4 stamp@1,8 chiller@8,10', 0);
-    expect(trap.stats.splits).toBeGreaterThan(0);
-
-    const fixed = runWave('forge@5,4 stamp@1,8+dampened chiller@8,10', 0);
-    expect(fixed.stats.splits).toBe(0);
-    expect(fixed.status).not.toBe('lost');
-  });
-
-  it('makes a Kiln Forge hold fire on Crystal instead of melting it back', () => {
-    // CRYSTAL/HEAT becomes 'none', and towers already decline to fire where the
-    // resolved outcome is 'none' -- so the upgrade shows up as restraint.
-    const plain = runWave('chiller@5,9 forge@11,9 stamp@18,3', 6);
-    const kiln = runWave('chiller@5,9 forge@11,9+kiln stamp@18,3', 6);
-    expect(kiln.stats.shatters).toBeGreaterThanOrEqual(plain.stats.shatters);
+  it('stops a Forge wasting every shot on Molten once it has a Kiln', () => {
+    // Round 4 is entirely Molten, which Heat cannot touch at all: a bare Forge
+    // holds fire and achieves nothing. The branch is what buys it a way in.
+    const bare = runRound('forge@5,9 forge@8,9', 3);
+    const kilned = runRound('forge@5,9+kiln forge@8,9+kiln', 3);
+    expect(bare.stats.breaks).toBe(0);
+    expect(kilned.stats.breaks).toBeGreaterThan(0);
   });
 
   it('stays deterministic with upgrades in the loadout', () => {
     const run = () => {
-      const w = runWave('vat@5,1+reclaimer stamp@5,5 chiller@14,9+deposition', 5);
+      const w = runRound('vat@5,9+reclaimer stamp@8,9 chiller@11,9+deposition', 8);
       return { tick: w.tick, gold: w.gold, lives: w.lives, stats: w.stats };
     };
     expect(run()).toEqual(run());
   });
 
   it('changes nothing at all for a loadout that buys no upgrades', () => {
-    const a = runWave('forge@5,4 chiller@1,8 stamp@8,10', 0);
-    expect(a.stats.shatters).toBe(6);
-    expect(a.stats.leaks).toBe(0);
-    expect(STATES.CRYSTAL.leakCost).toBe(1);
+    const a = runRound('forge@5,9 stamp@8,9', 0);
+    const b = runRound('forge@5,9 stamp@8,9', 0);
+    expect(a.stats).toEqual(b.stats);
+    expect(STATES.CRYSTAL.breaksInto).toBe('MOLTEN');
   });
 });

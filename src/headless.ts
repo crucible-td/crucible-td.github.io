@@ -31,8 +31,9 @@ interface WaveResult {
   avgLeaks: number;
   avgGold: number;
   avgTicks: number;
-  avgSplits: number;
-  avgShatters: number;
+  avgBreaks: number;
+  /** Shots landing on something immune -- a build with no answer to a layer. */
+  avgWasted: number;
   /** Average leaks per run, broken down by the state that got through. */
   leaksByState: Record<State, number>;
 }
@@ -68,7 +69,7 @@ function runWave(waveIndex: number, loadout: Placement[], seed: number, maxTicks
 
 function measure(waveIndex: number, loadout: Placement[], runs: number, seed: number, maxTicks: number): WaveResult {
   let wins = 0;
-  const totals = { lives: 0, leaks: 0, gold: 0, ticks: 0, splits: 0, shatters: 0 };
+  const totals = { lives: 0, leaks: 0, gold: 0, ticks: 0, breaks: 0, wasted: 0 };
   const leaked: Record<State, number> = { ORE: 0, SLAG: 0, MOLTEN: 0, CRYSTAL: 0, VAPOR: 0 };
   for (let i = 0; i < runs; i++) {
     const { world, ticks } = runWave(waveIndex, loadout, seed + i, maxTicks);
@@ -77,8 +78,8 @@ function measure(waveIndex: number, loadout: Placement[], runs: number, seed: nu
     totals.leaks += world.stats.leaks;
     totals.gold += world.stats.goldEarned;
     totals.ticks += ticks;
-    totals.splits += world.stats.splits;
-    totals.shatters += world.stats.shatters;
+    totals.breaks += world.stats.breaks;
+    totals.wasted += world.stats.wasted;
     for (const st of STATE_IDS) leaked[st] += world.stats.leaksByState[st];
   }
   const avg = (n: number) => Number((n / runs).toFixed(2));
@@ -90,8 +91,8 @@ function measure(waveIndex: number, loadout: Placement[], runs: number, seed: nu
     avgLeaks: avg(totals.leaks),
     avgGold: avg(totals.gold),
     avgTicks: avg(totals.ticks),
-    avgSplits: avg(totals.splits),
-    avgShatters: avg(totals.shatters),
+    avgBreaks: avg(totals.breaks),
+    avgWasted: avg(totals.wasted),
     leaksByState: {
       ORE: avg(leaked.ORE),
       SLAG: avg(leaked.SLAG),
@@ -108,7 +109,7 @@ function printTable(results: WaveResult[], loadout: Placement[]): void {
     : '(no towers -- raw wave pressure)';
   console.log(`\nLoadout: ${desc}`);
   console.log(`Lives per run: ${ECONOMY.startLives}\n`);
-  const head = ['wave', 'runs', 'win%', 'lives lost', 'leaks', 'gold', 'ticks', 'splits', 'shatters'];
+  const head = ['wave', 'runs', 'win%', 'lives lost', 'leaks', 'gold', 'ticks', 'breaks', 'wasted'];
   const rows = results.map((r) => [
     String(r.wave),
     String(r.runs),
@@ -117,8 +118,8 @@ function printTable(results: WaveResult[], loadout: Placement[]): void {
     r.avgLeaks.toFixed(2),
     r.avgGold.toFixed(1),
     r.avgTicks.toFixed(0),
-    r.avgSplits.toFixed(2),
-    r.avgShatters.toFixed(2),
+    r.avgBreaks.toFixed(2),
+    r.avgWasted.toFixed(2),
   ]);
   const widths = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i]!.length)));
   const line = (cells: string[]) => cells.map((c, i) => c.padStart(widths[i]!)).join('  ');

@@ -41,8 +41,8 @@ interface WaveLog {
   livesAfter: number;
   leaks: number;
   livesLost: number;
-  shatters: number;
-  splits: number;
+  breaks: number;
+  wasted: number;
   leaksByState: Record<State, number>;
   cleared: boolean;
 }
@@ -73,8 +73,8 @@ function snapshot(w: World) {
   return {
     leaks: w.stats.leaks,
     livesLost: w.stats.livesLost,
-    shatters: w.stats.shatters,
-    splits: w.stats.splits,
+    breaks: w.stats.breaks,
+    wasted: w.stats.wasted,
     leaksByState: { ...w.stats.leaksByState },
   };
 }
@@ -154,8 +154,8 @@ export function runCampaign(plan: Placement[], seed: number, maxTicks: number): 
       livesAfter: w.lives,
       leaks: after.leaks - before.leaks,
       livesLost: after.livesLost - before.livesLost,
-      shatters: after.shatters - before.shatters,
-      splits: after.splits - before.splits,
+      breaks: after.breaks - before.breaks,
+      wasted: after.wasted - before.wasted,
       leaksByState,
       cleared: statusOf(w) !== 'lost' && w.waveIndex >= waveNo,
     });
@@ -180,7 +180,7 @@ export function runCampaign(plan: Placement[], seed: number, maxTicks: number): 
 }
 
 function printRun(r: CampaignResult): void {
-  const head = ['wv', 'bought', 'gold', 'lives', 'leaks', 'lost', 'shat', 'split'];
+  const head = ['wv', 'bought', 'gold', 'lives', 'leaks', 'lost', 'broke', 'wasted'];
   const rows = r.waves.map((v) => [
     String(v.wave),
     v.bought.join(' ') || '-',
@@ -188,8 +188,8 @@ function printRun(r: CampaignResult): void {
     String(v.livesAfter),
     String(v.leaks),
     String(v.livesLost),
-    String(v.shatters),
-    String(v.splits),
+    String(v.breaks),
+    String(v.wasted),
   ]);
   const widths = head.map((h, i) => Math.max(h.length, ...rows.map((row) => row[i]!.length)));
   const line = (cells: string[]) =>

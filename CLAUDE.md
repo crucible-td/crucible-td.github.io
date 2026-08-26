@@ -1,10 +1,16 @@
 # Crucible
 
-A tower defense where towers do not deal damage -- they change what the enemy
-*is*. Enemies ("charges") walk a fixed lane in a **state** (Ore, Slag, Molten,
-Crystal, Vapor). Towers apply an **element** (Heat, Cold, Kinetic, Solvent), and
-what happens depends on the state it hits. The player is paid per
-transmutation, not per kill.
+A tower defense built around **counters and layers**. Enemies ("charges") walk a
+fixed lane wearing a **state** (Ore, Slag, Molten, Crystal, Vapor). Towers throw
+an **element** (Heat, Cold, Kinetic, Solvent) for damage, and how much of it
+lands depends on the state it hits. Break a layer and what is underneath keeps
+walking: a Crystal shell becomes two Molten cores, each of which becomes a Slag
+remnant. You are paid per layer broken.
+
+The game is judged on one thing above being balanced: **more than one build has
+to work.** An earlier version of this game was fair, winnable on every seed,
+and still wrong, because there was exactly one build worth making. See
+`npm run diversity`.
 
 Full design rationale: [DESIGN.md](DESIGN.md).
 
@@ -21,15 +27,16 @@ rendering state, keep it in `src/render/`.
 
 | Path | What it is |
 |---|---|
-| `src/sim/table.ts` | **The transmutation table.** Twenty cells that define the entire game. |
+| `src/sim/resistance.ts` | **The resistance table.** Twenty cells that define the entire game. |
 | `src/sim/towers.ts`, `src/sim/waves.ts` | Tower stats and wave composition, as flat data. |
 | `src/sim/upgrades.ts` | **Upgrade branches.** Two per tower; the interesting ones rewrite table cells. |
 | `src/sim/loadout.ts` | The `towerId@col,row[+upgradeId]` grammar both harnesses parse. |
-| `src/sim/world.ts` | `step()`, `applyElement()`, placement. The only place outcomes are interpreted. |
+| `src/sim/world.ts` | `step()`, `applyElement()`, layer breaking, placement. The only place damage is resolved. |
 | `src/sim/path.ts` | Board dimensions, the lane polyline, buildable cells. |
 | `src/render/` | Canvas drawing and DOM chrome. Read-only over the sim. |
 | `src/headless.ts` | The playtest harness behind `npm run sim`. |
 | `src/campaign.ts` | The whole-run harness behind `npm run campaign`. |
+| `src/diversity.ts` | The build-diversity meter behind `npm run diversity`. |
 
 ## Commands
 
@@ -39,14 +46,20 @@ npm test           # vitest: determinism + all 20 table cells
 npm run typecheck  # tsc --noEmit
 npm run sim -- --all-waves                 # balance report for every wave
 npm run sim -- --wave 7 --runs 200 --json  # machine-readable, for tooling
-npm run campaign -- --plan "vat@5,1 stamp@5,5 chiller@14,9"  # whole run, real wallet
+npm run campaign -- --plan "forge@5,1 stamp@5,5 chiller@14,9"  # whole run, real wallet
+npm run diversity                          # how many builds work, and is any tower mandatory
 ```
 
-`npm run sim` places towers free and refreshes lives each wave, so it measures
-wave pressure in isolation. `npm run campaign` runs all ten waves on one world
+`npm run sim` places towers free and refreshes lives each round, so it measures
+round pressure in isolation. `npm run campaign` runs all ten rounds on one world
 with gold and lives carrying over, buying from a purchase plan only when the
-wallet allows -- that is the one that can tell you a wave was lost because the
+wallet allows -- that is the one that can tell you a round was lost because the
 player could not *afford* the answer.
+
+`npm run diversity` is the one that matters most. It runs a large sample of
+compositions through the full campaign and reports how many win and whether any
+tower appears in *every* winning build. A mandatory tower means the game has a
+right answer again, however healthy the difficulty numbers look.
 
 Loadout syntax is `towerId@col,row`, space-separated, with an optional
 `+upgradeId` to fit one of that tower's two branches:
@@ -64,25 +77,39 @@ branch afterwards out of whatever gold is spare.
 
 ## Balance is measured, not guessed
 
-Tuning means editing `src/sim/table.ts`, `towers.ts`, or `waves.ts` and then
-re-running `npm run sim -- --all-waves`. The report's per-state leak breakdown
+Tuning means editing `src/sim/resistance.ts`, `towers.ts`, or `waves.ts` and then
+re-running `npm run sim -- --all-waves` **and** `npm run diversity`. The report's per-state leak breakdown
 ("what leaked") is the fastest way to find the actual problem -- it is how wave
 10 was diagnosed as a Vapor wall rather than a general difficulty problem.
 
 Reference points from the current tuning, all measurable:
 
-- Correct order (Forge -> Chiller -> Stamp) on wave 1: 6 shatters, 0 leaks, 59 gold.
-- Wrong order (Forge -> Stamp -> Chiller): 0 shatters, 6 splits, 12 leaks, run lost.
+- Every one of the five towers clears round 1 on its own. That is deliberate:
+  the opening is a preference, not a puzzle.
+- 28 of 150 sampled 14-tower compositions clear all ten rounds, in 28 distinct
+  compositions, and no tower appears in every winner.
+- The reference plan wins on every seed with about 9 of 20 lives left.
 
-If a change makes those two converge, the change removed the game's whole point.
+If a change makes round 1 punishing, or drives the number of winning builds
+toward one, it has removed the point of this version.
+
+Two structural rules the resistance table has to keep obeying, both asserted in
+`tests/resistance.test.ts`:
+
+- **Every element is useless against exactly one layer.** An element without a
+  wall becomes the answer to everything -- the Vat was briefly mandatory in
+  every winning build for precisely this reason.
+- **Every layer has at least two counters.** One counter makes that tower
+  mandatory whenever the layer shows up.
 
 ## Conventions
 
-- Every gameplay rule goes through the table and `applyElement()`. Do not add
-  special cases to tower code.
-- New table behaviour means a new `Outcome` variant, handled in one switch.
-- All twenty table cells are asserted in `tests/table.test.ts`. Changing a cell
-  deliberately means updating that test; changing one by accident fails it.
+- Every gameplay rule goes through the resistance table and `applyElement()`.
+  Do not add special cases to tower code.
+- All twenty table cells are asserted in `tests/resistance.test.ts`. Changing a
+  cell deliberately means updating that test; changing one by accident fails it.
+- The layer chain in `STATES` only ever runs inward, which is what bounds a
+  cascade. Nothing may put a layer back on.
 - `window.crucible` exists in dev builds for driving the sim from the console
   (`crucible.place('forge',5,4)`, `crucible.startWave()`, `crucible.advance(1200)`).
   Handy because requestAnimationFrame pauses in a hidden tab.
@@ -104,26 +131,30 @@ to either file take effect in the next session.
 
 ## Where the project stands
 
-M1 is complete and verified, and the first slice of M2 has landed: 5 states,
-the full transmutation table, 4 towers with two upgrade branches each, 10
-waves, the per-transmutation economy, build and upgrade UI, and both harnesses.
-`npm test` (43 tests), `npm run typecheck`, and `npm run build` all pass, and
-the browser build reproduces the headless numbers exactly.
+**v2 is a pivot.** The original game -- towers that never dealt damage and
+instead transmuted enemies between states -- is complete, measured, and tagged
+`v1-transmutation`. It was retired because it had one right answer: the shatter
+line paid 7 against 2 and 1 for every alternative, and the build the harness
+converged on used three of the four towers and ignored the fourth entirely.
 
-The `balance-pass` skill exists at `.claude/skills/balance-pass/`, along with
-the two committed references it measures against: `reference/loadout.txt` (wave
-pressure) and `reference/plan.txt` (a whole run on a real wallet).
+The playable core of v2 has landed: HP and damage, layers that break inward,
+money per layer, 5 towers with two upgrade branches each, 10 escalating rounds,
+and three harnesses. `npm test` (53 tests), `npm run typecheck` and
+`npm run build` all pass, and the browser build reproduces the headless numbers.
+
+The `balance-pass` skill lives at `.claude/skills/balance-pass/`, with the
+references it measures against in `reference/`.
 
 Still unbuilt, and left as the owner's own AI-tooling exercise:
 
 - **A balance-analyst subagent**, best pinned to a cheaper model in its
   frontmatter.
 
-M2 game scope remaining: more waves (40 is the target), more maps, boss charges
-with layered states, audio, save/load.
+Remaining game scope: breadth (more towers, 3 upgrade paths x 3 tiers, synergy
+towers), more rounds and freeplay, more maps, audio, save/load.
 
-One open balance finding, measured rather than assumed: a run still ends with
-roughly 330 unspent gold. Upgrades were priced as a sink for it and are not
-one -- cutting every upgrade cost by two-thirds still only got two bought. The
-surplus accrues *during* wave 10, after the last purchase point, so no pricing
-can reach it. The real fixes are more waves or shifting income earlier.
+One open balance finding, measured rather than assumed and inherited from v1: a
+run ends with a large unspent gold pile, because most of it accrues *during* the
+final round, after the last purchase point. No pricing change can reach it --
+sweeping upgrade costs down by two-thirds in v1 barely moved it. The real fixes
+are more rounds or shifting income earlier.

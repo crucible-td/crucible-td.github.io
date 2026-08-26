@@ -28,12 +28,11 @@ const FLOATER_LIFE = 46;
 const BURST_LIFE = 18;
 
 const EVENT_STYLE: Record<SimEvent['type'], string> = {
-  transmute: '#efe6dc',
-  destroy: '#9ae66e',
-  shatter: '#7fd8ff',
-  split: '#ff6b35',
+  hit: '#efe6dc',
+  break: '#9ae66e',
+  kill: '#7fd8ff',
   leak: '#ff5a5a',
-  nothing: '#ff9d5c',
+  immune: '#ff9d5c',
 };
 
 export class Renderer {
@@ -52,7 +51,9 @@ export class Renderer {
     for (const e of events) {
       const color = EVENT_STYLE[e.type];
       if (e.text) this.floaters.push({ x: e.x, y: e.y, text: e.text, color, life: FLOATER_LIFE });
-      if (e.type !== 'transmute') {
+      // A plain hit is already shown by the charge's own flash; a burst for
+      // every tick of damage would bury the events that matter.
+      if (e.type !== 'hit') {
         this.bursts.push({ x: e.x, y: e.y, color, life: BURST_LIFE, max: BURST_LIFE });
       }
     }
@@ -231,14 +232,15 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
-    // Integrity pips, so chipping away at Ore is visible progress.
-    const max = STATES[c.state].integrity;
-    if (c.integrity < max) {
+    // Health bar, so wearing a layer down is visible progress -- and so a
+    // tower plinking uselessly at something is visibly achieving nothing.
+    const max = STATES[c.state].hp;
+    if (c.hp < max) {
       const w = r * 1.8;
       ctx.fillStyle = 'rgba(20, 17, 15, 0.8)';
       ctx.fillRect(p.x - w / 2, p.y - r - 7, w, 3);
       ctx.fillStyle = '#9ae66e';
-      ctx.fillRect(p.x - w / 2, p.y - r - 7, (w * c.integrity) / max, 3);
+      ctx.fillRect(p.x - w / 2, p.y - r - 7, (w * Math.max(0, c.hp)) / max, 3);
     }
 
     if (c.flash > 0) {

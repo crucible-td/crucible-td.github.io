@@ -1,4 +1,4 @@
-# CRUCIBLE — Design Document
+# CRUCIBLE — Design Document (v2)
 
 ## One line
 A tower defense where towers don't deal damage, they change what the enemy *is* —
@@ -26,33 +26,57 @@ foundry line: soften, freeze, shatter.
 Anything that reaches the end leaks. Leak cost scales with state:
 ORE 1 life, MOLTEN 2, VAPOR 3, CRYSTAL 1, SLAG 1.
 
-## The transmutation table
+## The resistance table
 
-This is the whole game. Four elements × five states.
+This is the whole game. Four elements × five states, each cell a damage
+multiplier.
 
 | | **HEAT** | **COLD** | **KINETIC** | **SOLVENT** |
 |---|---|---|---|---|
-| **ORE** | → MOLTEN | *nothing* (bounces) | chip (very slow) | → SLAG |
-| **SLAG** | → MOLTEN | *nothing* | **destroyed** | *nothing* |
-| **MOLTEN** | speeds up +40% ⚠ | → CRYSTAL | **splits into 3 MOLTEN** ⚠ | → SLAG |
-| **CRYSTAL** | → MOLTEN ⚠ | *nothing* | **SHATTERED — bonus gold** ✅ | *nothing* |
-| **VAPOR** | speeds up +80% ⚠ | → MOLTEN | passes through | dissipates (two hits) |
+| **ORE** | ×1.5 | ×0.5 | ×1.25 | ×1.0 |
+| **SLAG** | ×1.0 | ×1.0 | ×1.5 | ×1.25 |
+| **MOLTEN** | **immune** | ×2.0 | ×0.75 | ×1.25 |
+| **CRYSTAL** | ×1.25 | **immune** | ×2.0 | **immune** |
+| **VAPOR** | ×0.5 | ×1.5 | **immune** | ×2.0 |
 
-⚠ = the trap. These are the cells that punish careless placement.
+Two rules generate these numbers, and both are asserted in tests:
 
-**The ideal line:** HEAT → COLD → KINETIC.
-Ore melts, molten crystallizes, crystal shatters for bonus gold.
-Three towers, in that order, and only in that order.
+**Every element is useless against exactly one layer.** Immunities are what
+force the player to have a strategy at all. An element without a wall becomes
+the answer to everything — Solvent briefly had none, and the Vat immediately
+appeared in every single winning build.
 
-**The classic disaster:** a Kinetic tower placed too early. It hits MOLTEN,
-splits it into three, and now you have triple the throughput arriving at a line
-sized for one. The player builds their own defeat — a failure mode Bloons
-doesn't have, and the reason placement stays interesting after hour ten.
+**Every layer has at least two counters.** One counter would make that tower
+mandatory whenever the layer appears. Two or more is what keeps several
+different builds viable.
+
+Round 1 is bare Ore, which nothing is immune to, so the opening is genuinely a
+preference. Immunities then arrive one per round, each teaching a single cell.
+
+## Layers
+
+Enemies are stacks. Breaking the outer layer does not kill the charge — it
+reveals what is underneath, at the same point on the lane.
+
+```
+CRYSTAL ──breaks into──> 2 × MOLTEN ──each into──> SLAG ──> gone
+ORE ──> SLAG ──> gone
+VAPOR ──> gone
+```
+
+One Crystal is therefore five payouts and three different resistance profiles.
+It also sets the game's best trap: shattering Crystal with a Stamp is the
+correct play, and it fills the lane with Molten, which Heat cannot touch at all.
+A Forge-and-Stamp board handles the shell and then watches the cores walk past.
+
+The chain only ever runs inward. Nothing anywhere puts a layer back on, which
+is what bounds a cascade however it is triggered.
 
 ## Economy: paid for processing
 
-Gold is awarded **per transmutation**, not per kill. Roughly 1g per state
-change, plus a shatter bonus of 5g.
+Gold is awarded **per layer broken**, not per kill. Each layer carries its own
+bounty, so depth of enemy rather than number of enemies is what makes a round
+lucrative.
 
 This single rule does a lot of work:
 - Long processing chains out-earn one-shot kills, so the game teaches its own

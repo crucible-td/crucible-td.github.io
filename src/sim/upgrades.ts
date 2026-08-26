@@ -1,20 +1,19 @@
-import type { OutcomeOverrides } from './table.ts';
+import type { ResistanceOverrides } from './resistance.ts';
 import type { TowerId, UpgradeId } from './types.ts';
 
 /**
  * Upgrade branches, as flat data -- the same shape as `towers.ts`.
  *
  * Each tower has exactly two, and taking one rules out the other. The
- * interesting ones rewrite a cell of the transmutation table, which is the
- * whole point: DESIGN.md asks for upgrades that let the player break an
- * ordering rule at a price, not upgrades that add 8% range. Five of the eight
- * change behaviour and three are numeric, keeping the boring half a minority.
+ * interesting ones rewrite a cell of the resistance table, and the most
+ * interesting of those rewrite a **zero**: an immunity is the hardest wall in
+ * the game, so a branch that partly lifts one is the strongest thing a player
+ * can buy, and the clearest way a build can cover a gap it was not designed
+ * for. That is the point -- more ways to answer a layer is more builds that
+ * work.
  *
- * Two of these branches were tried during balancing as *global* table rules and
- * reverted for being too strong: deposition flattened the game by making Cold
- * the answer to everything, and reclaimer was a difficulty change nobody had
- * asked for. Priced and opt-in, they are exactly right -- the player buys the
- * rule break, and a player who does not buy it sees the game unchanged.
+ * A branch is opt-in and paid for, which makes it the safest home for a rule
+ * change that would be too strong applied to everyone.
  */
 export interface UpgradeDef {
   id: UpgradeId;
@@ -22,10 +21,10 @@ export interface UpgradeDef {
   name: string;
   cost: number;
   blurb: string;
-  /** Table cells this branch rewrites. Absent for the numeric branches. */
-  overrides?: OutcomeOverrides;
+  /** Resistance cells this branch rewrites. Absent for the numeric branches. */
+  overrides?: ResistanceOverrides;
   /** Numeric tweaks to the tower's own stats. */
-  stats?: { range?: number; cooldown?: number; splash?: number };
+  stats?: { damage?: number; range?: number; cooldown?: number; splash?: number };
 }
 
 export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
@@ -34,17 +33,17 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'kiln',
     towerId: 'forge',
     name: 'Kiln',
-    cost: 55,
-    blurb: 'Heat no longer melts Crystal. A late Forge stops ruining your own work.',
-    overrides: { CRYSTAL: { HEAT: { kind: 'none' } } },
+    cost: 60,
+    blurb: 'Heat finally bites on Molten -- weakly, but it is no longer nothing.',
+    overrides: { MOLTEN: { HEAT: 0.75 } },
   },
   bellows: {
     id: 'bellows',
     towerId: 'forge',
     name: 'Bellows',
     cost: 45,
-    blurb: 'Fires considerably faster. More Ore melted per second.',
-    stats: { cooldown: 24 },
+    blurb: 'Fires half again as often.',
+    stats: { cooldown: 20 },
   },
 
   // -- Chiller --------------------------------------------------------------
@@ -52,17 +51,17 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'deposition',
     towerId: 'chiller',
     name: 'Deposition Coil',
-    cost: 90,
-    blurb: 'Cold turns Vapor straight to Crystal instead of back to Molten.',
-    overrides: { VAPOR: { COLD: { kind: 'transmute', to: 'CRYSTAL' } } },
+    cost: 75,
+    blurb: 'Cold stops sliding off Crystal and starts cracking it.',
+    overrides: { CRYSTAL: { COLD: 1.0 } },
   },
   supercooled: {
     id: 'supercooled',
     towerId: 'chiller',
     name: 'Supercooled Jets',
-    cost: 60,
-    blurb: 'Longer reach, so one Chiller can cover two stretches of lane.',
-    stats: { range: 142 },
+    cost: 55,
+    blurb: 'Longer reach, so one Chiller covers two stretches of lane.',
+    stats: { range: 145 },
   },
 
   // -- Stamp ----------------------------------------------------------------
@@ -70,13 +69,9 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'dampened',
     towerId: 'stamp',
     name: 'Dampened Press',
-    cost: 95,
-    blurb: 'Kinetic chips Molten instead of splitting it. Breaks the ordering rule.',
-    // The game's signature trap, made optional. Priced high and paired with a
-    // slower press, because a Stamp that never splits removes the reason
-    // placement order matters -- it should cost real throughput to switch off.
-    overrides: { MOLTEN: { KINETIC: { kind: 'damage', amount: 1 } } },
-    stats: { cooldown: 58 },
+    cost: 70,
+    blurb: 'Heavy enough to crush Molten rather than glance off it.',
+    overrides: { MOLTEN: { KINETIC: 1.75 } },
   },
   wideDie: {
     id: 'wideDie',
@@ -93,16 +88,34 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     towerId: 'vat',
     name: 'Reclaimer',
     cost: 65,
-    blurb: 'Solvent dissolves Vapor twice as fast, so two Vats finish one.',
-    overrides: { VAPOR: { SOLVENT: { kind: 'damage', amount: 2 } } },
+    blurb: 'Solvent tears through Vapor. The dedicated answer to a gas round.',
+    overrides: { VAPOR: { SOLVENT: 3.0 } },
   },
   catalyst: {
     id: 'catalyst',
     towerId: 'vat',
     name: 'Catalyst Bath',
-    cost: 70,
-    blurb: 'Solvent destroys Slag outright, so the Vat no longer needs a Stamp.',
-    overrides: { SLAG: { SOLVENT: { kind: 'destroy', gold: 1 } } },
+    cost: 60,
+    blurb: 'Eats Slag remnants before they scatter.',
+    overrides: { SLAG: { SOLVENT: 2.5 } },
+  },
+
+  // -- Lens -----------------------------------------------------------------
+  focus: {
+    id: 'focus',
+    towerId: 'lens',
+    name: 'Focusing Array',
+    cost: 80,
+    blurb: 'A markedly heavier beam, at the same slow cadence.',
+    stats: { damage: 22 },
+  },
+  prism: {
+    id: 'prism',
+    towerId: 'lens',
+    name: 'Prism',
+    cost: 85,
+    blurb: 'Splits the beam across the spectrum: far better on Ore and Crystal.',
+    overrides: { ORE: { HEAT: 2.5 }, CRYSTAL: { HEAT: 2.0 } },
   },
 };
 
@@ -115,6 +128,8 @@ export const UPGRADE_IDS: UpgradeId[] = [
   'wideDie',
   'reclaimer',
   'catalyst',
+  'focus',
+  'prism',
 ];
 
 /** The two branches available to a tower, in menu order. */

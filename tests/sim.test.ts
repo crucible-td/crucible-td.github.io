@@ -12,13 +12,17 @@ function seedCharge(w: World, state: State, dist = 0) {
     id: w.nextId++,
     state,
     dist,
-    integrity: STATES[state].integrity,
+    hp: STATES[state].hp,
     speedMult: 1,
-    splits: 1,
     alive: true,
     flash: 0,
   });
   return w.charges[w.charges.length - 1]!;
+}
+
+/** Hit a charge hard enough to take the layer off in one go. */
+function breakOnce(w: World, c: ReturnType<typeof seedCharge>, element: Parameters<typeof applyElement>[2]) {
+  applyElement(w, c, element, 999);
 }
 
 describe('determinism', () => {
@@ -37,98 +41,85 @@ describe('determinism', () => {
   it('produces different outcomes from different seeds once splitting occurs', () => {
     const run = (seed: number) => {
       const w = createWorld(seed);
-      seedCharge(w, 'MOLTEN', 100);
-      applyElement(w, w.charges[0]!, 'KINETIC');
-      return w.charges.map((c) => c.dist);
+      seedCharge(w, 'CRYSTAL', 100);
+      // Breaking a Crystal scatters two Molten cores; the offsets are the only
+      // randomness in the sim, so this is where seeds must actually diverge.
+      applyElement(w, w.charges[0]!, 'KINETIC', 999);
+      return w.charges.filter((c) => c.alive).map((c) => c.dist);
     };
-    // Split offsets are the only randomness in the sim, so this is where seeds
-    // must actually diverge.
     expect(run(1)).not.toEqual(run(999));
   });
 });
 
-describe('the transmutation economy', () => {
-  it('pays per transmute, not per kill', () => {
+describe('the damage economy', () => {
+  it('pays the layer bounty when a layer breaks', () => {
     const w = createWorld(1);
     const c = seedCharge(w, 'ORE');
     const before = w.gold;
-    applyElement(w, c, 'HEAT');
-    expect(c.state).toBe('MOLTEN');
-    expect(w.gold).toBe(before + ECONOMY.goldPerTransmute);
-    expect(w.stats.transmutes).toBe(1);
+    breakOnce(w, c, 'HEAT');
+    expect(w.gold).toBe(before + STATES.ORE.bounty);
+    expect(w.stats.breaks).toBe(1);
   });
 
-  it('pays a premium for the full HEAT -> COLD -> KINETIC line', () => {
+  it('pays for depth: one Crystal is five payouts on its way down', () => {
+    // Shell, two Molten cores, two Slag remnants. Depth of enemy rather than
+    // number of enemies is what makes a late round lucrative.
     const w = createWorld(1);
-    const c = seedCharge(w, 'ORE');
-    applyElement(w, c, 'HEAT');
-    applyElement(w, c, 'COLD');
-    expect(c.state).toBe('CRYSTAL');
-    applyElement(w, c, 'KINETIC');
-    expect(c.alive).toBe(false);
-    expect(w.stats.shatters).toBe(1);
-    // 2 transmutes + the 5g shatter bonus, versus 1 gold for chipping it to
-    // death. DESIGN.md specifies 1g per state change and a 5g shatter; the
-    // economy briefly paid 2 and 6, which funded a seventeen-tower board and a
-    // flawless run by wave 7.
-    expect(w.gold).toBe(ECONOMY.startGold + 2 * ECONOMY.goldPerTransmute + 5);
-    expect(w.gold).toBeGreaterThan(ECONOMY.startGold + ECONOMY.goldPerKill);
+    breakOnce(w, seedCharge(w, 'CRYSTAL'), 'KINETIC');
+    for (const core of [...w.charges.filter((c) => c.alive)]) breakOnce(w, core, 'COLD');
+    for (const rem of [...w.charges.filter((c) => c.alive)]) breakOnce(w, rem, 'KINETIC');
+    expect(w.charges.filter((c) => c.alive)).toHaveLength(0);
+    expect(w.stats.breaks).toBe(5);
+    const expected = STATES.CRYSTAL.bounty + 2 * STATES.MOLTEN.bounty + 2 * STATES.SLAG.bounty;
+    expect(w.gold).toBe(ECONOMY.startGold + expected);
   });
 
-  it('awards nothing when an element bounces off', () => {
+  it('pays nothing and counts a wasted shot when the element is useless', () => {
     const w = createWorld(1);
-    const c = seedCharge(w, 'ORE');
-    applyElement(w, c, 'COLD');
-    expect(c.state).toBe('ORE');
+    const c = seedCharge(w, 'MOLTEN');
+    applyElement(w, c, 'HEAT', 999);
+    expect(c.alive).toBe(true);
+    expect(c.hp).toBe(STATES.MOLTEN.hp);
     expect(w.gold).toBe(ECONOMY.startGold);
+    expect(w.stats.wasted).toBe(1);
   });
 });
 
-describe('the traps', () => {
-  it('splits molten into three under kinetic', () => {
+describe('layers', () => {
+  it('breaks a Crystal shell into two Molten cores', () => {
     const w = createWorld(7);
-    const c = seedCharge(w, 'MOLTEN', 200);
-    applyElement(w, c, 'KINETIC');
+    const c = seedCharge(w, 'CRYSTAL', 200);
+    breakOnce(w, c, 'KINETIC');
     expect(c.alive).toBe(false);
     const children = w.charges.filter((x) => x.alive);
-    expect(children).toHaveLength(3);
+    expect(children).toHaveLength(2);
     expect(children.every((x) => x.state === 'MOLTEN')).toBe(true);
   });
 
-  it('bounds splitting so a lineage cannot multiply forever', () => {
-    const w = createWorld(7);
-    applyElement(w, seedCharge(w, 'MOLTEN', 200), 'KINETIC');
-    for (const child of [...w.charges]) applyElement(w, child, 'KINETIC');
-    // Children carry splits: 0, so the second wave of hits does nothing.
-    expect(w.charges.filter((c) => c.alive)).toHaveLength(3);
+  it('terminates: the chain only ever runs inward', () => {
+    // Slag is the floor. Nothing anywhere puts a layer back on, which is what
+    // bounds a cascade at five entities however it is triggered.
+    const w = createWorld(1);
+    const c = seedCharge(w, 'SLAG');
+    breakOnce(w, c, 'KINETIC');
+    expect(w.charges.filter((x) => x.alive)).toHaveLength(0);
+    expect(w.stats.kills).toBe(1);
   });
 
-  it('accelerates molten under heat and resets that speed on transmute', () => {
+  it('applies the resistance multiplier to incoming damage', () => {
     const w = createWorld(1);
-    const c = seedCharge(w, 'MOLTEN');
-    applyElement(w, c, 'HEAT');
-    expect(c.speedMult).toBeCloseTo(1.4);
-    applyElement(w, c, 'COLD');
-    expect(c.state).toBe('CRYSTAL');
-    expect(c.speedMult).toBe(1);
+    const c = seedCharge(w, 'CRYSTAL');
+    applyElement(w, c, 'KINETIC', 4);
+    // Kinetic doubles against Crystal.
+    expect(c.hp).toBe(STATES.CRYSTAL.hp - 8);
   });
 
   it('lets vapor ignore kinetic entirely', () => {
     const w = createWorld(1);
     const c = seedCharge(w, 'VAPOR');
-    applyElement(w, c, 'KINETIC');
+    applyElement(w, c, 'KINETIC', 999);
     expect(c.alive).toBe(true);
-    expect(c.state).toBe('VAPOR');
-    expect(c.integrity).toBe(STATES.VAPOR.integrity);
-  });
-
-  it('chips ore slowly enough that kinetic alone is a bad plan', () => {
-    const w = createWorld(1);
-    const c = seedCharge(w, 'ORE');
-    for (let i = 0; i < STATES.ORE.integrity - 1; i++) applyElement(w, c, 'KINETIC');
-    expect(c.alive).toBe(true);
-    applyElement(w, c, 'KINETIC');
-    expect(c.alive).toBe(false);
+    expect(c.hp).toBe(STATES.VAPOR.hp);
   });
 });
 
@@ -179,12 +170,12 @@ describe('building', () => {
 describe('wave flow', () => {
   it('clears a wave, pays the bonus, and returns to idle', () => {
     const w = createWorld(3);
-    placeTower(w, 'vat', 4, 1);
+    placeTower(w, 'forge', 4, 1);
     placeTower(w, 'stamp', 7, 1);
     startWave(w);
     for (let i = 0; i < 5000 && w.status === 'running'; i++) step(w);
     expect(w.status).toBe('idle');
     expect(w.waveIndex).toBe(1);
-    expect(w.stats.goldEarned).toBeGreaterThan(ECONOMY.waveClearBonus(1));
+    expect(w.stats.goldEarned).toBeGreaterThan(ECONOMY.roundClearBonus(1));
   });
 });
