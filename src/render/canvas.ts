@@ -6,7 +6,7 @@ import { BOARD, PATH_POINTS, cellCentre, isBuildableCell, pointAt } from '../sim
 import { TOWERS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
-import type { Charge, SimEvent, Tower, TowerId } from '../sim/types.ts';
+import type { Charge, SimEvent, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import type { World } from '../sim/world.ts';
 
 /** The tower standing on the hovered cell, if any. Render-side only. */
@@ -71,6 +71,7 @@ export class Renderer {
     hover: { col: number; row: number } | null,
     selected: TowerId | null,
     inspected: Tower | null = null,
+    previewUpgrade: UpgradeId | null = null,
   ): void {
     const { ctx } = this;
     ctx.clearRect(0, 0, BOARD.width, BOARD.height);
@@ -87,7 +88,7 @@ export class Renderer {
     // commit to a spot.
     const hovered = hover && !selected ? towerAtPoint(world, hover) : null;
     const showRange = inspected ?? hovered;
-    if (showRange) this.drawRange(showRange);
+    if (showRange) this.drawRange(showRange, showRange === inspected ? previewUpgrade : null);
 
     for (const t of world.towers) {
       this.drawTower(t.x, t.y, t.def, 1, t.upgrades.length, t.id === inspected?.id);
@@ -145,21 +146,49 @@ export class Renderer {
   }
 
   /** The reach of a tower already on the board, in its own colour. */
-  private drawRange(t: Tower): void {
+  /**
+   * The reach of a tower already on the board, in its own colour.
+   *
+   * When an upgrade is being hovered in the panel, the reach it *would* give is
+   * drawn as a second ring with the gain shaded between them. Range is the one
+   * upgrade effect that cannot be read from a line of text, so it is worth
+   * showing before the player commits gold to a path they cannot refund.
+   */
+  private drawRange(t: Tower, preview: UpgradeId | null): void {
     const { ctx } = this;
     const def = TOWERS[t.def];
     let range = def.range;
     for (const id of t.upgrades) range = UPGRADES[id].stats?.range ?? range;
+    const previewRange = preview ? (UPGRADES[preview].stats?.range ?? range) : range;
+
     ctx.save();
+    ctx.fillStyle = def.color;
     ctx.strokeStyle = def.color;
+    ctx.lineWidth = 1.5;
+
+    // The gain, shaded as a ring between the two radii.
+    if (previewRange > range) {
+      ctx.globalAlpha = 0.1;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, previewRange, 0, Math.PI * 2);
+      ctx.arc(t.x, t.y, range, 0, Math.PI * 2, true);
+      ctx.fill('evenodd');
+
+      ctx.globalAlpha = 0.75;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, previewRange, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
     ctx.globalAlpha = 0.5;
     ctx.setLineDash([5, 4]);
-    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(t.x, t.y, range, 0, Math.PI * 2);
     ctx.stroke();
     ctx.globalAlpha = 0.06;
-    ctx.fillStyle = def.color;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, range, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }

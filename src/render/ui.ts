@@ -38,6 +38,8 @@ export interface UiHandlers {
   onRestart(): void;
   onUpgrade(tower: Tower, id: UpgradeId): void;
   onCloseInspect(): void;
+  /** Hovering a branch previews it on the board; null clears the preview. */
+  onPreviewUpgrade(id: UpgradeId | null): void;
 }
 
 /**
@@ -223,6 +225,8 @@ export class Ui {
           `<span class="cost">${up.cost}g</span></span>` +
           `<span class="blurb">${up.blurb}</span>${changes}`;
         btn.addEventListener('click', () => this.handlers.onUpgrade(inspected, up.id));
+        btn.addEventListener('mouseenter', () => this.handlers.onPreviewUpgrade(up.id));
+        btn.addEventListener('mouseleave', () => this.handlers.onPreviewUpgrade(null));
         list.appendChild(btn);
       }
     }

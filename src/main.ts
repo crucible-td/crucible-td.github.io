@@ -7,7 +7,7 @@
 import { Renderer } from './render/canvas.ts';
 import { Ui } from './render/ui.ts';
 import { BOARD } from './sim/path.ts';
-import type { Tower, TowerId } from './sim/types.ts';
+import type { Tower, TowerId, UpgradeId } from './sim/types.ts';
 import { createWorld, placeTower, startWave, step, towerAt, upgradeTower } from './sim/world.ts';
 
 const TICK_MS = 1000 / 60;
@@ -23,6 +23,8 @@ let selected: TowerId | null = null;
 let hover: { col: number; row: number } | null = null;
 /** The placed tower whose upgrade panel is open, if any. */
 let inspected: Tower | null = null;
+/** An upgrade being hovered in the panel, previewed on the board. */
+let previewUpgrade: UpgradeId | null = null;
 
 const ui = new Ui({
   onSelect(id) {
@@ -36,11 +38,18 @@ const ui = new Ui({
   },
   onUpgrade(tower, id) {
     upgradeTower(world, tower, id);
+    // The hovered branch has just been bought, so the preview is now the
+    // tower's actual reach and the ghost ring should stop being drawn.
+    previewUpgrade = null;
     // Same reason: the branch is bought now, so the panel should say so now.
     ui.sync(world, selected, inspected);
   },
   onCloseInspect() {
     inspected = null;
+    previewUpgrade = null;
+  },
+  onPreviewUpgrade(id) {
+    previewUpgrade = id;
   },
   onStartWave() {
     startWave(world);
@@ -68,6 +77,7 @@ canvas.addEventListener('click', () => {
     // about this one" and opens its upgrade panel. Clicking bare ground closes
     // it again.
     inspected = towerAt(world, hover.col, hover.row) ?? null;
+    previewUpgrade = null;
     // Repaint the panel now rather than waiting for the next animation frame.
     // The frame loop would catch up anyway, but only once it runs -- and
     // requestAnimationFrame is throttled in a background or unfocused tab, so
@@ -136,7 +146,7 @@ function frame(now: number): void {
     accumulator -= TICK_MS;
   }
 
-  renderer.draw(world, hover, selected, inspected);
+  renderer.draw(world, hover, selected, inspected, previewUpgrade);
   ui.sync(world, selected, inspected);
   requestAnimationFrame(frame);
 }
