@@ -20,6 +20,11 @@ function el<T extends HTMLElement>(id: string): T {
  * Zero is the one the player most needs to read at a glance, so it gets a word
  * rather than a number -- an immunity is a wall, not a small multiplier.
  */
+/** "HEAT" -> "Heat". Used by the tower cards and the table header alike. */
+function elementLabel(e: Element): string {
+  return e[0]! + e.slice(1).toLowerCase();
+}
+
 export function describeOutcome(mult: number): string {
   if (mult <= 0) return 'immune';
   if (mult === 1) return '×1';
@@ -73,8 +78,13 @@ export class Ui {
       btn.className = 'tower';
       btn.style.setProperty('--slot', def.color);
       btn.setAttribute('aria-pressed', 'false');
+      // Naming the element on the card is what makes the resistance table
+      // readable: there are five towers and only four elements, so without
+      // this the table looks like it is missing a column.
       btn.innerHTML =
-        `<span class="row"><span class="name">${def.name}</span><span class="cost">${def.cost}g</span></span>` +
+        `<span class="row"><span class="name">${def.name}</span>` +
+        `<span class="elem">${elementLabel(def.element)}</span>` +
+        `<span class="cost">${def.cost}g</span></span>` +
         `<span class="blurb">${def.blurb}</span>`;
       btn.addEventListener('click', () => this.handlers.onSelect(id));
       list.appendChild(btn);
@@ -84,11 +94,13 @@ export class Ui {
 
   private buildTableReference(): void {
     const rows = STATE_IDS.map((s) => {
-      const cells = ELEMENT_IDS.map((e) => `<td>${describeOutcome(RESISTANCE[s][e])}</td>`).join('');
+      const cells = ELEMENT_IDS.map(
+        (e) => `<td data-el="${e}">${describeOutcome(RESISTANCE[s][e])}</td>`,
+      ).join('');
       return `<tr><th>${STATES[s].label}</th>${cells}</tr>`;
     }).join('');
-    el('tableBody').innerHTML =
-      `<table><tr><th></th>${ELEMENT_IDS.map((e) => `<th>${e[0]! + e.slice(1).toLowerCase()}</th>`).join('')}</tr>${rows}</table>`;
+    const head = ELEMENT_IDS.map((e) => `<th data-el="${e}">${elementLabel(e)}</th>`).join('');
+    el('tableBody').innerHTML = `<table><tr><th></th>${head}</tr>${rows}</table>`;
   }
 
   /**
@@ -116,6 +128,17 @@ export class Ui {
       // placeTower regardless, so an unaffordable click still builds nothing.
       btn.disabled = !affordable && id !== selected;
       btn.classList.toggle('unaffordable', !affordable);
+    }
+
+    // Light up the column for whatever tower the player is holding or
+    // inspecting, so "what does this tower actually do" is one glance away.
+    const active = selected
+      ? TOWERS[selected].element
+      : inspected
+        ? TOWERS[inspected.def].element
+        : null;
+    for (const cell of Array.from(el('tableBody').querySelectorAll<HTMLElement>('[data-el]'))) {
+      cell.classList.toggle('active', cell.dataset.el === active);
     }
 
     const start = el<HTMLButtonElement>('startWave');

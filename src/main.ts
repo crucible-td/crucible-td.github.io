@@ -30,6 +30,9 @@ const ui = new Ui({
     // Picking something to build is a different intent from inspecting what is
     // already built, so it closes the panel.
     if (selected) inspected = null;
+    // Repaint now: picking a tower lights its column in the resistance table,
+    // and that should answer "what does this one do" on the same click.
+    ui.sync(world, selected, inspected);
   },
   onUpgrade(tower, id) {
     upgradeTower(world, tower, id);
