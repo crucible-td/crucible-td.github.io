@@ -33,6 +33,8 @@ const ui = new Ui({
   },
   onUpgrade(tower, id) {
     upgradeTower(world, tower, id);
+    // Same reason: the branch is bought now, so the panel should say so now.
+    ui.sync(world, selected, inspected);
   },
   onCloseInspect() {
     inspected = null;
@@ -63,6 +65,12 @@ canvas.addEventListener('click', () => {
     // about this one" and opens its upgrade panel. Clicking bare ground closes
     // it again.
     inspected = towerAt(world, hover.col, hover.row) ?? null;
+    // Repaint the panel now rather than waiting for the next animation frame.
+    // The frame loop would catch up anyway, but only once it runs -- and
+    // requestAnimationFrame is throttled in a background or unfocused tab, so
+    // "the panel is showing the tower I clicked before this one" is a real
+    // thing a player can see.
+    ui.sync(world, selected, inspected);
     return;
   }
   // Selection persists after a successful build so a line can be laid down in
