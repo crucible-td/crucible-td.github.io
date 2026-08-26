@@ -74,12 +74,14 @@ export function createWorld(seed = 1): World {
 // --- player actions ---------------------------------------------------------
 
 /**
- * A tower's stats with its upgrade folded in.
+ * A tower's stats with its whole upgrade path folded in.
  *
- * Numeric branches are a shallow patch over the tower's own def. Keeping this
- * in one place means firing code never has to know whether a tower is upgraded.
+ * Numeric tiers are a shallow patch over the tower's own def. Keeping this in
+ * one place means firing code never has to know whether a tower is upgraded --
+ * and it is exported so the upgrade panel can show a genuine before-and-after
+ * rather than recomputing the fold and drifting from it.
  */
-function effective(t: Tower): { element: Element; damage: number; range: number; cooldown: number; splash: number; groundOnly: boolean; color: string } {
+export function effective(t: Tower): { element: Element; damage: number; range: number; cooldown: number; splash: number; groundOnly: boolean; color: string } {
   const def = TOWERS[t.def];
   // Fold the path in order so a later tier wins over an earlier one. Tiers are
   // cumulative: tier 3 need not restate what tier 1 already changed.

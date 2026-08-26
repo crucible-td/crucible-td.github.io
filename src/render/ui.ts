@@ -6,7 +6,7 @@ import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
 import type { Element } from '../sim/types.ts';
 import type { State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { WAVES } from '../sim/waves.ts';
-import { availableUpgrades } from '../sim/world.ts';
+import { availableUpgrades, effective } from '../sim/world.ts';
 import type { World } from '../sim/world.ts';
 
 function el<T extends HTMLElement>(id: string): T {
@@ -48,6 +48,39 @@ export interface UiHandlers {
  * Reuses describeOutcome so the upgrade panel and the resistance reference
  * always describe an Outcome the same way.
  */
+/** Shots per second, which reads better than a cooldown in ticks. */
+function rate(cooldown: number): string {
+  return (60 / cooldown).toFixed(1);
+}
+
+/**
+ * "Damage 4 → 6" for each stat a branch actually moves.
+ *
+ * Compared against the tower's current folded stats rather than its printed
+ * ones, so partway up a path the panel says what the *next* tier is worth
+ * rather than what the whole path was worth from the start. Stats that a tier
+ * leaves alone produce no line at all.
+ */
+function describeStats(t: Tower, id: UpgradeId): string[] {
+  const next = UPGRADES[id].stats;
+  if (!next) return [];
+  const now = effective(t);
+  const out: string[] = [];
+  if (next.damage !== undefined && next.damage !== now.damage) {
+    out.push(`Damage ${now.damage} → ${next.damage}`);
+  }
+  if (next.cooldown !== undefined && next.cooldown !== now.cooldown) {
+    out.push(`Fire rate ${rate(now.cooldown)} → ${rate(next.cooldown)} per second`);
+  }
+  if (next.range !== undefined && next.range !== now.range) {
+    out.push(`Range ${now.range} → ${next.range}`);
+  }
+  if (next.splash !== undefined && next.splash !== now.splash) {
+    out.push(`Splash ${now.splash} → ${next.splash}`);
+  }
+  return out;
+}
+
 function describeOverrides(id: UpgradeId): string[] {
   const out: string[] = [];
   for (const [state, row] of Object.entries(UPGRADES[id].overrides ?? {})) {
@@ -216,8 +249,8 @@ export class Ui {
         btn.className = 'tower';
         btn.dataset.upgrade = up.id;
         btn.style.setProperty('--slot', TOWERS[inspected.def].color);
-        const changes = describeOverrides(up.id)
-          .map((line) => `<span class="blurb">${line}</span>`)
+        const changes = [...describeStats(inspected, up.id), ...describeOverrides(up.id)]
+          .map((line) => `<span class="blurb change">${line}</span>`)
           .join('');
         btn.innerHTML =
           `<span class="row"><span class="name">${up.name}</span>` +
