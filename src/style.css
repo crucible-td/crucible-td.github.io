@@ -102,6 +102,17 @@ canvas {
 .tower .cost { font-variant-numeric: tabular-nums; color: var(--dim); }
 .tower .blurb { display: block; color: var(--dim); font-size: 12px; margin-top: 3px; }
 
+#inspect { margin: 4px 0 14px; padding-top: 10px; border-top: 1px solid var(--edge); }
+.inspectHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.inspectHead h3 { margin: 0; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+/* Never disabled: this is the only control that dismisses the panel. */
+#inspectClose {
+  background: none; border: 0; color: var(--dim); cursor: pointer;
+  font: inherit; font-size: 14px; line-height: 1; padding: 2px 4px;
+}
+#inspectClose:hover { color: var(--ink); }
+#inspect .taken { color: var(--dim); font-size: 12px; }
+
 #startWave {
   width: 100%;
   padding: 11px;

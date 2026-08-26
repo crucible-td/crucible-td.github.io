@@ -23,10 +23,13 @@ rendering state, keep it in `src/render/`.
 |---|---|
 | `src/sim/table.ts` | **The transmutation table.** Twenty cells that define the entire game. |
 | `src/sim/towers.ts`, `src/sim/waves.ts` | Tower stats and wave composition, as flat data. |
+| `src/sim/upgrades.ts` | **Upgrade branches.** Two per tower; the interesting ones rewrite table cells. |
+| `src/sim/loadout.ts` | The `towerId@col,row[+upgradeId]` grammar both harnesses parse. |
 | `src/sim/world.ts` | `step()`, `applyElement()`, placement. The only place outcomes are interpreted. |
 | `src/sim/path.ts` | Board dimensions, the lane polyline, buildable cells. |
 | `src/render/` | Canvas drawing and DOM chrome. Read-only over the sim. |
 | `src/headless.ts` | The playtest harness behind `npm run sim`. |
+| `src/campaign.ts` | The whole-run harness behind `npm run campaign`. |
 
 ## Commands
 
@@ -45,11 +48,19 @@ with gold and lives carrying over, buying from a purchase plan only when the
 wallet allows -- that is the one that can tell you a wave was lost because the
 player could not *afford* the answer.
 
-Loadout syntax is `towerId@col,row`, space-separated:
+Loadout syntax is `towerId@col,row`, space-separated, with an optional
+`+upgradeId` to fit one of that tower's two branches:
 
 ```bash
 npm run sim -- --wave 10 --loadout "forge@5,4 chiller@1,8 stamp@8,10"
+npm run sim -- --wave 3 --loadout "chiller@5,9 stamp@11,9+dampened"
 ```
+
+Upgrades have to be expressible here, not just clickable in the browser: an
+upgrade that cannot appear in a loadout cannot be measured, and unmeasurable
+balance is the one thing this project refuses. In `npm run campaign` a tower
+and its upgrade are two separate purchases -- the tower in plan order, the
+branch afterwards out of whatever gold is spare.
 
 ## Balance is measured, not guessed
 
@@ -93,19 +104,26 @@ to either file take effect in the next session.
 
 ## Where the project stands
 
-The M1 vertical slice is complete and verified: 5 states, the full
-transmutation table, 4 towers, 10 waves, the per-transmutation economy, build
-UI, and the headless harness. `npm test` (23 tests), `npm run typecheck`, and
-`npm run build` all pass, and the browser build has been confirmed to reproduce
-the headless numbers exactly.
+M1 is complete and verified, and the first slice of M2 has landed: 5 states,
+the full transmutation table, 4 towers with two upgrade branches each, 10
+waves, the per-transmutation economy, build and upgrade UI, and both harnesses.
+`npm test` (43 tests), `npm run typecheck`, and `npm run build` all pass, and
+the browser build reproduces the headless numbers exactly.
 
-Still deliberately unbuilt, and left as the owner's own AI-tooling exercise:
+The `balance-pass` skill exists at `.claude/skills/balance-pass/`, along with
+the two committed references it measures against: `reference/loadout.txt` (wave
+pressure) and `reference/plan.txt` (a whole run on a real wallet).
 
-- **A `balance-pass` skill** that calls `npm run sim -- --all-waves --json`,
-  reads the per-state leak breakdown, and proposes table edits. The most
-  valuable one to write, because its success criterion is measurable.
-- **A balance-analyst subagent**, worth adding only after that skill exists,
-  and best pinned to a cheaper model in its frontmatter.
+Still unbuilt, and left as the owner's own AI-tooling exercise:
 
-M2 game scope: upgrade branches (ones that change table behaviour, not just
-numbers), more maps, audio, save/load.
+- **A balance-analyst subagent**, best pinned to a cheaper model in its
+  frontmatter.
+
+M2 game scope remaining: more waves (40 is the target), more maps, boss charges
+with layered states, audio, save/load.
+
+One open balance finding, measured rather than assumed: a run still ends with
+roughly 330 unspent gold. Upgrades were priced as a sink for it and are not
+one -- cutting every upgrade cost by two-thirds still only got two bought. The
+surplus accrues *during* wave 10, after the last purchase point, so no pricing
+can reach it. The real fixes are more waves or shifting income earlier.

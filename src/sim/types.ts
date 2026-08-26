@@ -1,3 +1,5 @@
+import type { OutcomeOverrides } from './table.ts';
+
 /** Matter states. See DESIGN.md for the design rationale behind each. */
 export type State = 'ORE' | 'SLAG' | 'MOLTEN' | 'CRYSTAL' | 'VAPOR';
 
@@ -56,7 +58,25 @@ export interface Tower {
   y: number;
   /** Ticks until this tower may fire again. */
   cooldown: number;
+  /** The one branch this tower has taken, if any. Branches are exclusive. */
+  upgrade: UpgradeId | null;
 }
+
+/**
+ * Upgrade branch ids. Two per tower, mutually exclusive.
+ *
+ * Declared here rather than in upgrades.ts so that `Tower` can name one without
+ * dragging the upgrade data into the type layer.
+ */
+export type UpgradeId =
+  | 'kiln'
+  | 'bellows'
+  | 'deposition'
+  | 'supercooled'
+  | 'dampened'
+  | 'wideDie'
+  | 'reclaimer'
+  | 'catalyst';
 
 export type TowerId = 'forge' | 'chiller' | 'stamp' | 'vat';
 
@@ -86,6 +106,16 @@ export interface Projectile {
   speed: number;
   splash: number;
   color: string;
+  /**
+   * The firing tower's table overrides, snapshotted at fire time.
+   *
+   * `applyElement` never learns which tower fired -- a projectile already
+   * carries copies of its element, splash and colour rather than a reference
+   * back to its tower. Overrides follow that pattern, which keeps a shot's
+   * behaviour fixed at the moment it was fired and survives the tower being
+   * removed mid-flight.
+   */
+  overrides?: OutcomeOverrides;
 }
 
 export type SimEventType = 'transmute' | 'destroy' | 'shatter' | 'split' | 'leak' | 'nothing';

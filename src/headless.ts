@@ -15,17 +15,13 @@
  */
 import { parseArgs } from 'node:util';
 import { ECONOMY } from './sim/economy.ts';
-import { TOWERS, TOWER_IDS } from './sim/towers.ts';
+import { parseLoadout, describePlacement } from './sim/loadout.ts';
+import type { Placement } from './sim/loadout.ts';
+import { TOWERS } from './sim/towers.ts';
 import { STATE_IDS } from './sim/types.ts';
-import type { State, TowerId } from './sim/types.ts';
+import type { State } from './sim/types.ts';
 import { WAVES } from './sim/waves.ts';
-import { createWorld, placeTower, startWave, step } from './sim/world.ts';
-
-interface Placement {
-  def: TowerId;
-  col: number;
-  row: number;
-}
+import { createWorld, placeTower, startWave, step, towerAt, upgradeTower } from './sim/world.ts';
 
 interface WaveResult {
   wave: number;
@@ -41,21 +37,6 @@ interface WaveResult {
   leaksByState: Record<State, number>;
 }
 
-function parseLoadout(raw: string): Placement[] {
-  if (!raw.trim()) return [];
-  return raw
-    .split(/[;\s]+/)
-    .filter(Boolean)
-    .map((entry) => {
-      const m = /^([a-z]+)@(\d+),(\d+)$/.exec(entry.trim());
-      if (!m) throw new Error(`bad loadout entry "${entry}" -- expected e.g. forge@6,1`);
-      const def = m[1] as TowerId;
-      if (!TOWER_IDS.includes(def)) {
-        throw new Error(`unknown tower "${def}" -- known: ${TOWER_IDS.join(', ')}`);
-      }
-      return { def, col: Number(m[2]), row: Number(m[3]) };
-    });
-}
 
 function runWave(waveIndex: number, loadout: Placement[], seed: number, maxTicks: number) {
   const w = createWorld(seed);
@@ -66,6 +47,12 @@ function runWave(waveIndex: number, loadout: Placement[], seed: number, maxTicks
   for (const p of loadout) {
     if (!placeTower(w, p.def, p.col, p.row)) {
       throw new Error(`cannot place ${p.def} at ${p.col},${p.row} -- on the lane, or occupied`);
+    }
+    if (p.upgrade) {
+      const t = towerAt(w, p.col, p.row)!;
+      if (!upgradeTower(w, t, p.upgrade)) {
+        throw new Error(`cannot apply ${p.upgrade} to ${p.def} at ${p.col},${p.row}`);
+      }
     }
   }
   w.gold = ECONOMY.startGold;
@@ -117,7 +104,7 @@ function measure(waveIndex: number, loadout: Placement[], runs: number, seed: nu
 
 function printTable(results: WaveResult[], loadout: Placement[]): void {
   const desc = loadout.length
-    ? loadout.map((p) => `${TOWERS[p.def].name}@${p.col},${p.row}`).join(' + ')
+    ? loadout.map((p) => `${TOWERS[p.def].name}${describePlacement(p).slice(p.def.length)}`).join(' + ')
     : '(no towers -- raw wave pressure)';
   console.log(`\nLoadout: ${desc}`);
   console.log(`Lives per run: ${ECONOMY.startLives}\n`);

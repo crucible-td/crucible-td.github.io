@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parsePlan, runCampaign } from '../src/campaign.ts';
+import { runCampaign } from '../src/campaign.ts';
+import { parseLoadout } from '../src/sim/loadout.ts';
 
 /**
  * The reference campaign is the closest thing this project has to "a person
@@ -12,7 +13,7 @@ import { parsePlan, runCampaign } from '../src/campaign.ts';
  * If a tuning change moves these numbers, that is not automatically wrong --
  * but it is never incidental, so update them deliberately and say why.
  */
-const PLAN = parsePlan(
+const PLAN = parseLoadout(
   readFileSync(new URL('../.claude/skills/balance-pass/reference/plan.txt', import.meta.url), 'utf8'),
 );
 

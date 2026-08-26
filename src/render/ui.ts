@@ -2,8 +2,10 @@
 import { TRANSMUTATION } from '../sim/table.ts';
 import type { Outcome } from '../sim/table.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
+import { UPGRADES, upgradesFor } from '../sim/upgrades.ts';
 import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
-import type { TowerId } from '../sim/types.ts';
+import type { Element } from '../sim/types.ts';
+import type { State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { WAVES } from '../sim/waves.ts';
 import type { World } from '../sim/world.ts';
 
@@ -35,6 +37,28 @@ export interface UiHandlers {
   onSelect(id: TowerId | null): void;
   onStartWave(): void;
   onRestart(): void;
+  onUpgrade(tower: Tower, id: UpgradeId): void;
+  onCloseInspect(): void;
+}
+
+/**
+ * "MOLTEN + Kinetic: splits x3 -> chips" for every cell a branch rewrites.
+ *
+ * Reuses describeOutcome so the upgrade panel and the transmutation reference
+ * always describe an Outcome the same way.
+ */
+function describeOverrides(id: UpgradeId): string[] {
+  const out: string[] = [];
+  for (const [state, row] of Object.entries(UPGRADES[id].overrides ?? {})) {
+    for (const [element, outcome] of Object.entries(row)) {
+      const before = describeOutcome(TRANSMUTATION[state as State][element as Element]);
+      const label = element[0]! + element.slice(1).toLowerCase();
+      // "Vapor + Cold: → Crystal (was → Molten)" -- the new behaviour first,
+      // since that is what the player is deciding to buy.
+      out.push(`${STATES[state as State].label} + ${label}: ${describeOutcome(outcome)} (was ${before})`);
+    }
+  }
+  return out;
 }
 
 export class Ui {
@@ -45,6 +69,7 @@ export class Ui {
     this.buildTableReference();
     el<HTMLButtonElement>('startWave').addEventListener('click', () => handlers.onStartWave());
     el<HTMLButtonElement>('restart').addEventListener('click', () => handlers.onRestart());
+    el<HTMLButtonElement>('inspectClose').addEventListener('click', () => handlers.onCloseInspect());
   }
 
   private buildTowerMenu(): void {
@@ -73,7 +98,17 @@ export class Ui {
       `<table><tr><th></th>${ELEMENT_IDS.map((e) => `<th>${e[0]! + e.slice(1).toLowerCase()}</th>`).join('')}</tr>${rows}</table>`;
   }
 
-  sync(world: World, selected: TowerId | null): void {
+  /**
+   * What the panel currently describes, so it is only rebuilt on change.
+   *
+   * Keyed on the branch as well as the tower: keyed on the tower alone, buying
+   * an upgrade left the panel still offering both branches, because nothing
+   * about the identity had changed.
+   */
+  private shownTower: string | null = null;
+
+  sync(world: World, selected: TowerId | null, inspected: Tower | null): void {
+    this.syncInspect(world, inspected);
     el('gold').textContent = String(world.gold);
     el('lives').textContent = String(world.lives);
     el('wave').textContent = `${Math.min(world.waveIndex + 1, WAVES.length)}/${WAVES.length}`;
@@ -110,6 +145,59 @@ export class Ui {
         world.status === 'won'
           ? `All ten waves processed. ${world.stats.shatters} shattered, ${world.stats.transmutes} transmutations, ${world.stats.goldEarned} gold earned.`
           : `The line failed on wave ${world.waveIndex + 1}. ${world.stats.leaks} charges got through; ${world.stats.splits} were split by badly placed Kinetic.`;
+    }
+  }
+
+  /**
+   * The upgrade panel for whichever placed tower is being inspected.
+   *
+   * Rebuilt only when the inspected tower changes; affordability is refreshed
+   * every frame, so a branch becomes buyable the moment the gold arrives.
+   */
+  private syncInspect(world: World, inspected: Tower | null): void {
+    const panel = el('inspect');
+    panel.hidden = inspected === null;
+    if (!inspected) {
+      this.shownTower = null;
+      return;
+    }
+
+    const list = el('upgradeList');
+    const key = `${inspected.id}:${inspected.upgrade ?? ''}`;
+    if (this.shownTower !== key) {
+      this.shownTower = key;
+      el('inspectTitle').textContent = `${TOWERS[inspected.def].name} upgrades`;
+      list.replaceChildren();
+
+      if (inspected.upgrade) {
+        const taken = document.createElement('p');
+        taken.className = 'taken';
+        taken.textContent = `${UPGRADES[inspected.upgrade].name} fitted. Branches are exclusive and there is no refund.`;
+        list.appendChild(taken);
+        return;
+      }
+
+      for (const up of upgradesFor(inspected.def)) {
+        const btn = document.createElement('button');
+        btn.className = 'tower';
+        btn.dataset.upgrade = up.id;
+        btn.style.setProperty('--slot', TOWERS[inspected.def].color);
+        const changes = describeOverrides(up.id)
+          .map((line) => `<span class="blurb">${line}</span>`)
+          .join('');
+        btn.innerHTML =
+          `<span class="row"><span class="name">${up.name}</span><span class="cost">${up.cost}g</span></span>` +
+          `<span class="blurb">${up.blurb}</span>${changes}`;
+        btn.addEventListener('click', () => this.handlers.onUpgrade(inspected, up.id));
+        list.appendChild(btn);
+      }
+    }
+
+    for (const btn of Array.from(list.querySelectorAll<HTMLButtonElement>('button[data-upgrade]'))) {
+      const up = UPGRADES[btn.dataset.upgrade as UpgradeId];
+      const affordable = world.gold >= up.cost;
+      btn.disabled = !affordable;
+      btn.classList.toggle('unaffordable', !affordable);
     }
   }
 }

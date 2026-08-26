@@ -88,3 +88,25 @@ export const TRANSMUTATION: Record<State, Record<Element, Outcome>> = {
 export function outcomeFor(state: State, element: Element): Outcome {
   return TRANSMUTATION[state][element];
 }
+
+/**
+ * A sparse patch over the table, owned by a tower upgrade.
+ *
+ * Upgrades are allowed to rewrite cells because that is the only kind of
+ * upgrade worth having here -- a tower that fires 8% faster is not a decision.
+ * They are still table edits, not special cases: an upgrade supplies new
+ * `Outcome` values and `applyElement` interprets them through the same switch
+ * as everything else.
+ */
+export type OutcomeOverrides = Partial<Record<State, Partial<Record<Element, Outcome>>>>;
+
+/**
+ * The outcome for a hit, honouring the firing tower's upgrade if it has one.
+ *
+ * This is a lookup layer over the table, deliberately not a second source of
+ * truth: with no overrides it is exactly `outcomeFor`, and an override can only
+ * replace a cell that already exists.
+ */
+export function resolveOutcome(state: State, element: Element, overrides?: OutcomeOverrides): Outcome {
+  return overrides?.[state]?.[element] ?? TRANSMUTATION[state][element];
+}

@@ -1,10 +1,23 @@
 import { ECONOMY } from './economy.ts';
 import { PATH_LENGTH, isBuildableCell, cellCentre, pointAt } from './path.ts';
 import { Rng } from './rng.ts';
-import { outcomeFor } from './table.ts';
+import { resolveOutcome } from './table.ts';
+import type { OutcomeOverrides } from './table.ts';
 import { TOWERS } from './towers.ts';
+import { UPGRADES, upgradesFor } from './upgrades.ts';
 import { STATES } from './types.ts';
-import type { Charge, Element, Projectile, SimEvent, State, Stats, Status, Tower, TowerId } from './types.ts';
+import type {
+  Charge,
+  Element,
+  Projectile,
+  SimEvent,
+  State,
+  Stats,
+  Status,
+  Tower,
+  TowerId,
+  UpgradeId,
+} from './types.ts';
 import { WAVES } from './waves.ts';
 
 /** Speed traps stack, but not without limit -- otherwise Vapor outruns the sim. */
@@ -60,6 +73,30 @@ export function createWorld(seed = 1): World {
 
 // --- player actions ---------------------------------------------------------
 
+/**
+ * A tower's stats with its upgrade folded in.
+ *
+ * Numeric branches are a shallow patch over the tower's own def. Keeping this
+ * in one place means firing code never has to know whether a tower is upgraded.
+ */
+function effective(t: Tower): { element: Element; range: number; cooldown: number; splash: number; groundOnly: boolean; color: string } {
+  const def = TOWERS[t.def];
+  const stats = t.upgrade ? UPGRADES[t.upgrade].stats : undefined;
+  return {
+    element: def.element,
+    range: stats?.range ?? def.range,
+    cooldown: stats?.cooldown ?? def.cooldown,
+    splash: stats?.splash ?? def.splash,
+    groundOnly: def.groundOnly,
+    color: def.color,
+  };
+}
+
+/** The table cells this tower rewrites, if its branch rewrites any. */
+function overridesOf(t: Tower): OutcomeOverrides | undefined {
+  return t.upgrade ? UPGRADES[t.upgrade].overrides : undefined;
+}
+
 export function towerAt(w: World, col: number, row: number): Tower | undefined {
   const c = cellCentre(col, row);
   return w.towers.find((t) => t.x === c.x && t.y === c.y);
@@ -75,8 +112,35 @@ export function placeTower(w: World, def: TowerId, col: number, row: number): bo
   if (!canPlace(w, def, col, row)) return false;
   const c = cellCentre(col, row);
   w.gold -= TOWERS[def].cost;
-  w.towers.push({ id: w.nextId++, def, x: c.x, y: c.y, cooldown: 0 });
+  w.towers.push({ id: w.nextId++, def, x: c.x, y: c.y, cooldown: 0, upgrade: null });
   return true;
+}
+
+/**
+ * Buy one upgrade branch for a placed tower.
+ *
+ * Mirrors placeTower: validate, deduct, mutate. Branches are exclusive and
+ * there is no refund, so an already-upgraded tower is refused rather than
+ * silently re-specced.
+ */
+export function canUpgrade(w: World, t: Tower, id: UpgradeId): boolean {
+  if (t.upgrade !== null) return false;
+  const up = UPGRADES[id];
+  if (up.towerId !== t.def) return false;
+  return w.gold >= up.cost;
+}
+
+export function upgradeTower(w: World, t: Tower, id: UpgradeId): boolean {
+  if (!canUpgrade(w, t, id)) return false;
+  w.gold -= UPGRADES[id].cost;
+  t.upgrade = id;
+  // Take effect on the next shot rather than refunding the current cooldown.
+  return true;
+}
+
+/** The two branches a tower could still take. Empty once it has taken one. */
+export function availableUpgrades(t: Tower) {
+  return t.upgrade === null ? upgradesFor(t.def) : [];
 }
 
 export function startWave(w: World): boolean {
@@ -135,9 +199,9 @@ function kill(w: World, c: Charge, gold: number, shatter: boolean): void {
  * through here, which is why balance changes are table edits rather than code
  * edits.
  */
-export function applyElement(w: World, c: Charge, element: Element): void {
+export function applyElement(w: World, c: Charge, element: Element, overrides?: OutcomeOverrides): void {
   if (!c.alive) return;
-  const outcome = outcomeFor(c.state, element);
+  const outcome = resolveOutcome(c.state, element, overrides);
 
   switch (outcome.kind) {
     case 'none':
@@ -209,7 +273,8 @@ function advanceCharges(w: World): void {
 }
 
 function findTarget(w: World, t: Tower): Charge | undefined {
-  const def = TOWERS[t.def];
+  const def = effective(t);
+  const overrides = overridesOf(t);
   let best: Charge | undefined;
   for (const c of w.charges) {
     if (!c.alive) continue;
@@ -217,7 +282,12 @@ function findTarget(w: World, t: Tower): Charge | undefined {
     // Towers hold fire rather than waste shots where the table says nothing
     // happens. Traps (speed, split) are NOT filtered -- those are the player's
     // mistake to notice.
-    if (outcomeFor(c.state, def.element).kind === 'none') continue;
+    //
+    // Resolved through the upgrade, so a branch that turns a cell into 'none'
+    // also stops the tower shooting at it -- that is how the Kiln Forge stops
+    // melting the player's own Crystal -- and one that turns 'none' into a
+    // real outcome starts it.
+    if (resolveOutcome(c.state, def.element, overrides).kind === 'none') continue;
     const p = pointAt(c.dist);
     if (Math.hypot(p.x - t.x, p.y - t.y) > def.range) continue;
     // Target the charge furthest along the lane -- the most urgent one.
@@ -234,7 +304,8 @@ function fireTowers(w: World): void {
     }
     const target = findTarget(w, t);
     if (!target) continue;
-    const def = TOWERS[t.def];
+    const def = effective(t);
+    const overrides = overridesOf(t);
     t.cooldown = def.cooldown;
     w.projectiles.push({
       id: w.nextId++,
@@ -245,6 +316,7 @@ function fireTowers(w: World): void {
       speed: PROJECTILE_SPEED,
       splash: def.splash,
       color: def.color,
+      ...(overrides ? { overrides } : {}),
     });
   }
 }
@@ -261,12 +333,12 @@ function advanceProjectiles(w: World): void {
     const dy = tp.y - p.y;
     const d = Math.hypot(dx, dy);
     if (d <= IMPACT_RADIUS) {
-      applyElement(w, target, p.element);
+      applyElement(w, target, p.element, p.overrides);
       if (p.splash > 0) {
         for (const c of w.charges) {
           if (!c.alive || c.id === target.id) continue;
           const cp = pointAt(c.dist);
-          if (Math.hypot(cp.x - tp.x, cp.y - tp.y) <= p.splash) applyElement(w, c, p.element);
+          if (Math.hypot(cp.x - tp.x, cp.y - tp.y) <= p.splash) applyElement(w, c, p.element, p.overrides);
         }
       }
       p.speed = -1;

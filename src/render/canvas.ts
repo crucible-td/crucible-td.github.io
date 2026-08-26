@@ -67,7 +67,7 @@ export class Renderer {
     this.drawBuildableCells();
     this.drawLane();
     if (hover && selected) this.drawPlacementPreview(world, hover, selected);
-    for (const t of world.towers) this.drawTower(t.x, t.y, t.def, 1);
+    for (const t of world.towers) this.drawTower(t.x, t.y, t.def, 1, t.upgrade !== null);
     for (const c of world.charges) this.drawCharge(c);
     this.drawProjectiles(world);
     this.drawEffects();
@@ -141,7 +141,7 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
-  private drawTower(x: number, y: number, id: TowerId, alpha: number): void {
+  private drawTower(x: number, y: number, id: TowerId, alpha: number, upgraded = false): void {
     const { ctx } = this;
     const def = TOWERS[id];
     const r = 15;
@@ -166,6 +166,15 @@ export class Renderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(def.element[0]!, x, y + 0.5);
+
+    // An upgraded tower gets a corner pip. Branches are permanent, so the board
+    // needs to show which towers have already spent theirs.
+    if (upgraded) {
+      ctx.fillStyle = def.color;
+      ctx.beginPath();
+      ctx.arc(x + r - 3.5, y - r + 3.5, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   /** Each state gets its own silhouette, so a glance reads the whole lane. */

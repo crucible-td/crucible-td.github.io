@@ -21,6 +21,12 @@ Run the canonical loadout across every wave:
 npm run sim -- --all-waves --loadout "forge@2,1 forge@5,1 forge@5,5 chiller@5,9 chiller@8,9 chiller@8,13 stamp@11,9 chiller@12,13 chiller@14,9 stamp@14,7 chiller@18,7 stamp@18,3 stamp@19,9 stamp@22,11" --runs 50 --seed 1
 ```
 
+Loadouts take an optional `+upgradeId` per tower (`stamp@11,9+dampened`), so
+upgrades are measurable here rather than only clickable in the browser. The
+reference loadout deliberately buys none, which is what makes it a control: if
+a change to an upgrade moves the baseline, something has leaked out of the
+opt-in path and into the base table.
+
 That loadout is the reference build and must not be changed casually --
 changing it invalidates every number below. It is fourteen towers laid out in
 lane order (Forge bank -> Chiller bank -> Stamp bank, with a second Chiller
@@ -156,13 +162,21 @@ leaking state back to what should have consumed it:
 
 In order of preference, because each is a wider blast radius than the last:
 
-1. **`src/sim/waves.ts`** -- wave composition. Changing a `count`, `gap`, or
-   `delay` fixes one wave and touches nothing else. Try this first. Wave 10's
-   Vapor group was tuned from eight down to five exactly this way.
-2. **`src/sim/towers.ts`** -- tower stats (`cost`, `range`, `cooldown`,
+1. **`src/sim/upgrades.ts`** -- an upgrade branch, when the problem is that one
+   strategy has no answer rather than that the game is too hard. A branch is a
+   paid, opt-in table rewrite, so it changes nothing for players who do not buy
+   it -- which makes it the *safest* place to put a rule change that would be
+   too strong as a global edit. Both branches now called Deposition Coil and
+   Reclaimer began as global table edits and were reverted for exactly that
+   reason: Cold answering everything flattened the game.
+2. **`src/sim/waves.ts`** -- wave composition. Changing a `count`, `gap`, or
+   `delay` fixes one wave and touches nothing else, which makes it the first
+   thing to reach for when the game itself is sound and one wave is not. Wave
+   10's Vapor group was tuned from eight down to five exactly this way.
+3. **`src/sim/towers.ts`** -- tower stats (`cost`, `range`, `cooldown`,
    `splash`). Affects every wave, but changes no rules. A throughput problem is
    usually a `cooldown` problem.
-3. **`src/sim/table.ts`** -- the transmutation table. This is the game's
+4. **`src/sim/table.ts`** -- the transmutation table. This is the game's
    identity, not a tuning knob. Change a cell only when the *rule* is wrong,
    not when a number is wrong, and never to paper over a throughput problem.
 

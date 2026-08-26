@@ -7,8 +7,8 @@
 import { Renderer } from './render/canvas.ts';
 import { Ui } from './render/ui.ts';
 import { BOARD } from './sim/path.ts';
-import type { TowerId } from './sim/types.ts';
-import { createWorld, placeTower, startWave, step } from './sim/world.ts';
+import type { Tower, TowerId } from './sim/types.ts';
+import { createWorld, placeTower, startWave, step, towerAt, upgradeTower } from './sim/world.ts';
 
 const TICK_MS = 1000 / 60;
 /** Cap catch-up work so a backgrounded tab cannot stall the page on return. */
@@ -21,10 +21,21 @@ const renderer = new Renderer(canvas);
 let world = createWorld(Math.floor(Math.random() * 1e9));
 let selected: TowerId | null = null;
 let hover: { col: number; row: number } | null = null;
+/** The placed tower whose upgrade panel is open, if any. */
+let inspected: Tower | null = null;
 
 const ui = new Ui({
   onSelect(id) {
     selected = selected === id ? null : id;
+    // Picking something to build is a different intent from inspecting what is
+    // already built, so it closes the panel.
+    if (selected) inspected = null;
+  },
+  onUpgrade(tower, id) {
+    upgradeTower(world, tower, id);
+  },
+  onCloseInspect() {
+    inspected = null;
   },
   onStartWave() {
     startWave(world);
@@ -32,6 +43,7 @@ const ui = new Ui({
   onRestart() {
     world = createWorld(Math.floor(Math.random() * 1e9));
     selected = null;
+    inspected = null;
   },
 });
 
@@ -45,7 +57,14 @@ canvas.addEventListener('mouseleave', () => {
 });
 
 canvas.addEventListener('click', () => {
-  if (!selected || !hover) return;
+  if (!hover) return;
+  if (!selected) {
+    // Nothing queued to build, so a click on an existing tower means "tell me
+    // about this one" and opens its upgrade panel. Clicking bare ground closes
+    // it again.
+    inspected = towerAt(world, hover.col, hover.row) ?? null;
+    return;
+  }
   // Selection persists after a successful build so a line can be laid down in
   // one pass. Escape or right-click clears it.
   placeTower(world, selected, hover.col, hover.row);
@@ -57,7 +76,10 @@ canvas.addEventListener('contextmenu', (ev) => {
 });
 
 window.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Escape') selected = null;
+  if (ev.key === 'Escape') {
+    selected = null;
+    inspected = null;
+  }
   if (ev.key === ' ') {
     ev.preventDefault();
     startWave(world);
@@ -104,7 +126,7 @@ function frame(now: number): void {
   }
 
   renderer.draw(world, hover, selected);
-  ui.sync(world, selected);
+  ui.sync(world, selected, inspected);
   requestAnimationFrame(frame);
 }
 

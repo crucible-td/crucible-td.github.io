@@ -75,6 +75,24 @@ Upgrade branches change *table behaviour*, not just numbers — e.g. a Stamp
 upgrade that stops splitting Molten, letting you break the ordering rule at
 a price. Numeric-only upgrades are the boring half; keep them a minority.
 
+**Shipped:** two per tower, mutually exclusive, no refund. Five rewrite table
+cells, three are numeric.
+
+| Tower | Branch | Effect |
+|---|---|---|
+| Forge | **Kiln** | `CRYSTAL/HEAT` → nothing. A late Forge stops melting your own work. |
+| Forge | Bellows | Faster fire rate. |
+| Chiller | **Deposition Coil** | `VAPOR/COLD` → CRYSTAL instead of MOLTEN. |
+| Chiller | Supercooled Jets | Longer range. |
+| Stamp | **Dampened Press** | `MOLTEN/KINETIC` chips instead of splitting, and presses slower. |
+| Stamp | Wide Die | Longer range. Still ground-only. |
+| Vat | **Reclaimer** | `VAPOR/SOLVENT` 1 → 2 damage, so two Vats finish a Vapor. |
+| Vat | **Catalyst Bath** | `SLAG/SOLVENT` destroys, so the Vat needs no Stamp. |
+
+A tower that resolves a cell to *nothing* also stops firing at it — towers
+already hold fire where the table says nothing happens — so the Kiln shows up
+as restraint rather than as a wasted shot.
+
 ## Waves
 40 waves at M2. Design rhythm: waves 1–8 teach one table cell each.
 Wave 9+ mixes states at spawn, forcing parallel lines.
