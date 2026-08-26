@@ -90,22 +90,31 @@ const ui = new Ui({
   },
 });
 
-canvas.addEventListener('mousemove', (ev) => {
+/** Which grid cell a pointer event landed on. */
+function cellUnder(ev: MouseEvent): { col: number; row: number } {
   const p = renderer.toBoard(ev);
-  hover = { col: Math.floor(p.x / BOARD.cell), row: Math.floor(p.y / BOARD.cell) };
+  return { col: Math.floor(p.x / BOARD.cell), row: Math.floor(p.y / BOARD.cell) };
+}
+
+canvas.addEventListener('mousemove', (ev) => {
+  hover = cellUnder(ev);
 });
 
 canvas.addEventListener('mouseleave', () => {
   hover = null;
 });
 
-canvas.addEventListener('click', () => {
-  if (!hover) return;
+canvas.addEventListener('click', (ev) => {
+  // Read the cell from the click itself rather than from the last mousemove.
+  // A touch device never sends mousemove, so a hover-derived cell left the
+  // game completely unplayable on a phone -- every tap did nothing.
+  const cell = cellUnder(ev);
+
   if (!selected) {
     // Nothing queued to build, so a click on an existing tower means "tell me
     // about this one" and opens its upgrade panel. Clicking bare ground closes
     // it again.
-    inspected = towerAt(world, hover.col, hover.row) ?? null;
+    inspected = towerAt(world, cell.col, cell.row) ?? null;
     previewUpgrade = null;
     // Repaint the panel now rather than waiting for the next animation frame.
     // The frame loop would catch up anyway, but only once it runs -- and
@@ -115,9 +124,20 @@ canvas.addEventListener('click', () => {
     ui.sync(world, selected, inspected, speed);
     return;
   }
+
+  // Armed, but there is already a tower here. The placement preview is showing
+  // red, so the click cannot mean "build" -- treat it as "stop building".
+  // Clicking the tower you just placed is the natural way to put the trowel
+  // down, and silently doing nothing was the old behaviour.
+  if (towerAt(world, cell.col, cell.row)) {
+    selected = null;
+    ui.sync(world, selected, inspected, speed);
+    return;
+  }
+
   // Selection persists after a successful build so a line can be laid down in
-  // one pass. Escape or right-click clears it.
-  placeTower(world, selected, hover.col, hover.row);
+  // one pass. Escape, right-click, or clicking a placed tower clears it.
+  placeTower(world, selected, cell.col, cell.row);
 });
 
 canvas.addEventListener('contextmenu', (ev) => {

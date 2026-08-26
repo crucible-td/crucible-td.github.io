@@ -192,3 +192,59 @@ canvas {
   margin-top: 14px; padding: 10px 20px; border: 0; border-radius: 4px;
   background: var(--hot); color: #1a1310; font: 600 14px/1 inherit; cursor: pointer;
 }
+
+/* --- Narrow screens ---------------------------------------------------------
+ *
+ * The board keeps its 8:5 aspect and scales with the column; `toBoard()` maps
+ * clicks through getBoundingClientRect, so input stays correct at any size and
+ * nothing about the simulation cares how large the canvas is drawn.
+ *
+ * Below the breakpoint the fixed 240px sidebar is what breaks: it squeezes the
+ * board rather than yielding. So the layout goes to one column with the build
+ * panel underneath, and the tower cards spread into a grid instead of becoming
+ * a very long stack.
+ */
+@media (max-width: 900px) {
+  #app {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 960px;
+  }
+
+  #hud { flex-wrap: wrap; gap: 10px 20px; }
+  .readouts { gap: 18px; }
+
+  #towerList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+    align-items: start;
+  }
+  .tower { margin-bottom: 0; height: 100%; }
+
+  #upgradeList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+  }
+
+  /* Reachable with a thumb rather than stretched across the full width. */
+  #startWave, #speedControls { max-width: 420px; }
+}
+
+@media (max-width: 520px) {
+  #app { padding: 10px; gap: 12px; }
+  #hud h1 { font-size: 16px; letter-spacing: 0.16em; }
+  .readout b { font-size: 17px; }
+  #towerList, #upgradeList { grid-template-columns: minmax(0, 1fr); }
+  #startWave, #speedControls { max-width: none; }
+
+  /* Touch targets: the speed controls are the smallest thing on the page. */
+  #speedControls button { padding: 11px; }
+  #inspectClose { padding: 6px 10px; font-size: 16px; }
+}
+
+/* A pointer that cannot hover gets no placement ghost, so the crosshair is
+   misleading -- taps place directly. */
+@media (hover: none) {
+  canvas { cursor: default; }
+}
