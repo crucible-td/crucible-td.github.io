@@ -136,7 +136,7 @@ function frame(now: number): void {
     accumulator -= TICK_MS;
   }
 
-  renderer.draw(world, hover, selected);
+  renderer.draw(world, hover, selected, inspected);
   ui.sync(world, selected, inspected);
   requestAnimationFrame(frame);
 }

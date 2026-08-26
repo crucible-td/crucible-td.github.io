@@ -4,9 +4,16 @@
  */
 import { BOARD, PATH_POINTS, cellCentre, isBuildableCell, pointAt } from '../sim/path.ts';
 import { TOWERS } from '../sim/towers.ts';
+import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
-import type { Charge, SimEvent, TowerId } from '../sim/types.ts';
+import type { Charge, SimEvent, Tower, TowerId } from '../sim/types.ts';
 import type { World } from '../sim/world.ts';
+
+/** The tower standing on the hovered cell, if any. Render-side only. */
+function towerAtPoint(world: World, hover: { col: number; row: number }): Tower | null {
+  const c = cellCentre(hover.col, hover.row);
+  return world.towers.find((t) => t.x === c.x && t.y === c.y) ?? null;
+}
 
 interface Floater {
   x: number;
@@ -59,7 +66,12 @@ export class Renderer {
     }
   }
 
-  draw(world: World, hover: { col: number; row: number } | null, selected: TowerId | null): void {
+  draw(
+    world: World,
+    hover: { col: number; row: number } | null,
+    selected: TowerId | null,
+    inspected: Tower | null = null,
+  ): void {
     const { ctx } = this;
     ctx.clearRect(0, 0, BOARD.width, BOARD.height);
     ctx.fillStyle = '#14110f';
@@ -68,7 +80,18 @@ export class Renderer {
     this.drawBuildableCells();
     this.drawLane();
     if (hover && selected) this.drawPlacementPreview(world, hover, selected);
-    for (const t of world.towers) this.drawTower(t.x, t.y, t.def, 1, t.upgrade !== null);
+
+    // Show the reach of a tower that is already down: the one being inspected,
+    // or whichever one the cursor is over. Range is the whole reason placement
+    // matters, so it should not be visible only in the second before you
+    // commit to a spot.
+    const hovered = hover && !selected ? towerAtPoint(world, hover) : null;
+    const showRange = inspected ?? hovered;
+    if (showRange) this.drawRange(showRange);
+
+    for (const t of world.towers) {
+      this.drawTower(t.x, t.y, t.def, 1, t.upgrade !== null, t.id === inspected?.id);
+    }
     for (const c of world.charges) this.drawCharge(c);
     this.drawProjectiles(world);
     this.drawEffects();
@@ -121,6 +144,25 @@ export class Renderer {
     for (let i = 1; i < PATH_POINTS.length; i++) ctx.lineTo(PATH_POINTS[i]!.x, PATH_POINTS[i]!.y);
   }
 
+  /** The reach of a tower already on the board, in its own colour. */
+  private drawRange(t: Tower): void {
+    const { ctx } = this;
+    const def = TOWERS[t.def];
+    const range = (t.upgrade ? UPGRADES[t.upgrade].stats?.range : undefined) ?? def.range;
+    ctx.save();
+    ctx.strokeStyle = def.color;
+    ctx.globalAlpha = 0.5;
+    ctx.setLineDash([5, 4]);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, range, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = def.color;
+    ctx.fill();
+    ctx.restore();
+  }
+
   private drawPlacementPreview(world: World, hover: { col: number; row: number }, selected: TowerId): void {
     const { ctx } = this;
     const def = TOWERS[selected];
@@ -142,10 +184,27 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
-  private drawTower(x: number, y: number, id: TowerId, alpha: number, upgraded = false): void {
+  private drawTower(
+    x: number,
+    y: number,
+    id: TowerId,
+    alpha: number,
+    upgraded = false,
+    inspected = false,
+  ): void {
     const { ctx } = this;
     const def = TOWERS[id];
     const r = 15;
+
+    // A ring around the tower whose panel is open, so the board and the panel
+    // agree about which tower is being talked about.
+    if (inspected) {
+      ctx.strokeStyle = def.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x - r - 4, y - r - 4, (r + 4) * 2, (r + 4) * 2, 7);
+      ctx.stroke();
+    }
 
     ctx.fillStyle = '#241f1b';
     ctx.strokeStyle = def.color;

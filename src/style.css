@@ -90,7 +90,22 @@ canvas {
 }
 
 .tower:hover { border-color: var(--slot); }
-.tower[aria-pressed="true"] { background: #2b2420; border-color: var(--slot); }
+/* The selected tower has to be unmistakable: it changes what a click on the
+   board does, so "which one is armed" is the most important state in the UI. */
+.tower[aria-pressed='true'] {
+  background: #2b2420;
+  border-color: var(--slot);
+  border-left-width: 6px;
+  box-shadow: inset 0 0 0 1px var(--slot);
+}
+.tower[aria-pressed='true'] .name { color: var(--slot); }
+.tower[aria-pressed='true'] .name::after {
+  content: ' \00b7 armed';
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
 .tower:disabled { opacity: 0.42; cursor: not-allowed; }
 /* Dimmed for "you cannot afford this" independently of `disabled`, so the
    selected tower can look unaffordable while staying clickable to deselect. */
