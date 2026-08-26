@@ -33,11 +33,11 @@ multiplier.
 
 | | **HEAT** | **COLD** | **KINETIC** | **SOLVENT** |
 |---|---|---|---|---|
-| **ORE** | ×1.5 | ×0.5 | ×1.25 | ×1.0 |
-| **SLAG** | ×1.0 | ×1.0 | ×1.5 | ×1.25 |
-| **MOLTEN** | **immune** | ×2.0 | ×0.75 | ×1.25 |
-| **CRYSTAL** | ×1.25 | **immune** | ×2.0 | **immune** |
-| **VAPOR** | ×0.5 | ×1.5 | **immune** | ×2.0 |
+| **ORE** | **×2.0** | ×0.5 | ×1.5 | ×1.0 |
+| **SLAG** | ×1.0 | ×1.0 | **×1.5** | ×1.25 |
+| **MOLTEN** | **immune** | **×2.0** | ×0.75 | ×1.6 |
+| **CRYSTAL** | ×1.6 | **immune** | **×2.0** | **immune** |
+| **VAPOR** | ×0.5 | ×1.6 | **immune** | **×2.0** |
 
 Two rules generate these numbers, and both are asserted in tests:
 
@@ -46,9 +46,15 @@ force the player to have a strategy at all. An element without a wall becomes
 the answer to everything — Solvent briefly had none, and the Vat immediately
 appeared in every single winning build.
 
-**Every layer has at least two counters.** One counter would make that tower
-mandatory whenever the layer appears. Two or more is what keeps several
-different builds viable.
+**Every layer has at least two counters** — a specialist in bold at ×2.0, and a
+runner-up near ×1.6. One counter would make that tower mandatory whenever the
+layer appears. The runner-up has to be close behind, too: when the seconds sat
+at ×1.25 they could not keep up with late-round toughness, and the three towers
+holding a specialist became mandatory together.
+
+Every element is the specialist for exactly one layer and useless against
+exactly one. Heat lacked a specialty for a while and both Heat towers dropped
+out of every winning build.
 
 Round 1 is bare Ore, which nothing is immune to, so the opening is genuinely a
 preference. Immunities then arrive one per round, each teaching a single cell.
@@ -95,33 +101,55 @@ Starter four, one per element:
   strips whatever it touches down to Slag, so a Vat always leaves the Stamp
   something it can finish.
 
-Upgrade branches change *table behaviour*, not just numbers — e.g. a Stamp
-upgrade that stops splitting Molten, letting you break the ordering rule at
-a price. Numeric-only upgrades are the boring half; keep them a minority.
+## Upgrade paths
 
-**Shipped:** two per tower, mutually exclusive, no refund. Five rewrite table
-cells, three are numeric.
+Two paths per tower, three tiers deep, mutually exclusive and with no refund.
+A tower commits to a path and then climbs it, which makes "which tower do I
+take all the way" the central late decision rather than a formality.
 
-| Tower | Branch | Effect |
+Upgrades change *table behaviour*, not just numbers. The strongest of them
+**lift an immunity** — the hardest wall in the game — and those sit at the top
+of a path, reached by commitment rather than handed out at tier 1.
+
+| Tower | Path | What the top of it does |
 |---|---|---|
-| Forge | **Kiln** | `CRYSTAL/HEAT` → nothing. A late Forge stops melting your own work. |
-| Forge | Bellows | Faster fire rate. |
-| Chiller | **Deposition Coil** | `VAPOR/COLD` → CRYSTAL instead of MOLTEN. |
-| Chiller | Supercooled Jets | Longer range. |
-| Stamp | **Dampened Press** | `MOLTEN/KINETIC` chips instead of splitting, and presses slower. |
-| Stamp | Wide Die | Longer range. Still ground-only. |
-| Vat | **Reclaimer** | `VAPOR/SOLVENT` 1 → 2 damage, so two Vats finish a Vapor. |
-| Vat | **Catalyst Bath** | `SLAG/SOLVENT` destroys, so the Vat needs no Stamp. |
+| Forge | **Kiln** | Molten stops being immune to Heat and ends up taking ×1.4. |
+| Forge | Bellows | Fires roughly three times as often as stock. |
+| Chiller | **Deposition** | Crystal stops being immune to Cold and ends at ×1.75. |
+| Chiller | Supercooled | Covers a quarter of the lane on its own. |
+| Stamp | **Dampened** | Crushes Molten and Ore; trades away the Crystal specialism. |
+| Stamp | **Die** | Doubles down on Crystal — ×3.5, the hardest hit in the game. |
+| Vat | **Reclaimer** | Tears through Vapor, and dissolves Crystal slightly — its own wall, undone. |
+| Vat | **Catalyst** | Floods a stretch of lane; eats Slag and Ore in bulk. |
+| Lens | Focus | One shot removes most things, from anywhere on the map. |
+| Lens | **Prism** | Finds a wavelength for every layer, including Vapor. |
 
-A tower that resolves a cell to *nothing* also stops firing at it — towers
-already hold fire where the table says nothing happens — so the Kiln shows up
-as restraint rather than as a wasted shot.
+Six of the ten paths rewrite table cells; the rest are numeric, which
+DESIGN.md's older self correctly called the boring half.
 
-## Waves
-40 waves at M2. Design rhythm: waves 1–8 teach one table cell each.
-Wave 9+ mixes states at spawn, forcing parallel lines.
-Boss charges: multi-layered — a CRYSTAL shell around a MOLTEN core, so
-shattering it releases something worse.
+A tower that resolves a cell to *nothing* also stops firing at it — towers hold
+fire where the table says nothing happens — so a bare Forge facing a Molten
+round shows up as restraint rather than as wasted shots, and buying the Kiln
+path is what turns those held shots into breaks.
+
+## Rounds
+20 authored rounds, then seeded freeplay without end. Rounds 1–7 teach one
+immunity each; 8–10 mix them; 11–20 escalate through weight rather than new
+vocabulary.
+
+Difficulty past round 10 climbs through a per-group `hpScale` rather than
+through sheer count. Spawning ever more bodies would drown the simulation and
+slow headless playtesting, and a round of a thousand weak charges only asks for
+more of what you already own. Toughness keeps asking the question the
+resistance table poses: did you bring an answer to this layer?
+
+One mechanism covers both bosses and freeplay. A **slab** is a deep stack at
+high `hpScale` — a Crystal shell whose Molten cores inherit its toughness — and
+freeplay is the same dial turned by a formula, compounding without end.
+
+Bounty scales with the **square root** of toughness, not linearly. Paying full
+multiples let a heavy round fund the towers that beat it, which is the same
+trap that made wave size useless as a difficulty dial.
 
 ## Non-negotiable architecture rule
 The simulation must run **headless and deterministic**: fixed timestep, seeded

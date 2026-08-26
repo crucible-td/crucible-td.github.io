@@ -22,8 +22,9 @@ import { runCampaign } from './campaign.ts';
 import { parseLoadout } from './sim/loadout.ts';
 import { Rng } from './sim/rng.ts';
 import { TOWER_IDS } from './sim/towers.ts';
+import { pathsFor, tiersOf } from './sim/upgrades.ts';
 import type { TowerId } from './sim/types.ts';
-import { WAVES } from './sim/waves.ts';
+import { AUTHORED_ROUNDS } from './sim/freeplay.ts';
 
 /**
  * Buildable cells spread along the lane, in lane order.
@@ -63,9 +64,20 @@ export interface BuildResult {
   livesLeft: number;
 }
 
+/** Median of a list, or 0 when empty. */
+function median(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
+}
+
 export interface DiversityReport {
   builds: BuildResult[];
   winners: BuildResult[];
+  /** How deep the sampled builds get. With freeplay there is no ceiling. */
+  medianDepth: number;
+  deepest: number;
   /** Fraction of winning builds containing each tower. 1 means mandatory. */
   presence: Record<TowerId, number>;
   mustBuild: TowerId[];
@@ -79,7 +91,16 @@ function label(comp: Record<TowerId, number>): string {
     .join('+');
 }
 
-/** Lay a composition out along the lane, in tower order, one per slot. */
+/**
+ * Lay a composition out along the lane, in tower order, one per slot.
+ *
+ * Every tower is given a tier-3 path to climb, alternating between its two
+ * paths across slots. Without this the meter could not see the main thing that
+ * widens the strategy space: a path that lifts an immunity is what lets one
+ * tower cover a layer it otherwise cannot touch, so measuring bare towers
+ * measures a game nobody plays. The campaign only buys what the wallet
+ * reaches, so this is an intent to climb rather than a grant.
+ */
 function planFor(comp: Record<TowerId, number>, slots: number): string {
   const picks: TowerId[] = [];
   for (const t of TOWER_IDS) for (let i = 0; i < comp[t]; i++) picks.push(t);
@@ -89,7 +110,9 @@ function planFor(comp: Record<TowerId, number>, slots: number): string {
       const slot = SLOTS[i];
       if (!slot) throw new Error(`only ${SLOTS.length} lane slots are defined; asked for ${slots}`);
       const [col, row] = slot;
-      return `${t}@${col},${row}`;
+      const path = pathsFor(t)[i % 2]!;
+      const top = tiersOf(t, path)[2]!;
+      return `${t}@${col},${row}+${top.id}`;
     })
     .join(' ');
 }
@@ -108,9 +131,12 @@ function allCompositions(slots: number): Record<TowerId, number>[] {
   return out;
 }
 
-export function runDiversity(opts: { slots?: number; sample?: number; seed?: number } = {}): DiversityReport {
+export function runDiversity(
+  opts: { slots?: number; sample?: number; seed?: number; rounds?: number } = {},
+): DiversityReport {
   const slots = opts.slots ?? 8;
   const seed = opts.seed ?? 1;
+  const rounds = opts.rounds ?? AUTHORED_ROUNDS;
   let comps = allCompositions(slots);
 
   if (opts.sample !== undefined && opts.sample < comps.length) {
@@ -126,7 +152,7 @@ export function runDiversity(opts: { slots?: number; sample?: number; seed?: num
 
   const builds: BuildResult[] = comps.map((composition) => {
     const plan = parseLoadout(planFor(composition, slots));
-    const r = runCampaign(plan, seed, 20000);
+    const r = runCampaign(plan, seed, 20000, rounds);
     return {
       composition,
       label: label(composition),
@@ -143,8 +169,17 @@ export function runDiversity(opts: { slots?: number; sample?: number; seed?: num
   }
   const mustBuild = winners.length === 0 ? [] : TOWER_IDS.filter((t) => presence[t] === 1);
   const distinctWinners = new Set(winners.map((b) => b.label)).size;
+  const depths = builds.map((b) => b.roundsCleared);
 
-  return { builds, winners, presence, mustBuild, distinctWinners };
+  return {
+    builds,
+    winners,
+    medianDepth: median(depths),
+    deepest: Math.max(...depths),
+    presence,
+    mustBuild,
+    distinctWinners,
+  };
 }
 
 function main(): void {
@@ -152,6 +187,7 @@ function main(): void {
     options: {
       slots: { type: 'string', default: '8' },
       sample: { type: 'string' },
+      rounds: { type: 'string' },
       seed: { type: 'string', default: '1' },
       json: { type: 'boolean', default: false },
     },
@@ -159,8 +195,10 @@ function main(): void {
   });
 
   const slots = Number(values.slots);
+  const rounds = values.rounds !== undefined ? Number(values.rounds) : AUTHORED_ROUNDS;
   const report = runDiversity({
     slots,
+    rounds,
     seed: Number(values.seed),
     ...(values.sample !== undefined ? { sample: Number(values.sample) } : {}),
   });
@@ -170,13 +208,16 @@ function main(): void {
     return;
   }
 
-  console.log(`\n${report.builds.length} builds of ${slots} towers, run through the full campaign.\n`);
-  console.log(`${report.winners.length} cleared all ${WAVES.length} rounds, in ${report.distinctWinners} distinct compositions.\n`);
+  console.log(`\n${report.builds.length} builds of ${slots} towers, run to round ${rounds}.\n`);
+  console.log(
+    `${report.winners.length} cleared all ${rounds} rounds, in ${report.distinctWinners} distinct compositions. ` +
+      `Median depth ${report.medianDepth}, deepest ${report.deepest}.\n`,
+  );
 
   const best = [...report.winners].sort((a, b) => b.livesLeft - a.livesLeft).slice(0, 12);
   if (best.length > 0) {
     console.log('best surviving builds:');
-    for (const b of best) console.log(`  ${b.label.padEnd(18)} ${b.livesLeft}/20 lives`);
+    for (const b of best) console.log(`  ${b.label.padEnd(18)} round ${b.roundsCleared}, ${b.livesLeft}/20 lives`);
     console.log();
   }
 

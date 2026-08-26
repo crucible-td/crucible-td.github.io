@@ -15,7 +15,11 @@ import type { Element, State } from './types.ts';
  *   strategy at all. Every element is useless against exactly one layer, so
  *   no single tower can carry a run.
  *
- *   Above 1 is a counter, and EVERY layer has at least two of them. That is
+ *   Above 1 is a counter, and EVERY layer has at least two of them -- a
+ *   specialist at 2.0 and a runner-up near 1.6. The runner-up has to be close
+ *   enough to actually substitute: when the seconds sat at 1.25 they could not
+ *   keep up with late-round toughness, and the three towers holding the 2.0
+ *   counters became mandatory together. That is
  *   what keeps more than one strategy valid -- the previous version of this
  *   game paid 7 for one route and 2 for the next, and the build the harness
  *   converged on quietly discarded a quarter of the tower roster.
@@ -25,23 +29,27 @@ import type { Element, State } from './types.ts';
  * wave after that, each teaching a single cell.
  */
 export const RESISTANCE: Record<State, Record<Element, number>> = {
-  // Rock. Soft to heat, shrugs off cold. Any opening can chew through it.
-  ORE: { HEAT: 1.5, COLD: 0.5, KINETIC: 1.25, SOLVENT: 1.0 },
+  // Rock, and Heat's specialty. Every element is the best answer to exactly
+  // one layer and useless against exactly one; Heat lacked a specialty for a
+  // while, and the diversity meter caught it immediately -- at high toughness
+  // the three elements that did have one became mandatory together and both
+  // Heat towers fell out of every winning build.
+  ORE: { HEAT: 2.0, COLD: 0.5, KINETIC: 1.5, SOLVENT: 1.0 },
 
   // Stripped and brittle: the layer under everything, weak to a good hit.
   SLAG: { HEAT: 1.0, COLD: 1.0, KINETIC: 1.5, SOLVENT: 1.25 },
 
   // Already molten, so heat does nothing at all. Chill it or dissolve it.
-  MOLTEN: { HEAT: 0, COLD: 2.0, KINETIC: 0.75, SOLVENT: 1.25 },
+  MOLTEN: { HEAT: 0, COLD: 2.0, KINETIC: 0.75, SOLVENT: 1.6 },
 
   // Inert: freezing a crystal achieves nothing and solvent runs straight off
   // it. Shatter it, or melt it back down. Crystal is the layer that punishes a
   // board built entirely out of Vats -- every element needs exactly one wall,
   // or the element without one becomes the answer to everything.
-  CRYSTAL: { HEAT: 1.25, COLD: 0, KINETIC: 2.0, SOLVENT: 0 },
+  CRYSTAL: { HEAT: 1.6, COLD: 0, KINETIC: 2.0, SOLVENT: 0 },
 
   // A gas: kinetic passes straight through, and it floats over ground towers.
-  VAPOR: { HEAT: 0.5, COLD: 1.5, KINETIC: 0, SOLVENT: 2.0 },
+  VAPOR: { HEAT: 0.5, COLD: 1.6, KINETIC: 0, SOLVENT: 2.0 },
 };
 
 /**

@@ -111,6 +111,15 @@ export interface Charge {
   dist: number;
   /** Damage this layer can still absorb. */
   hp: number;
+  /**
+   * Toughness multiplier, inherited by every layer underneath.
+   *
+   * One dial serves two purposes: a boss is a deep stack at a high scale, and
+   * freeplay past the authored rounds is the same dial turned by a formula.
+   * Scaling HP rather than adding enemy types keeps the resistance table at
+   * exactly twenty cells.
+   */
+  scale: number;
   speedMult: number;
   alive: boolean;
   /** Ticks of visual highlight remaining. Render-only, but kept deterministic. */
@@ -125,24 +134,36 @@ export interface Tower {
   y: number;
   /** Ticks until this tower may fire again. */
   cooldown: number;
-  /** The one branch this tower has taken, if any. Branches are exclusive. */
-  upgrade: UpgradeId | null;
+  /**
+   * The path this tower has climbed, lowest tier first.
+   *
+   * A tower commits to one of its two paths and then walks up it; it can never
+   * take a tier from the other. Stored as the history rather than just the top
+   * tier so that stats and table overrides can be folded in order, with later
+   * tiers winning.
+   */
+  upgrades: UpgradeId[];
 }
 
 export type TowerId = 'forge' | 'chiller' | 'stamp' | 'vat' | 'lens';
 
-/** Upgrade branch ids. Two per tower, mutually exclusive. */
+/**
+ * Upgrade ids: two paths of three tiers per tower.
+ *
+ * Declared here rather than in upgrades.ts so that `Tower` can name one
+ * without dragging the upgrade data into the type layer.
+ */
 export type UpgradeId =
-  | 'kiln'
-  | 'bellows'
-  | 'deposition'
-  | 'supercooled'
-  | 'dampened'
-  | 'wideDie'
-  | 'reclaimer'
-  | 'catalyst'
-  | 'focus'
-  | 'prism';
+  | 'kiln1' | 'kiln2' | 'kiln3'
+  | 'bellows1' | 'bellows2' | 'bellows3'
+  | 'depo1' | 'depo2' | 'depo3'
+  | 'super1' | 'super2' | 'super3'
+  | 'damp1' | 'damp2' | 'damp3'
+  | 'die1' | 'die2' | 'die3'
+  | 'recl1' | 'recl2' | 'recl3'
+  | 'cat1' | 'cat2' | 'cat3'
+  | 'focus1' | 'focus2' | 'focus3'
+  | 'prism1' | 'prism2' | 'prism3';
 
 export interface TowerDef {
   id: TowerId;

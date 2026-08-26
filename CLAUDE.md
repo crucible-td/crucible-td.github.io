@@ -29,8 +29,9 @@ rendering state, keep it in `src/render/`.
 |---|---|
 | `src/sim/resistance.ts` | **The resistance table.** Twenty cells that define the entire game. |
 | `src/sim/towers.ts`, `src/sim/waves.ts` | Tower stats and wave composition, as flat data. |
-| `src/sim/upgrades.ts` | **Upgrade branches.** Two per tower; the interesting ones rewrite table cells. |
+| `src/sim/upgrades.ts` | **Upgrade paths.** Two per tower, three tiers deep; the interesting tiers rewrite table cells. |
 | `src/sim/loadout.ts` | The `towerId@col,row[+upgradeId]` grammar both harnesses parse. |
+| `src/sim/freeplay.ts` | Rounds past the authored campaign, generated from a seed. |
 | `src/sim/world.ts` | `step()`, `applyElement()`, layer breaking, placement. The only place damage is resolved. |
 | `src/sim/path.ts` | Board dimensions, the lane polyline, buildable cells. |
 | `src/render/` | Canvas drawing and DOM chrome. Read-only over the sim. |
@@ -66,14 +67,17 @@ Loadout syntax is `towerId@col,row`, space-separated, with an optional
 
 ```bash
 npm run sim -- --wave 10 --loadout "forge@5,4 chiller@1,8 stamp@8,10"
-npm run sim -- --wave 3 --loadout "chiller@5,9 stamp@11,9+dampened"
+npm run sim -- --wave 3 --loadout "chiller@5,9 stamp@11,9+damp3"
 ```
+
+Naming a tier-3 upgrade means "climb this path": tiers 1 and 2 are bought first
+and paid for.
 
 Upgrades have to be expressible here, not just clickable in the browser: an
 upgrade that cannot appear in a loadout cannot be measured, and unmeasurable
 balance is the one thing this project refuses. In `npm run campaign` a tower
-and its upgrade are two separate purchases -- the tower in plan order, the
-branch afterwards out of whatever gold is spare.
+and its upgrades are separate purchases -- the tower in plan order, the path
+climbed afterwards out of whatever gold is spare, a tier at a time.
 
 ## Balance is measured, not guessed
 
@@ -86,9 +90,13 @@ Reference points from the current tuning, all measurable:
 
 - Every one of the five towers clears round 1 on its own. That is deliberate:
   the opening is a preference, not a puzzle.
-- 28 of 150 sampled 14-tower compositions clear all ten rounds, in 28 distinct
-  compositions, and no tower appears in every winner.
-- The reference plan wins on every seed with about 9 of 20 lives left.
+- 77 of 320 sampled 18-tower compositions clear all twenty rounds, in 77
+  distinct compositions, and no tower appears in every winner.
+- The reference plan wins on every seed with about 9 of 20 lives left, climbing
+  22 upgrade tiers, and reaches roughly round 22 in freeplay.
+- Sample size is part of that measurement. At 120 builds the meter called the
+  Vat mandatory and a hand-built Vat-free board then cleared all twenty rounds
+  with 18 lives left. Raise the sample before believing a verdict.
 
 If a change makes round 1 punishing, or drives the number of winning builds
 toward one, it has removed the point of this version.
@@ -99,8 +107,10 @@ Two structural rules the resistance table has to keep obeying, both asserted in
 - **Every element is useless against exactly one layer.** An element without a
   wall becomes the answer to everything -- the Vat was briefly mandatory in
   every winning build for precisely this reason.
-- **Every layer has at least two counters.** One counter makes that tower
-  mandatory whenever the layer shows up.
+- **Every layer has at least two counters**, a specialist at 2.0 and a
+  runner-up near 1.6. One counter makes that tower mandatory whenever the layer
+  shows up -- and a runner-up too far behind the specialist is not really a
+  second answer, because it cannot keep up with late-round toughness.
 
 ## Conventions
 
@@ -133,28 +143,25 @@ to either file take effect in the next session.
 
 **v2 is a pivot.** The original game -- towers that never dealt damage and
 instead transmuted enemies between states -- is complete, measured, and tagged
-`v1-transmutation`. It was retired because it had one right answer: the shatter
-line paid 7 against 2 and 1 for every alternative, and the build the harness
-converged on used three of the four towers and ignored the fourth entirely.
+`v1-transmutation`. It was retired because it had one right answer.
 
-The playable core of v2 has landed: HP and damage, layers that break inward,
-money per layer, 5 towers with two upgrade branches each, 10 escalating rounds,
-and three harnesses. `npm test` (53 tests), `npm run typecheck` and
-`npm run build` all pass, and the browser build reproduces the headless numbers.
-
-The `balance-pass` skill lives at `.claude/skills/balance-pass/`, with the
-references it measures against in `reference/`.
+v2.1 is current: HP and damage, layers that break inward, money per layer,
+5 towers with two three-tier upgrade paths each, 20 authored rounds, seeded
+freeplay past them, and four harnesses. `npm test` (61 tests),
+`npm run typecheck` and `npm run build` all pass.
 
 Still unbuilt, and left as the owner's own AI-tooling exercise:
 
 - **A balance-analyst subagent**, best pinned to a cheaper model in its
   frontmatter.
 
-Remaining game scope: breadth (more towers, 3 upgrade paths x 3 tiers, synergy
-towers), more rounds and freeplay, more maps, audio, save/load.
+Remaining game scope: more towers, synergy/support towers, more maps, audio,
+save/load, and moment-to-moment polish (fast-forward, pause, target priority).
 
-One open balance finding, measured rather than assumed and inherited from v1: a
-run ends with a large unspent gold pile, because most of it accrues *during* the
-final round, after the last purchase point. No pricing change can reach it --
-sweeping upgrade costs down by two-thirds in v1 barely moved it. The real fixes
-are more rounds or shifting income earlier.
+The unspent-gold finding is largely closed. It was 995 at the end of a ten-round
+run with nothing left to buy; lengthening the campaign to twenty rounds and
+giving each tower a three-tier path brought it to about 790 while the reference
+plan now spends on 18 towers and 22 upgrade tiers. Bounty scales with the
+*square root* of a charge's toughness rather than linearly, because paying full
+multiples let heavy rounds fund the towers that beat them -- the same trap that
+made wave size useless as a difficulty dial in v1.

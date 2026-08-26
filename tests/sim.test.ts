@@ -13,6 +13,7 @@ function seedCharge(w: World, state: State, dist = 0) {
     state,
     dist,
     hp: STATES[state].hp,
+    scale: 1,
     speedMult: 1,
     alive: true,
     flash: 0,

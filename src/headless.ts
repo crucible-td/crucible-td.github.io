@@ -18,6 +18,7 @@ import { ECONOMY } from './sim/economy.ts';
 import { parseLoadout, describePlacement } from './sim/loadout.ts';
 import type { Placement } from './sim/loadout.ts';
 import { TOWERS } from './sim/towers.ts';
+import { chainTo } from './sim/upgrades.ts';
 import { STATE_IDS } from './sim/types.ts';
 import type { State } from './sim/types.ts';
 import { WAVES } from './sim/waves.ts';
@@ -50,9 +51,13 @@ function runWave(waveIndex: number, loadout: Placement[], seed: number, maxTicks
       throw new Error(`cannot place ${p.def} at ${p.col},${p.row} -- on the lane, or occupied`);
     }
     if (p.upgrade) {
+      // Placement is free here, so the whole path is simply granted: this
+      // harness measures round pressure, not affordability.
       const t = towerAt(w, p.col, p.row)!;
-      if (!upgradeTower(w, t, p.upgrade)) {
-        throw new Error(`cannot apply ${p.upgrade} to ${p.def} at ${p.col},${p.row}`);
+      for (const step of chainTo(p.upgrade)) {
+        if (!upgradeTower(w, t, step.id)) {
+          throw new Error(`cannot apply ${step.id} to ${p.def} at ${p.col},${p.row}`);
+        }
       }
     }
   }

@@ -1,11 +1,12 @@
 /** DOM chrome around the canvas: readouts, build menu, table reference, overlay. */
 import { RESISTANCE } from '../sim/resistance.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
-import { UPGRADES, upgradesFor } from '../sim/upgrades.ts';
+import { UPGRADES } from '../sim/upgrades.ts';
 import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
 import type { Element } from '../sim/types.ts';
 import type { State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { WAVES } from '../sim/waves.ts';
+import { availableUpgrades } from '../sim/world.ts';
 import type { World } from '../sim/world.ts';
 
 function el<T extends HTMLElement>(id: string): T {
@@ -179,21 +180,36 @@ export class Ui {
     }
 
     const list = el('upgradeList');
-    const key = `${inspected.id}:${inspected.upgrade ?? ''}`;
+    // Keyed on how far the path has been climbed as well as on the tower, so
+    // buying a tier rebuilds the panel to offer the next one.
+    const key = `${inspected.id}:${inspected.upgrades.join('>')}`;
     if (this.shownTower !== key) {
       this.shownTower = key;
-      el('inspectTitle').textContent = `${TOWERS[inspected.def].name} upgrades`;
+      const taken = inspected.upgrades.map((id) => UPGRADES[id]);
+      const committed = taken[0]?.path;
+      el('inspectTitle').textContent = committed
+        ? `${TOWERS[inspected.def].name} · ${taken[taken.length - 1]!.name}`
+        : `${TOWERS[inspected.def].name} upgrades`;
       list.replaceChildren();
 
-      if (inspected.upgrade) {
-        const taken = document.createElement('p');
-        taken.className = 'taken';
-        taken.textContent = `${UPGRADES[inspected.upgrade].name} fitted. Branches are exclusive and there is no refund.`;
-        list.appendChild(taken);
-        return;
+      // What has already been bought, so the panel reads as a path with a
+      // position on it rather than a menu that keeps changing.
+      if (taken.length > 0) {
+        const owned = document.createElement('p');
+        owned.className = 'taken';
+        owned.textContent = `Fitted: ${taken.map((u) => u.name).join(' → ')}`;
+        list.appendChild(owned);
       }
 
-      for (const up of upgradesFor(inspected.def)) {
+      const next = availableUpgrades(inspected);
+      if (next.length === 0) {
+        const done = document.createElement('p');
+        done.className = 'taken';
+        done.textContent = 'Path complete. There is nothing above this tier.';
+        list.appendChild(done);
+      }
+
+      for (const up of next) {
         const btn = document.createElement('button');
         btn.className = 'tower';
         btn.dataset.upgrade = up.id;
@@ -202,7 +218,9 @@ export class Ui {
           .map((line) => `<span class="blurb">${line}</span>`)
           .join('');
         btn.innerHTML =
-          `<span class="row"><span class="name">${up.name}</span><span class="cost">${up.cost}g</span></span>` +
+          `<span class="row"><span class="name">${up.name}</span>` +
+          `<span class="elem">tier ${up.tier}</span>` +
+          `<span class="cost">${up.cost}g</span></span>` +
           `<span class="blurb">${up.blurb}</span>${changes}`;
         btn.addEventListener('click', () => this.handlers.onUpgrade(inspected, up.id));
         list.appendChild(btn);

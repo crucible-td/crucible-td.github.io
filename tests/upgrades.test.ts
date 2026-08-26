@@ -4,8 +4,17 @@ import { RESISTANCE, resolveResistance } from '../src/sim/resistance.ts';
 import { TOWER_IDS } from '../src/sim/towers.ts';
 import { ELEMENT_IDS, STATE_IDS, STATES } from '../src/sim/types.ts';
 import type { Element, State } from '../src/sim/types.ts';
-import { UPGRADES, UPGRADE_IDS, upgradesFor } from '../src/sim/upgrades.ts';
-import { canUpgrade, createWorld, placeTower, startWave, step, towerAt, upgradeTower } from '../src/sim/world.ts';
+import { UPGRADES, UPGRADE_IDS, chainCost, chainTo, pathsFor, tiersOf, upgradesFor } from '../src/sim/upgrades.ts';
+import {
+  availableUpgrades,
+  canUpgrade,
+  createWorld,
+  placeTower,
+  startWave,
+  step,
+  towerAt,
+  upgradeTower,
+} from '../src/sim/world.ts';
 import type { World } from '../src/sim/world.ts';
 
 /**
@@ -16,9 +25,30 @@ import type { World } from '../src/sim/world.ts';
  * than quietly change what the game is.
  */
 describe('upgrade branches', () => {
-  it('gives every tower exactly two mutually exclusive branches', () => {
-    for (const t of TOWER_IDS) expect(upgradesFor(t), t).toHaveLength(2);
-    expect(UPGRADE_IDS).toHaveLength(TOWER_IDS.length * 2);
+  it('gives every tower two paths of three tiers', () => {
+    for (const t of TOWER_IDS) {
+      expect(pathsFor(t), t).toHaveLength(2);
+      expect(upgradesFor(t), t).toHaveLength(6);
+      for (const path of pathsFor(t)) {
+        expect(tiersOf(t, path).map((u) => u.tier), `${t}/${path}`).toEqual([1, 2, 3]);
+      }
+    }
+    expect(UPGRADE_IDS).toHaveLength(TOWER_IDS.length * 6);
+  });
+
+  it('prices each tier above the one below it', () => {
+    for (const t of TOWER_IDS) {
+      for (const path of pathsFor(t)) {
+        const costs = tiersOf(t, path).map((u) => u.cost);
+        expect(costs, `${t}/${path}`).toEqual([...costs].sort((a, b) => a - b));
+      }
+    }
+  });
+
+  it('reports the whole chain that a tier implies', () => {
+    expect(chainTo('kiln3').map((u) => u.id)).toEqual(['kiln1', 'kiln2', 'kiln3']);
+    expect(chainTo('kiln1').map((u) => u.id)).toEqual(['kiln1']);
+    expect(chainCost('kiln3')).toBe(UPGRADES.kiln1.cost + UPGRADES.kiln2.cost + UPGRADES.kiln3.cost);
   });
 
   it('keeps every id self-consistent', () => {
@@ -46,26 +76,35 @@ describe('upgrade branches', () => {
   });
 
   it('rewrites exactly these cells and no others', () => {
-    expect(UPGRADES.kiln.overrides).toEqual({ MOLTEN: { HEAT: 0.75 } });
-    expect(UPGRADES.deposition.overrides).toEqual({ CRYSTAL: { COLD: 1.0 } });
-    expect(UPGRADES.dampened.overrides).toEqual({ MOLTEN: { KINETIC: 1.75 } });
-    expect(UPGRADES.reclaimer.overrides).toEqual({ VAPOR: { SOLVENT: 3.0 } });
-    expect(UPGRADES.catalyst.overrides).toEqual({ SLAG: { SOLVENT: 2.5 } });
-    expect(UPGRADES.prism.overrides).toEqual({ ORE: { HEAT: 2.5 }, CRYSTAL: { HEAT: 2.0 } });
-    // The numeric branches touch no cells at all.
-    for (const id of ['bellows', 'supercooled', 'wideDie', 'focus'] as const) {
+    expect(UPGRADES.kiln1.overrides).toEqual({ MOLTEN: { HEAT: 0.5 } });
+    expect(UPGRADES.kiln3.overrides).toEqual({ MOLTEN: { HEAT: 1.4 } });
+    expect(UPGRADES.depo3.overrides).toEqual({ CRYSTAL: { COLD: 1.75 } });
+    expect(UPGRADES.die3.overrides).toEqual({ CRYSTAL: { KINETIC: 3.5 } });
+    expect(UPGRADES.recl3.overrides).toEqual({ VAPOR: { SOLVENT: 4.0 }, CRYSTAL: { SOLVENT: 0.6 } });
+    expect(UPGRADES.prism3.overrides).toEqual({
+      ORE: { HEAT: 3.0 },
+      CRYSTAL: { HEAT: 2.5 },
+      VAPOR: { HEAT: 1.5 },
+    });
+    // The purely numeric tiers touch no cells at all.
+    for (const id of ['bellows1', 'bellows3', 'super1', 'die1', 'focus1', 'focus3'] as const) {
       expect(UPGRADES[id].overrides, id).toBeUndefined();
     }
   });
 
-  it('lets a branch lift an immunity, which is the strongest thing to sell', () => {
-    // An immunity is the hardest wall in the game, so partly lifting one is
-    // how a build covers a gap it was never designed for -- more answers per
-    // layer is more builds that work.
+  it('climbs toward lifting an immunity, which is what a path is for', () => {
+    // An immunity is the hardest wall in the game, so lifting one is the
+    // strongest thing a player can buy -- and it belongs at the top of a path,
+    // reached by commitment rather than handed out at tier 1.
     expect(RESISTANCE.MOLTEN.HEAT).toBe(0);
-    expect(resolveResistance('MOLTEN', 'HEAT', UPGRADES.kiln.overrides)).toBeGreaterThan(0);
-    expect(RESISTANCE.CRYSTAL.COLD).toBe(0);
-    expect(resolveResistance('CRYSTAL', 'COLD', UPGRADES.deposition.overrides)).toBeGreaterThan(0);
+    const climb = chainTo('kiln3').map((u) => resolveResistance('MOLTEN', 'HEAT', u.overrides));
+    expect(climb).toEqual([...climb].sort((a, b) => a - b));
+    expect(climb[climb.length - 1]).toBeGreaterThan(1);
+
+    // The Vat's own wall, undone only at the very top of its path.
+    expect(RESISTANCE.CRYSTAL.SOLVENT).toBe(0);
+    expect(resolveResistance('CRYSTAL', 'SOLVENT', UPGRADES.recl3.overrides)).toBeGreaterThan(0);
+    expect(UPGRADES.recl1.overrides?.CRYSTAL).toBeUndefined();
   });
 });
 
@@ -79,14 +118,14 @@ describe('resolveResistance through an upgrade', () => {
   });
 
   it('replaces only the overridden cell, leaving the rest of the row alone', () => {
-    const o = UPGRADES.dampened.overrides;
+    const o = UPGRADES.damp2.overrides;
     expect(resolveResistance('MOLTEN', 'KINETIC', o)).toBe(1.75);
     expect(resolveResistance('MOLTEN', 'COLD', o)).toBe(RESISTANCE.MOLTEN.COLD);
     expect(resolveResistance('CRYSTAL', 'KINETIC', o)).toBe(RESISTANCE.CRYSTAL.KINETIC);
   });
 });
 
-describe('buying an upgrade', () => {
+describe('climbing a path', () => {
   const placed = (gold: number): [World, ReturnType<typeof towerAt>] => {
     const w = createWorld(1);
     placeTower(w, 'stamp', 11, 9);
@@ -94,31 +133,60 @@ describe('buying an upgrade', () => {
     return [w, towerAt(w, 11, 9)];
   };
 
-  it('deducts the cost and records the branch', () => {
-    const [w, t] = placed(500);
-    expect(upgradeTower(w, t!, 'dampened')).toBe(true);
-    expect(t!.upgrade).toBe('dampened');
-    expect(w.gold).toBe(500 - UPGRADES.dampened.cost);
+  it('deducts the cost and records the tier', () => {
+    const [w, t] = placed(900);
+    expect(upgradeTower(w, t!, 'damp1')).toBe(true);
+    expect(t!.upgrades).toEqual(['damp1']);
+    expect(w.gold).toBe(900 - UPGRADES.damp1.cost);
   });
 
-  it('refuses a branch belonging to a different tower', () => {
-    const [w, t] = placed(500);
-    expect(canUpgrade(w, t!, 'kiln')).toBe(false);
-    expect(upgradeTower(w, t!, 'kiln')).toBe(false);
-    expect(w.gold).toBe(500);
+  it('refuses a tier belonging to a different tower', () => {
+    const [w, t] = placed(900);
+    expect(canUpgrade(w, t!, 'kiln1')).toBe(false);
+    expect(w.gold).toBe(900);
   });
 
-  it('refuses a second branch, since there is no refund', () => {
-    const [w, t] = placed(500);
-    upgradeTower(w, t!, 'dampened');
-    expect(upgradeTower(w, t!, 'wideDie')).toBe(false);
-    expect(t!.upgrade).toBe('dampened');
+  it('refuses to skip a tier', () => {
+    const [w, t] = placed(900);
+    expect(canUpgrade(w, t!, 'damp2')).toBe(false);
+    upgradeTower(w, t!, 'damp1');
+    expect(canUpgrade(w, t!, 'damp2')).toBe(true);
+    expect(canUpgrade(w, t!, 'damp3')).toBe(false);
+  });
+
+  it('refuses the other path once one is committed to', () => {
+    // A tower picks a path and lives with it. That commitment is what makes
+    // "which tower do I take all the way" a decision rather than a formality.
+    const [w, t] = placed(900);
+    upgradeTower(w, t!, 'damp1');
+    expect(canUpgrade(w, t!, 'die1')).toBe(false);
+    expect(canUpgrade(w, t!, 'die2')).toBe(false);
   });
 
   it('refuses when the player cannot pay', () => {
-    const [w, t] = placed(UPGRADES.dampened.cost - 1);
-    expect(upgradeTower(w, t!, 'dampened')).toBe(false);
-    expect(t!.upgrade).toBeNull();
+    const [w, t] = placed(UPGRADES.damp1.cost - 1);
+    expect(upgradeTower(w, t!, 'damp1')).toBe(false);
+    expect(t!.upgrades).toEqual([]);
+  });
+
+  it('offers both paths at first and only the next tier afterwards', () => {
+    const [w, t] = placed(900);
+    expect(availableUpgrades(t!).map((u) => u.id)).toEqual(['damp1', 'die1']);
+    upgradeTower(w, t!, 'damp1');
+    expect(availableUpgrades(t!).map((u) => u.id)).toEqual(['damp2']);
+    upgradeTower(w, t!, 'damp2');
+    upgradeTower(w, t!, 'damp3');
+    expect(availableUpgrades(t!)).toEqual([]);
+  });
+
+  it('folds the path so later tiers win over earlier ones', () => {
+    const [w, t] = placed(900);
+    for (const step of chainTo('damp3')) upgradeTower(w, t!, step.id);
+    expect(t!.upgrades).toEqual(['damp1', 'damp2', 'damp3']);
+    // Tier 1 set MOLTEN/KINETIC to 1.25 and tier 3 to 2.25. The fold in
+    // world.ts applies them in order, so the top of the path is what lands.
+    expect(UPGRADES.damp1.overrides?.MOLTEN?.KINETIC).toBe(1.25);
+    expect(UPGRADES.damp3.overrides?.MOLTEN?.KINETIC).toBe(2.25);
   });
 });
 
@@ -130,7 +198,10 @@ describe('upgrades in play', () => {
     w.gold = Number.MAX_SAFE_INTEGER;
     for (const p of parseLoadout(loadout)) {
       placeTower(w, p.def, p.col, p.row);
-      if (p.upgrade) upgradeTower(w, towerAt(w, p.col, p.row)!, p.upgrade);
+      if (p.upgrade) {
+        const t = towerAt(w, p.col, p.row)!;
+        for (const step of chainTo(p.upgrade)) upgradeTower(w, t, step.id);
+      }
     }
     startWave(w);
     for (let i = 0; i < 20000 && w.status === 'running'; i++) step(w);
@@ -141,14 +212,14 @@ describe('upgrades in play', () => {
     // Round 4 is entirely Molten, which Heat cannot touch at all: a bare Forge
     // holds fire and achieves nothing. The branch is what buys it a way in.
     const bare = runRound('forge@5,9 forge@8,9', 3);
-    const kilned = runRound('forge@5,9+kiln forge@8,9+kiln', 3);
+    const kilned = runRound('forge@5,9+kiln3 forge@8,9+kiln3', 3);
     expect(bare.stats.breaks).toBe(0);
     expect(kilned.stats.breaks).toBeGreaterThan(0);
   });
 
   it('stays deterministic with upgrades in the loadout', () => {
     const run = () => {
-      const w = runRound('vat@5,9+reclaimer stamp@8,9 chiller@11,9+deposition', 8);
+      const w = runRound('vat@5,9+recl2 stamp@8,9 chiller@11,9+depo3', 8);
       return { tick: w.tick, gold: w.gold, lives: w.lives, stats: w.stats };
     };
     expect(run()).toEqual(run());

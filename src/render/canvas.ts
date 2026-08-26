@@ -90,7 +90,7 @@ export class Renderer {
     if (showRange) this.drawRange(showRange);
 
     for (const t of world.towers) {
-      this.drawTower(t.x, t.y, t.def, 1, t.upgrade !== null, t.id === inspected?.id);
+      this.drawTower(t.x, t.y, t.def, 1, t.upgrades.length, t.id === inspected?.id);
     }
     for (const c of world.charges) this.drawCharge(c);
     this.drawProjectiles(world);
@@ -148,7 +148,8 @@ export class Renderer {
   private drawRange(t: Tower): void {
     const { ctx } = this;
     const def = TOWERS[t.def];
-    const range = (t.upgrade ? UPGRADES[t.upgrade].stats?.range : undefined) ?? def.range;
+    let range = def.range;
+    for (const id of t.upgrades) range = UPGRADES[id].stats?.range ?? range;
     ctx.save();
     ctx.strokeStyle = def.color;
     ctx.globalAlpha = 0.5;
@@ -189,7 +190,7 @@ export class Renderer {
     y: number,
     id: TowerId,
     alpha: number,
-    upgraded = false,
+    tiers = 0,
     inspected = false,
   ): void {
     const { ctx } = this;
@@ -227,12 +228,13 @@ export class Renderer {
     ctx.textBaseline = 'middle';
     ctx.fillText(def.element[0]!, x, y + 0.5);
 
-    // An upgraded tower gets a corner pip. Branches are permanent, so the board
-    // needs to show which towers have already spent theirs.
-    if (upgraded) {
+    // One pip per tier climbed, along the top edge. Paths are permanent and
+    // three deep, so the board has to show how far each tower has committed --
+    // not merely that it has.
+    for (let i = 0; i < tiers; i++) {
       ctx.fillStyle = def.color;
       ctx.beginPath();
-      ctx.arc(x + r - 3.5, y - r + 3.5, 3, 0, Math.PI * 2);
+      ctx.arc(x + r - 3.5 - i * 7, y - r + 3.5, 2.6, 0, Math.PI * 2);
       ctx.fill();
     }
   }

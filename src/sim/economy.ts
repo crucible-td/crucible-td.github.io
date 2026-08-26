@@ -15,5 +15,5 @@ export const ECONOMY = {
    * how much board the player owns by the last round. Bounties alone would let
    * a bigger round pay for the towers that beat it.
    */
-  roundClearBonus: (round: number): number => 18 + round * 4,
+  roundClearBonus: (round: number): number => 14 + round * 3,
 } as const;

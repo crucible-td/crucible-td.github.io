@@ -1,1 +1,1 @@
-forge@5,1 stamp@5,5 forge@5,9 chiller@8,9 vat@8,13 stamp@11,9 lens@11,13 chiller@14,9 stamp@14,7 vat@18,7 lens@18,3 chiller@19,9 forge@22,11 stamp@23,9
+forge@2,1+bellows3 forge@5,1 stamp@5,5+die3 chiller@5,9+depo3 vat@8,9+recl3 forge@8,13 stamp@11,9 lens@11,13+focus3 chiller@12,13 stamp@14,13+damp3 chiller@14,9 vat@14,7+cat2 lens@18,3+prism2 chiller@18,7 stamp@19,9 vat@22,11 forge@23,9 stamp@23,11

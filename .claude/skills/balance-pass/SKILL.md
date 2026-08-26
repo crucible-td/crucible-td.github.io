@@ -25,10 +25,22 @@ npm run diversity
 ```
 
 It runs a large sample of compositions through the full campaign and reports
-how many win, and whether any tower appears in *every* winning build. A
-mandatory tower means the game has a right answer again, whatever the
-difficulty numbers say. Current state: **28 of 150 sampled builds clear all ten
-rounds, in 28 distinct compositions, with no tower mandatory.**
+how far each gets, how many win, and whether any tower appears in *every*
+winning build. A mandatory tower means the game has a right answer again,
+whatever the difficulty numbers say. Current state: **77 of 320 sampled
+18-tower builds clear all twenty rounds, in 77 distinct compositions, with no
+tower mandatory.**
+
+**Sample size is part of the measurement, not a detail.** At 120 builds this
+reported the Vat as mandatory; a hand-built Vat-free board then cleared all
+twenty rounds with 18 of 20 lives. Random compositions are mostly bad ones, so
+it takes a lot of them to turn up enough good builds to generalise from. Before
+believing a "mandatory" verdict, raise the sample and try to build a
+counter-example by hand.
+
+Sampled builds climb upgrade paths, and they have to: a path that lifts an
+immunity is the main thing that lets one tower cover a layer it otherwise
+cannot touch, so measuring bare towers measures a game nobody plays.
 
 Two failure modes it detects, both of which have really happened here:
 
@@ -60,19 +72,31 @@ is the fastest way to spot a build with no answer to a layer.
 
 | round | win% | leaks | gold | breaks | what leaks |
 |---|---|---|---|---|---|
-| 1 | 100 | 0.00 | 40 | 12 | -- |
-| 2 | 100 | 0.00 | 59 | 22 | -- |
-| 3 | 100 | 0.00 | 78 | 34 | -- |
-| 4 | 100 | 0.00 | 90 | 28 | -- |
-| 5 | 100 | 0.00 | 159 | 74 | -- |
-| 6 | 100 | 0.00 | 78 | 12 | -- |
-| 7 | 100 | 0.00 | 166 | 50 | -- |
-| 8 | 100 | 0.00 | 202 | 82 | -- |
-| 9 | 100 | 1.70 | 311 | 109 | MOLTEN 1.7 |
-| 10 | 100 | 4.00 | 413 | 168 | MOLTEN 4 |
+| 1 | 100 | 0.00 | 35 | 12 | -- |
+| 2 | 100 | 0.00 | 53 | 22 | -- |
+| 3 | 100 | 0.00 | 71 | 34 | -- |
+| 4 | 100 | 0.00 | 82 | 28 | -- |
+| 5 | 100 | 0.00 | 150 | 74 | -- |
+| 6 | 100 | 0.00 | 68 | 12 | -- |
+| 7 | 100 | 0.00 | 155 | 50 | -- |
+| 8 | 100 | 0.00 | 220 | 98 | -- |
+| 9 | 100 | 0.00 | 359 | 135 | -- |
+| 10 | 100 | 0.00 | 390 | 164 | -- |
+| 11 | 100 | 0.00 | 118 | 51 | -- |
+| 12 | 100 | 0.00 | 178 | 60 | -- |
+| 13 | 100 | 0.00 | 278 | 75 | -- |
+| 14 | 100 | 0.00 | 172 | 39 | -- |
+| 15 | 100 | 0.00 | 352 | 130 | -- |
+| 16 | 100 | 0.00 | 213 | 54 | -- |
+| 17 | 100 | 0.00 | 229 | 34 | -- |
+| 18 | 100 | 0.00 | 338 | 98 | -- |
+| 19 | 100 | 0.00 | 499 | 159 | -- |
+| 20 | 100 | 6.38 | 440 | 117 | SLAG 2.13, MOLTEN 4.25 |
 
-Rounds 1-8 clean and 9-10 ramping is the shape to preserve. A flat tail means
-the board is overbuilt; a dip in the middle means that round is skippable.
+Twenty authored rounds, and freeplay past them. This board is fully built and
+fully upgraded, so it should coast until the very end -- round 20 is the only
+one that bites. Tension for a *player* lives in the campaign harness below,
+where towers have to be paid for; this table is about round pressure alone.
 
 ## 3. Measure affordability
 
@@ -81,8 +105,10 @@ npm run campaign -- --plan "$(cat .claude/skills/balance-pass/reference/plan.txt
 ```
 
 All ten rounds on one world, gold and lives carrying over, buying only when the
-wallet covers it. The reference plan wins on every seed with about **9 of 20
-lives left**, all the damage in rounds 8-10.
+wallet covers it. The reference plan wins on every seed with about **9 of 20 lives left**, all
+the damage in rounds 16-20, and it climbs 22 upgrade tiers on the way. Add
+`--rounds N` to push a build past the authored campaign into freeplay; the
+reference build reaches about round 22 before it is overwhelmed.
 
 This is the harness that catches economic causes, which look nothing like
 tactical ones. The Forge was mandatory for a while not because Heat was too
@@ -96,8 +122,9 @@ back to what should have stopped it, remembering that **Molten leaks are often
 a Crystal problem**: shattering Crystal is correct play and it fills the lane
 with Molten, which Heat cannot touch at all.
 
-- **ORE leaking** -- not enough raw throughput early. Heat and Kinetic are both
-  strong here, so this is usually a quantity problem, not a counter problem.
+- **ORE leaking** -- not enough raw throughput early. Heat is the specialist
+  and Kinetic the runner-up, so this is usually a quantity problem rather than
+  a counter problem.
 - **SLAG leaking** -- remnants outrunning the back of the line. Slag is fast
   and weak; something cheap needs to cover the tail of the lane.
 - **MOLTEN leaking** -- the commonest failure. Cold and Solvent are the only

@@ -20,8 +20,8 @@ describe('resistance table', () => {
     expect(STATE_IDS.length * ELEMENT_IDS.length).toBe(20);
   });
 
-  it('ORE: soft to heat, shrugs off cold, open to everything else', () => {
-    expect(RESISTANCE.ORE).toEqual({ HEAT: 1.5, COLD: 0.5, KINETIC: 1.25, SOLVENT: 1.0 });
+  it('ORE: Heat is the specialist, cold barely scratches it', () => {
+    expect(RESISTANCE.ORE).toEqual({ HEAT: 2.0, COLD: 0.5, KINETIC: 1.5, SOLVENT: 1.0 });
   });
 
   it('SLAG: the layer under everything, brittle to a solid hit', () => {
@@ -29,15 +29,15 @@ describe('resistance table', () => {
   });
 
   it('MOLTEN: heat does nothing; chill it or dissolve it', () => {
-    expect(RESISTANCE.MOLTEN).toEqual({ HEAT: 0, COLD: 2.0, KINETIC: 0.75, SOLVENT: 1.25 });
+    expect(RESISTANCE.MOLTEN).toEqual({ HEAT: 0, COLD: 2.0, KINETIC: 0.75, SOLVENT: 1.6 });
   });
 
-  it('CRYSTAL: inert to cold and solvent; shatter it or melt it', () => {
-    expect(RESISTANCE.CRYSTAL).toEqual({ HEAT: 1.25, COLD: 0, KINETIC: 2.0, SOLVENT: 0 });
+  it('CRYSTAL: inert to cold and solvent; shatter it, or melt it', () => {
+    expect(RESISTANCE.CRYSTAL).toEqual({ HEAT: 1.6, COLD: 0, KINETIC: 2.0, SOLVENT: 0 });
   });
 
   it('VAPOR: kinetic passes through; dissolve it or chill it', () => {
-    expect(RESISTANCE.VAPOR).toEqual({ HEAT: 0.5, COLD: 1.5, KINETIC: 0, SOLVENT: 2.0 });
+    expect(RESISTANCE.VAPOR).toEqual({ HEAT: 0.5, COLD: 1.6, KINETIC: 0, SOLVENT: 2.0 });
   });
 });
 
@@ -62,6 +62,17 @@ describe('the shape the table has to keep', () => {
     for (const s of STATE_IDS) {
       const counters = ELEMENT_IDS.filter((e) => RESISTANCE[s][e] > 1);
       expect(counters.length, `${s} needs more than one answer`).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('keeps the runner-up counter close enough to actually substitute', () => {
+    // A second counter that cannot keep up is not a second answer. When the
+    // runners-up sat at 1.25 against specialists at 2.0, late-round toughness
+    // made the three towers holding a specialist mandatory together -- the
+    // diversity meter caught it, and this is the property that prevents it.
+    for (const s of STATE_IDS) {
+      const sorted = ELEMENT_IDS.map((e) => RESISTANCE[s][e]).sort((a, b) => b - a);
+      expect(sorted[1]! / sorted[0]!, `${s} runner-up too far behind`).toBeGreaterThanOrEqual(0.7);
     }
   });
 

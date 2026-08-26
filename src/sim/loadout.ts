@@ -11,7 +11,10 @@ import type { TowerId, UpgradeId } from './types.ts';
  * grammar that silently measures two different games.
  *
  *   towerId@col,row            e.g. forge@5,4
- *   towerId@col,row+upgradeId  e.g. stamp@11,9+dampened
+ *   towerId@col,row+upgradeId  e.g. stamp@11,9+damp3
+ *
+ * Naming a tier-3 upgrade means "climb this path": tiers 1 and 2 are bought
+ * first and paid for. The grammar stays about intent rather than bookkeeping.
  *
  * Upgrades are part of balance, so they have to be expressible here -- an
  * upgrade that can only be bought by clicking in the browser cannot be
@@ -25,7 +28,7 @@ export interface Placement {
   upgrade?: UpgradeId;
 }
 
-const ENTRY = /^([a-z]+)@(\d+),(\d+)(?:\+([a-zA-Z]+))?$/;
+const ENTRY = /^([a-z]+)@(\d+),(\d+)(?:\+([a-zA-Z]+\d?))?$/;
 
 export function parseLoadout(raw: string): Placement[] {
   if (!raw.trim()) return [];

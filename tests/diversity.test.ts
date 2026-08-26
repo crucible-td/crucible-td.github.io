@@ -14,13 +14,15 @@ import { TOWER_IDS } from '../src/sim/towers.ts';
  * difference, and they are the reason `src/diversity.ts` exists at all.
  *
  * Seeded, so a failure here is a real change rather than an unlucky reroll.
- * The sample is deliberately large: "no tower appears in every winner" only
- * means anything when there are enough winners for the word "every" to have
- * weight. At sixty builds the surviving population was small enough that three
- * towers were trivially common to all of them, which says more about the
- * sample than about the game.
+ * The sample is deliberately large, and it has to be: "no tower appears in
+ * every winner" only means anything with enough winners for "every" to carry
+ * weight. At 120 builds this reported the Vat as mandatory, and a hand-built
+ * Vat-free board then cleared all twenty rounds with 18 of 20 lives -- the
+ * finding was an artifact of an under-powered sample, not a fact about the
+ * game. Random compositions are mostly bad ones, so it takes a lot of them to
+ * turn up enough good builds to generalise from.
  */
-const REPORT = runDiversity({ slots: 14, sample: 150, seed: 1 });
+const REPORT = runDiversity({ slots: 18, sample: 240, seed: 1, rounds: 20 });
 
 describe('build diversity', () => {
   it('lets every single tower survive the opening round', () => {

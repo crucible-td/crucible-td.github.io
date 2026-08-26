@@ -28,7 +28,8 @@ import type { Placement } from './sim/loadout.ts';
 import { TOWERS } from './sim/towers.ts';
 import { STATE_IDS } from './sim/types.ts';
 import type { State, Status, UpgradeId } from './sim/types.ts';
-import { WAVES } from './sim/waves.ts';
+import { AUTHORED_ROUNDS } from './sim/freeplay.ts';
+import { chainTo } from './sim/upgrades.ts';
 import { createWorld, placeTower, startWave, step, towerAt, upgradeTower } from './sim/world.ts';
 import type { World } from './sim/world.ts';
 
@@ -79,8 +80,14 @@ function snapshot(w: World) {
   };
 }
 
-export function runCampaign(plan: Placement[], seed: number, maxTicks: number): CampaignResult {
+export function runCampaign(
+  plan: Placement[],
+  seed: number,
+  maxTicks: number,
+  rounds: number = AUTHORED_ROUNDS,
+): CampaignResult {
   const w = createWorld(seed);
+  w.freeplay = rounds > AUTHORED_ROUNDS;
   const queue = [...plan];
   const waves: WaveLog[] = [];
   /** Upgrades whose tower is built but which are not yet paid for. */
@@ -88,7 +95,7 @@ export function runCampaign(plan: Placement[], seed: number, maxTicks: number): 
   let built = 0;
   let upgraded = 0;
 
-  while (statusOf(w) === 'idle' && w.waveIndex < WAVES.length) {
+  while (statusOf(w) === 'idle' && w.waveIndex < rounds) {
     const waveNo = w.waveIndex + 1;
     const goldAtWaveStart = w.gold;
 
@@ -125,13 +132,18 @@ export function runCampaign(plan: Placement[], seed: number, maxTicks: number): 
     for (let i = 0; i < pending.length; ) {
       const { at, id } = pending[i]!;
       const t = towerAt(w, at.col, at.row);
-      if (t && upgradeTower(w, t, id)) {
-        pending.splice(i, 1);
-        bought.push(`+${id}@${at.col},${at.row}`);
-        upgraded++;
-      } else {
-        i++;
+      // Climb as far up the path as the wallet allows this round, so a tier-3
+      // target arrives in pieces over several rounds rather than not at all.
+      if (t) {
+        for (const step of chainTo(id)) {
+          if (t.upgrades.includes(step.id)) continue;
+          if (!upgradeTower(w, t, step.id)) break;
+          bought.push(`+${step.id}@${at.col},${at.row}`);
+          upgraded++;
+        }
       }
+      if (t?.upgrades.includes(id)) pending.splice(i, 1);
+      else i++;
     }
 
     const before = snapshot(w);
@@ -168,7 +180,7 @@ export function runCampaign(plan: Placement[], seed: number, maxTicks: number): 
 
   return {
     seed,
-    won: statusOf(w) === 'won',
+    won: w.waveIndex >= rounds,
     wavesCleared: w.waveIndex,
     livesLeft: w.lives,
     goldLeft: w.gold,
@@ -230,6 +242,7 @@ function main(): void {
       runs: { type: 'string', default: '1' },
       seed: { type: 'string', default: '1' },
       'max-ticks': { type: 'string', default: '20000' },
+      rounds: { type: 'string' },
       json: { type: 'boolean', default: false },
     },
     allowPositionals: false,
@@ -241,7 +254,8 @@ function main(): void {
   const seed = Number(values.seed);
   const maxTicks = Number(values['max-ticks']);
 
-  const results = Array.from({ length: runs }, (_, i) => runCampaign(plan, seed + i, maxTicks));
+  const rounds = values.rounds !== undefined ? Number(values.rounds) : AUTHORED_ROUNDS;
+  const results = Array.from({ length: runs }, (_, i) => runCampaign(plan, seed + i, maxTicks, rounds));
 
   if (values.json) {
     console.log(JSON.stringify({ plan, runs, seed, results }, null, 2));

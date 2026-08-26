@@ -4,7 +4,7 @@ import { Rng } from './rng.ts';
 import { isImmune, resolveResistance } from './resistance.ts';
 import type { ResistanceOverrides } from './resistance.ts';
 import { TOWERS } from './towers.ts';
-import { UPGRADES, upgradesFor } from './upgrades.ts';
+import { UPGRADES, pathsFor, tiersOf } from './upgrades.ts';
 import { STATES } from './types.ts';
 import type {
   Charge,
@@ -18,7 +18,7 @@ import type {
   TowerId,
   UpgradeId,
 } from './types.ts';
-import { WAVES } from './waves.ts';
+import { AUTHORED_ROUNDS, waveAt } from './freeplay.ts';
 
 const PROJECTILE_SPEED = 9;
 const IMPACT_RADIUS = 9;
@@ -33,9 +33,11 @@ export interface World {
   charges: Charge[];
   towers: Tower[];
   projectiles: Projectile[];
-  /** Index into WAVES of the wave now running, or the one about to start. */
+  /** Index of the round now running, or the one about to start. */
   waveIndex: number;
-  spawnQueue: { at: number; state: State }[];
+  /** When set, rounds continue past the authored campaign instead of winning. */
+  freeplay: boolean;
+  spawnQueue: { at: number; state: State; scale: number }[];
   stats: Stats;
   /** Cleared at the top of every step. Rendering reads these for feedback. */
   events: SimEvent[];
@@ -53,6 +55,7 @@ export function createWorld(seed = 1): World {
     towers: [],
     projectiles: [],
     waveIndex: 0,
+    freeplay: false,
     spawnQueue: [],
     stats: {
       breaks: 0,
@@ -78,21 +81,31 @@ export function createWorld(seed = 1): World {
  */
 function effective(t: Tower): { element: Element; damage: number; range: number; cooldown: number; splash: number; groundOnly: boolean; color: string } {
   const def = TOWERS[t.def];
-  const stats = t.upgrade ? UPGRADES[t.upgrade].stats : undefined;
+  // Fold the path in order so a later tier wins over an earlier one. Tiers are
+  // cumulative: tier 3 need not restate what tier 1 already changed.
+  const stats: NonNullable<(typeof UPGRADES)[UpgradeId]['stats']> = {};
+  for (const id of t.upgrades) Object.assign(stats, UPGRADES[id].stats ?? {});
   return {
     element: def.element,
-    damage: stats?.damage ?? def.damage,
-    range: stats?.range ?? def.range,
-    cooldown: stats?.cooldown ?? def.cooldown,
-    splash: stats?.splash ?? def.splash,
+    damage: stats.damage ?? def.damage,
+    range: stats.range ?? def.range,
+    cooldown: stats.cooldown ?? def.cooldown,
+    splash: stats.splash ?? def.splash,
     groundOnly: def.groundOnly,
     color: def.color,
   };
 }
 
-/** The table cells this tower rewrites, if its branch rewrites any. */
+/** The table cells this tower rewrites, folded across its whole path. */
 function overridesOf(t: Tower): ResistanceOverrides | undefined {
-  return t.upgrade ? UPGRADES[t.upgrade].overrides : undefined;
+  if (t.upgrades.length === 0) return undefined;
+  const out: ResistanceOverrides = {};
+  for (const id of t.upgrades) {
+    for (const [state, row] of Object.entries(UPGRADES[id].overrides ?? {})) {
+      out[state as State] = { ...out[state as State], ...row };
+    }
+  }
+  return out;
 }
 
 export function towerAt(w: World, col: number, row: number): Tower | undefined {
@@ -110,7 +123,7 @@ export function placeTower(w: World, def: TowerId, col: number, row: number): bo
   if (!canPlace(w, def, col, row)) return false;
   const c = cellCentre(col, row);
   w.gold -= TOWERS[def].cost;
-  w.towers.push({ id: w.nextId++, def, x: c.x, y: c.y, cooldown: 0, upgrade: null });
+  w.towers.push({ id: w.nextId++, def, x: c.x, y: c.y, cooldown: 0, upgrades: [] });
   return true;
 }
 
@@ -122,32 +135,45 @@ export function placeTower(w: World, def: TowerId, col: number, row: number): bo
  * silently re-specced.
  */
 export function canUpgrade(w: World, t: Tower, id: UpgradeId): boolean {
-  if (t.upgrade !== null) return false;
   const up = UPGRADES[id];
   if (up.towerId !== t.def) return false;
+  // Two rules, and only two: the next tier up, and never the other path.
+  const taken = t.upgrades.map((u) => UPGRADES[u]);
+  const path = taken[0]?.path;
+  if (path !== undefined && path !== up.path) return false;
+  if (up.tier !== taken.length + 1) return false;
   return w.gold >= up.cost;
 }
 
 export function upgradeTower(w: World, t: Tower, id: UpgradeId): boolean {
   if (!canUpgrade(w, t, id)) return false;
   w.gold -= UPGRADES[id].cost;
-  t.upgrade = id;
-  // Take effect on the next shot rather than refunding the current cooldown.
+  t.upgrades.push(id);
+  // Takes effect on the next shot rather than refunding the current cooldown.
   return true;
 }
 
-/** The two branches a tower could still take. Empty once it has taken one. */
+/**
+ * What this tower could buy next: the following tier of the path it is on, or
+ * the first tier of either path if it has not committed yet.
+ */
 export function availableUpgrades(t: Tower) {
-  return t.upgrade === null ? upgradesFor(t.def) : [];
+  const taken = t.upgrades.map((u) => UPGRADES[u]);
+  const path = taken[0]?.path;
+  const paths = path !== undefined ? [path] : pathsFor(t.def);
+  return paths
+    .map((pth) => tiersOf(t.def, pth)[taken.length])
+    .filter((u): u is NonNullable<typeof u> => u !== undefined);
 }
 
 export function startWave(w: World): boolean {
-  if (w.status !== 'idle' || w.waveIndex >= WAVES.length) return false;
-  const wave = WAVES[w.waveIndex]!;
+  if (w.status !== 'idle') return false;
+  if (!w.freeplay && w.waveIndex >= AUTHORED_ROUNDS) return false;
+  const wave = waveAt(w.waveIndex, w.rng);
   w.spawnQueue = [];
   for (const g of wave.groups) {
     for (let i = 0; i < g.count; i++) {
-      w.spawnQueue.push({ at: w.tick + g.delay + i * g.gap, state: g.state });
+      w.spawnQueue.push({ at: w.tick + g.delay + i * g.gap, state: g.state, scale: g.hpScale ?? 1 });
     }
   }
   w.spawnQueue.sort((a, b) => a.at - b.at);
@@ -157,12 +183,13 @@ export function startWave(w: World): boolean {
 
 // --- simulation -------------------------------------------------------------
 
-function spawnCharge(w: World, state: State, dist: number): Charge {
+function spawnCharge(w: World, state: State, dist: number, scale = 1): Charge {
   const c: Charge = {
     id: w.nextId++,
     state,
     dist,
-    hp: STATES[state].hp,
+    hp: STATES[state].hp * scale,
+    scale,
     speedMult: 1,
     alive: true,
     flash: 0,
@@ -196,7 +223,11 @@ function emit(w: World, type: SimEvent['type'], c: Charge, text?: string): void 
 function breakLayer(w: World, c: Charge): void {
   const def = STATES[c.state];
   c.alive = false;
-  award(w, def.bounty);
+  // A tougher charge is worth more, but sub-linearly: paying full multiples
+  // meant a heavy round funded the towers that beat it, which is the same trap
+  // that made wave size useless as a difficulty dial. Square root keeps a slab
+  // worth killing without letting late rounds pay for themselves.
+  award(w, Math.max(1, Math.round(def.bounty * Math.sqrt(c.scale))));
   w.stats.breaks++;
   emit(w, 'break', c, `+${def.bounty}`);
 
@@ -211,7 +242,7 @@ function breakLayer(w: World, c: Charge): void {
     // Children are nudged apart so a splash cannot clear a whole cascade with
     // one hit, and so the render does not stack them exactly on top of another.
     const offset = def.childCount === 1 ? 0 : w.rng.range(-12, 12);
-    const child = spawnCharge(w, inner, Math.max(0, c.dist + offset));
+    const child = spawnCharge(w, inner, Math.max(0, c.dist + offset), c.scale);
     child.flash = FLASH_TICKS;
   }
 }
@@ -358,7 +389,8 @@ export function step(w: World): void {
   w.tick++;
 
   while (w.spawnQueue.length > 0 && w.spawnQueue[0]!.at <= w.tick) {
-    spawnCharge(w, w.spawnQueue.shift()!.state, 0);
+    const next = w.spawnQueue.shift()!;
+    spawnCharge(w, next.state, 0, next.scale);
   }
 
   advanceCharges(w);
@@ -375,6 +407,10 @@ export function step(w: World): void {
   if (w.status === 'running' && w.spawnQueue.length === 0 && w.charges.length === 0) {
     award(w, ECONOMY.roundClearBonus(w.waveIndex + 1));
     w.waveIndex++;
-    w.status = w.waveIndex >= WAVES.length ? 'won' : 'idle';
+    // Clearing the authored campaign is the win. Freeplay carries on past it
+    // for depth rather than for victory, so the run has an ending as well as
+    // a tail.
+    const done = w.waveIndex >= AUTHORED_ROUNDS && !w.freeplay;
+    w.status = done ? 'won' : 'idle';
   }
 }
