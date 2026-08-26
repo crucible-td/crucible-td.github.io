@@ -1,4 +1,5 @@
 /** DOM chrome around the canvas: readouts, build menu, table reference, overlay. */
+import { TOWER_ART, svgMarkup } from './art.ts';
 import { RESISTANCE } from '../sim/resistance.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
@@ -122,11 +123,15 @@ export class Ui {
       // Naming the element on the card is what makes the resistance table
       // readable: there are five towers and only four elements, so without
       // this the table looks like it is missing a column.
+      // The icon is the same artwork the board draws, so the silhouette
+      // learned here is the one recognised in play.
       btn.innerHTML =
+        `<span class="icon">${svgMarkup(TOWER_ART[id], def.color, 30)}</span>` +
+        `<span class="body">` +
         `<span class="row"><span class="name">${def.name}</span>` +
         `<span class="elem">${elementLabel(def.element)}</span>` +
         `<span class="cost">${def.cost}g</span></span>` +
-        `<span class="blurb">${def.blurb}</span>`;
+        `<span class="blurb">${def.blurb}</span></span>`;
       btn.addEventListener('click', () => this.handlers.onSelect(id));
       list.appendChild(btn);
       this.buttons.set(id, btn);
@@ -234,9 +239,14 @@ export class Ui {
       this.shownTower = key;
       const taken = inspected.upgrades.map((id) => UPGRADES[id]);
       const committed = taken[0]?.path;
-      el('inspectTitle').textContent = committed
+      const title = committed
         ? `${TOWERS[inspected.def].name} · ${taken[taken.length - 1]!.name}`
         : `${TOWERS[inspected.def].name} upgrades`;
+      // Same icon as the board and the build menu, so all three agree about
+      // which tower is under discussion.
+      el('inspectTitle').innerHTML =
+        `${svgMarkup(TOWER_ART[inspected.def], TOWERS[inspected.def].color, 18)}` +
+        `<span>${title}</span>`;
       list.replaceChildren();
 
       // What has already been bought, so the panel reads as a path with a

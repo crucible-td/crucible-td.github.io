@@ -3,6 +3,7 @@
  * which is what lets the same World run identically with no canvas at all.
  */
 import { BOARD, PATH_POINTS, cellCentre, isBuildableCell, pointAt } from '../sim/path.ts';
+import { MONSTER_ART, MONSTER_SCALE, TOWER_ART, paintArt } from './art.ts';
 import { TOWERS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
@@ -46,6 +47,18 @@ export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private floaters: Floater[] = [];
   private bursts: Burst[] = [];
+  /**
+   * Firing is detected here rather than announced by the simulation.
+   *
+   * A tower's cooldown counts down and is reset the moment it shoots, so a
+   * cooldown that went *up* since the last frame means a shot was fired. The
+   * alternative -- emitting a sim event per shot -- would be consistent with
+   * how hits are reported, but it is thousands of throwaway objects per
+   * headless campaign and `npm run diversity` runs hundreds of them.
+   * Presentation stays in the render layer, as the speed control does.
+   */
+  private lastCooldown = new Map<number, number>();
+  private recoil = new Map<number, number>();
 
   constructor(private canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -91,7 +104,13 @@ export class Renderer {
     if (showRange) this.drawRange(showRange, showRange === inspected ? previewUpgrade : null);
 
     for (const t of world.towers) {
-      this.drawTower(t.x, t.y, t.def, 1, t.upgrades.length, t.id === inspected?.id);
+      const was = this.lastCooldown.get(t.id) ?? 0;
+      if (t.cooldown > was) this.recoil.set(t.id, 1);
+      this.lastCooldown.set(t.id, t.cooldown);
+
+      const kick = this.recoil.get(t.id) ?? 0;
+      this.drawTower(t.x, t.y, t.def, 1, t.upgrades.length, t.id === inspected?.id, kick);
+      if (kick > 0) this.recoil.set(t.id, Math.max(0, kick - 0.16));
     }
     for (const c of world.charges) this.drawCharge(c);
     this.drawProjectiles(world);
@@ -221,6 +240,7 @@ export class Renderer {
     alpha: number,
     tiers = 0,
     inspected = false,
+    recoil = 0,
   ): void {
     const { ctx } = this;
     const def = TOWERS[id];
@@ -236,26 +256,15 @@ export class Renderer {
       ctx.stroke();
     }
 
-    ctx.fillStyle = '#241f1b';
-    ctx.strokeStyle = def.color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(x - r, y - r, r * 2, r * 2, 5);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.globalAlpha = alpha * 0.9;
-    ctx.fillStyle = def.color;
-    ctx.beginPath();
-    ctx.arc(x, y, 5.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    ctx.fillStyle = 'rgba(20, 17, 15, 0.9)';
-    ctx.font = '700 9px ui-sans-serif, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(def.element[0]!, x, y + 0.5);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // Firing kicks the tower back a little. Motion only where it carries
+    // information -- the useful consequence is that a tower which never twitches
+    // is visibly idle, which is exactly what a tower held up against a layer it
+    // cannot hurt actually is.
+    const size = 30 * (1 + recoil * 0.14);
+    paintArt(ctx, TOWER_ART[id], x, y - recoil * 1.5, size, def.color);
+    ctx.restore();
 
     // One pip per tier climbed, along the top edge. Paths are permanent and
     // three deep, so the board has to show how far each tower has committed --
@@ -273,74 +282,53 @@ export class Renderer {
     const { ctx } = this;
     const p = pointAt(c.dist);
     const s = STATES[c.state];
-    const r = s.radius;
+
+    // Size by toughness. A slab used to be drawn exactly like an ordinary
+    // charge of the same layer, so the hardest thing in the game looked like
+    // the easiest. Sub-linear and capped: a x14 slab must be unmistakable
+    // without swallowing the lane.
+    const toughness = Math.min(Math.sqrt(c.scale), 2.1);
+    const size = s.radius * 2 * MONSTER_SCALE * toughness;
+    const r = size / 2;
 
     if (c.state === 'MOLTEN') {
-      const glow = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, r * 2.1);
+      const glow = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, r * 1.8);
       glow.addColorStop(0, 'rgba(255, 107, 53, 0.42)');
       glow.addColorStop(1, 'rgba(255, 107, 53, 0)');
       ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r * 2.1, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r * 1.8, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    ctx.fillStyle = s.color;
-    ctx.strokeStyle = 'rgba(20, 17, 15, 0.75)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-
-    switch (c.state) {
-      case 'ORE':
-        polygon(ctx, p.x, p.y, r, 6, 0.15);
-        break;
-      case 'SLAG':
-        ctx.rect(p.x - r * 0.8, p.y - r * 0.8, r * 1.6, r * 1.6);
-        break;
-      case 'CRYSTAL':
-        // Diamond, not a square -- Slag already owns the square silhouette.
-        polygon(ctx, p.x, p.y, r, 4, 0);
-        break;
-      case 'VAPOR':
-        ctx.globalAlpha = 0.55;
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        break;
-      default:
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    }
-
-    ctx.fill();
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-
-    if (c.state === 'VAPOR') {
-      ctx.strokeStyle = s.color;
-      ctx.setLineDash([3, 4]);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
+    ctx.save();
+    if (c.state === 'VAPOR') ctx.globalAlpha = 0.72;
+    paintArt(ctx, MONSTER_ART[c.state], p.x, p.y, size, s.color, {
+      outline: 'rgba(20, 17, 15, 0.85)',
+      darkDetail: '#14110f',
+    });
+    ctx.restore();
 
     // Health bar, so wearing a layer down is visible progress -- and so a
     // tower plinking uselessly at something is visibly achieving nothing.
-    const max = STATES[c.state].hp;
+    const max = STATES[c.state].hp * c.scale;
     if (c.hp < max) {
-      const w = r * 1.8;
+      const w = r * 1.6;
       ctx.fillStyle = 'rgba(20, 17, 15, 0.8)';
-      ctx.fillRect(p.x - w / 2, p.y - r - 7, w, 3);
+      ctx.fillRect(p.x - w / 2, p.y - r - 6, w, 3);
       ctx.fillStyle = '#9ae66e';
-      ctx.fillRect(p.x - w / 2, p.y - r - 7, (w * Math.max(0, c.hp)) / max, 3);
+      ctx.fillRect(p.x - w / 2, p.y - r - 6, (w * Math.max(0, c.hp)) / max, 3);
     }
 
     if (c.flash > 0) {
       ctx.strokeStyle = `rgba(255, 255, 255, ${c.flash / 8})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 5, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
       ctx.stroke();
     }
   }
+
 
   private drawProjectiles(world: World): void {
     const { ctx } = this;
@@ -391,13 +379,3 @@ export class Renderer {
   }
 }
 
-function polygon(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, sides: number, rot: number): void {
-  for (let i = 0; i < sides; i++) {
-    const a = rot + (i / sides) * Math.PI * 2;
-    const px = x + Math.cos(a) * r;
-    const py = y + Math.sin(a) * r;
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-}

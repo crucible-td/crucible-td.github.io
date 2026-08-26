@@ -75,7 +75,9 @@ canvas {
 }
 
 .tower {
-  display: block;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
   width: 100%;
   text-align: left;
   background: var(--panel);
@@ -112,7 +114,11 @@ canvas {
 .tower.unaffordable { opacity: 0.42; }
 .tower.unaffordable[aria-pressed='true'] { opacity: 0.62; cursor: pointer; }
 
-.tower .row { display: flex; justify-content: space-between; align-items: baseline; }
+/* Icon column, then everything else. The icon is the artwork from the board,
+   at the size it is drawn there, so the two teach each other. */
+.tower .icon { flex: 0 0 30px; line-height: 0; padding-top: 1px; }
+.tower .body { flex: 1 1 auto; min-width: 0; }
+.tower .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .tower .name { font-weight: 600; }
 .tower .cost { font-variant-numeric: tabular-nums; color: var(--dim); }
 /* The element a tower throws. Five towers share four elements -- Forge and
@@ -132,7 +138,11 @@ canvas {
 
 #inspect { margin: 4px 0 14px; padding-top: 10px; border-top: 1px solid var(--edge); }
 .inspectHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.inspectHead h3 { margin: 0; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+.inspectHead h3 {
+  margin: 0; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 7px;
+}
+.inspectHead h3 svg { flex: 0 0 auto; }
 /* Never disabled: this is the only control that dismisses the panel. */
 #inspectClose {
   background: none; border: 0; color: var(--dim); cursor: pointer;
