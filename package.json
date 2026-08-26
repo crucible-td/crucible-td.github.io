@@ -10,10 +10,12 @@
     "typecheck": "tsc --noEmit",
     "sim": "node src/headless.ts",
     "campaign": "node src/campaign.ts",
-    "diversity": "node src/diversity.ts"
+    "diversity": "node src/diversity.ts",
+    "coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@types/node": "^26.3.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
     "vitest": "^2.1.0"

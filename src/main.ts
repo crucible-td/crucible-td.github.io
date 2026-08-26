@@ -7,6 +7,7 @@
 import { Renderer } from './render/canvas.ts';
 import { createClock, nextSpeed, ticksFor } from './render/clock.ts';
 import type { Speed } from './render/clock.ts';
+import { boardAction } from './render/decisions.ts';
 import { Ui } from './render/ui.ts';
 import { BOARD } from './sim/path.ts';
 import type { Tower, TowerId, UpgradeId } from './sim/types.ts';
@@ -109,35 +110,32 @@ canvas.addEventListener('click', (ev) => {
   // A touch device never sends mousemove, so a hover-derived cell left the
   // game completely unplayable on a phone -- every tap did nothing.
   const cell = cellUnder(ev);
+  const here = towerAt(world, cell.col, cell.row);
 
-  if (!selected) {
-    // Nothing queued to build, so a click on an existing tower means "tell me
-    // about this one" and opens its upgrade panel. Clicking bare ground closes
-    // it again.
-    inspected = towerAt(world, cell.col, cell.row) ?? null;
-    previewUpgrade = null;
-    // Repaint the panel now rather than waiting for the next animation frame.
-    // The frame loop would catch up anyway, but only once it runs -- and
-    // requestAnimationFrame is throttled in a background or unfocused tab, so
-    // "the panel is showing the tower I clicked before this one" is a real
-    // thing a player can see.
-    ui.sync(world, selected, inspected, speed);
-    return;
+  switch (boardAction({ selected: selected !== null, towerHere: here !== undefined })) {
+    case 'inspect':
+      inspected = here ?? null;
+      previewUpgrade = null;
+      break;
+    case 'close':
+      inspected = null;
+      previewUpgrade = null;
+      break;
+    case 'disarm':
+      selected = null;
+      break;
+    case 'place':
+      // Selection persists after a successful build so a line can be laid down
+      // in one pass. Escape, right-click, or clicking a placed tower clears it.
+      placeTower(world, selected!, cell.col, cell.row);
+      return;
   }
 
-  // Armed, but there is already a tower here. The placement preview is showing
-  // red, so the click cannot mean "build" -- treat it as "stop building".
-  // Clicking the tower you just placed is the natural way to put the trowel
-  // down, and silently doing nothing was the old behaviour.
-  if (towerAt(world, cell.col, cell.row)) {
-    selected = null;
-    ui.sync(world, selected, inspected, speed);
-    return;
-  }
-
-  // Selection persists after a successful build so a line can be laid down in
-  // one pass. Escape, right-click, or clicking a placed tower clears it.
-  placeTower(world, selected, cell.col, cell.row);
+  // Repaint now rather than waiting for the next animation frame. The loop
+  // would catch up, but requestAnimationFrame is throttled in a background or
+  // unfocused tab, so "the panel is showing the tower I clicked before this
+  // one" is a real thing a player can see.
+  ui.sync(world, selected, inspected, speed);
 });
 
 canvas.addEventListener('contextmenu', (ev) => {

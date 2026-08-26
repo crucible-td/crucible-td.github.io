@@ -1,11 +1,18 @@
 /** DOM chrome around the canvas: readouts, build menu, table reference, overlay. */
 import { TOWER_ART, svgMarkup } from './art.ts';
+import {
+  cardState,
+  describeMultiplier,
+  describeOverrides,
+  describeStats,
+  elementLabel,
+  panelKey,
+} from './decisions.ts';
 import { RESISTANCE } from '../sim/resistance.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
-import type { Element } from '../sim/types.ts';
-import type { State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import type { Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { WAVES } from '../sim/waves.ts';
 import type { Speed } from './clock.ts';
 import { availableUpgrades, effective } from '../sim/world.ts';
@@ -23,16 +30,7 @@ function el<T extends HTMLElement>(id: string): T {
  * Zero is the one the player most needs to read at a glance, so it gets a word
  * rather than a number -- an immunity is a wall, not a small multiplier.
  */
-/** "HEAT" -> "Heat". Used by the tower cards and the table header alike. */
-function elementLabel(e: Element): string {
-  return e[0]! + e.slice(1).toLowerCase();
-}
 
-export function describeOutcome(mult: number): string {
-  if (mult <= 0) return 'immune';
-  if (mult === 1) return '×1';
-  return `×${mult}`;
-}
 
 export interface UiHandlers {
   onSelect(id: TowerId | null): void;
@@ -52,52 +50,8 @@ export interface UiHandlers {
  * Reuses describeOutcome so the upgrade panel and the resistance reference
  * always describe an Outcome the same way.
  */
-/** Shots per second, which reads better than a cooldown in ticks. */
-function rate(cooldown: number): string {
-  return (60 / cooldown).toFixed(1);
-}
 
-/**
- * "Damage 4 → 6" for each stat a branch actually moves.
- *
- * Compared against the tower's current folded stats rather than its printed
- * ones, so partway up a path the panel says what the *next* tier is worth
- * rather than what the whole path was worth from the start. Stats that a tier
- * leaves alone produce no line at all.
- */
-function describeStats(t: Tower, id: UpgradeId): string[] {
-  const next = UPGRADES[id].stats;
-  if (!next) return [];
-  const now = effective(t);
-  const out: string[] = [];
-  if (next.damage !== undefined && next.damage !== now.damage) {
-    out.push(`Damage ${now.damage} → ${next.damage}`);
-  }
-  if (next.cooldown !== undefined && next.cooldown !== now.cooldown) {
-    out.push(`Fire rate ${rate(now.cooldown)} → ${rate(next.cooldown)} per second`);
-  }
-  if (next.range !== undefined && next.range !== now.range) {
-    out.push(`Range ${now.range} → ${next.range}`);
-  }
-  if (next.splash !== undefined && next.splash !== now.splash) {
-    out.push(`Splash ${now.splash} → ${next.splash}`);
-  }
-  return out;
-}
 
-function describeOverrides(id: UpgradeId): string[] {
-  const out: string[] = [];
-  for (const [state, row] of Object.entries(UPGRADES[id].overrides ?? {})) {
-    for (const [element, outcome] of Object.entries(row)) {
-      const before = describeOutcome(RESISTANCE[state as State][element as Element]);
-      const label = element[0]! + element.slice(1).toLowerCase();
-      // "Vapor + Cold: → Crystal (was → Molten)" -- the new behaviour first,
-      // since that is what the player is deciding to buy.
-      out.push(`${STATES[state as State].label} + ${label}: ${describeOutcome(outcome)} (was ${before})`);
-    }
-  }
-  return out;
-}
 
 export class Ui {
   private buttons = new Map<TowerId, HTMLButtonElement>();
@@ -141,7 +95,7 @@ export class Ui {
   private buildTableReference(): void {
     const rows = STATE_IDS.map((s) => {
       const cells = ELEMENT_IDS.map(
-        (e) => `<td data-el="${e}">${describeOutcome(RESISTANCE[s][e])}</td>`,
+        (e) => `<td data-el="${e}">${describeMultiplier(RESISTANCE[s][e])}</td>`,
       ).join('');
       return `<tr><th>${STATES[s].label}</th>${cells}</tr>`;
     }).join('');
@@ -165,15 +119,10 @@ export class Ui {
     el('wave').textContent = `${Math.min(world.waveIndex + 1, WAVES.length)}/${WAVES.length}`;
 
     for (const [id, btn] of this.buttons) {
-      const affordable = world.gold >= TOWERS[id].cost;
-      btn.setAttribute('aria-pressed', String(id === selected));
-      // The selected tower stays clickable even once it is unaffordable, so it
-      // can always be toggled back off. Disabling it stranded the selection:
-      // a disabled button fires no click, so the only ways out were Escape or
-      // right-click, neither of which is discoverable. Placement is guarded by
-      // placeTower regardless, so an unaffordable click still builds nothing.
-      btn.disabled = !affordable && id !== selected;
-      btn.classList.toggle('unaffordable', !affordable);
+      const state = cardState({ gold: world.gold, cost: TOWERS[id].cost, isSelected: id === selected });
+      btn.setAttribute('aria-pressed', String(state.pressed));
+      btn.disabled = state.disabled;
+      btn.classList.toggle('unaffordable', state.unaffordable);
     }
 
     // Light up the column for whatever tower the player is holding or
@@ -234,7 +183,7 @@ export class Ui {
     const list = el('upgradeList');
     // Keyed on how far the path has been climbed as well as on the tower, so
     // buying a tier rebuilds the panel to offer the next one.
-    const key = `${inspected.id}:${inspected.upgrades.join('>')}`;
+    const key = panelKey(inspected);
     if (this.shownTower !== key) {
       this.shownTower = key;
       const taken = inspected.upgrades.map((id) => UPGRADES[id]);
@@ -271,7 +220,7 @@ export class Ui {
         btn.className = 'tower';
         btn.dataset.upgrade = up.id;
         btn.style.setProperty('--slot', TOWERS[inspected.def].color);
-        const changes = [...describeStats(inspected, up.id), ...describeOverrides(up.id)]
+        const changes = [...describeStats(effective(inspected), up.id), ...describeOverrides(up.id)]
           .map((line) => `<span class="blurb change">${line}</span>`)
           .join('');
         btn.innerHTML =
