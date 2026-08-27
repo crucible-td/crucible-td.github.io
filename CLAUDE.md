@@ -35,6 +35,8 @@ rendering state, keep it in `src/render/`.
 | `src/sim/world.ts` | `step()`, `applyElement()`, layer breaking, placement. The only place damage is resolved. |
 | `src/sim/path.ts` | Board dimensions, the lane polyline, buildable cells. |
 | `src/render/` | Canvas drawing and DOM chrome. Read-only over the sim. |
+| `src/render/decisions.ts` | What the interface decides, without the interface. Pure and tested. |
+| `src/render/art.ts` | Tower and monster artwork: one SVG path each, drawn on canvas and in the DOM. |
 | `src/headless.ts` | The playtest harness behind `npm run sim`. |
 | `src/campaign.ts` | The whole-run harness behind `npm run campaign`. |
 | `src/diversity.ts` | The build-diversity meter behind `npm run diversity`. |
@@ -43,7 +45,8 @@ rendering state, keep it in `src/render/`.
 
 ```bash
 npm run dev        # play it at localhost:5173
-npm test           # vitest: determinism + all 20 table cells
+npm test           # vitest: 131 tests
+npm run coverage   # where the tests are, and are not
 npm run typecheck  # tsc --noEmit
 npm run sim -- --all-waves                 # balance report for every wave
 npm run sim -- --wave 7 --runs 200 --json  # machine-readable, for tooling
@@ -112,6 +115,36 @@ Two structural rules the resistance table has to keep obeying, both asserted in
   shows up -- and a runner-up too far behind the specialist is not really a
   second answer, because it cannot keep up with late-round toughness.
 
+## What is tested, and what is not
+
+`npm test` runs 131 tests; `npm run coverage` reports where they are. The split
+is deliberate and worth knowing before adding more:
+
+- **`src/sim` is at 100% statements.** The twenty resistance cells are asserted
+  individually, as are every upgrade path, the campaign economy and build
+  diversity. Changing a cell without updating a test fails the suite, which is
+  the point.
+- **`src/render` is at 19%**, and that is the honest number rather than a
+  target. `decisions.ts` and `clock.ts` are near full; canvas drawing and DOM
+  wiring are at zero on purpose. Pixel comparison is brittle and proves little;
+  `tests/art.test.ts` guards the part that can silently break, which is a tower
+  or layer shipping with no artwork at all.
+
+**Put interface logic in `src/render/decisions.ts`, not in an event handler.**
+Every interface bug this project has had came from logic tangled with the DOM
+where no test could reach it -- a selected tower that could not be deselected,
+a panel showing the previously clicked tower, and a board that ignored every
+tap because it read the target cell from a mousemove, which made the game
+unplayable on a phone. If a change involves a decision rather than a drawing,
+it belongs in that module with a test named after what it protects.
+
+`tests/architecture.test.ts` enforces the one architectural rule by reading the
+source: no import from `src/render` inside `src/sim`, no DOM, no
+`Math.random()`. It has been verified to fail when violated.
+
+There is no coverage threshold in CI. A percentage target produces tests
+written for the number rather than for the risk.
+
 ## Conventions
 
 - Every gameplay rule goes through the resistance table and `applyElement()`.
@@ -147,7 +180,7 @@ instead transmuted enemies between states -- is complete, measured, and tagged
 
 v2.1 is current: HP and damage, layers that break inward, money per layer,
 5 towers with two three-tier upgrade paths each, 20 authored rounds, seeded
-freeplay past them, and four harnesses. `npm test` (61 tests),
+freeplay past them, and four harnesses. `npm test` (131 tests),
 `npm run typecheck` and `npm run build` all pass.
 
 Still unbuilt, and left as the owner's own AI-tooling exercise:

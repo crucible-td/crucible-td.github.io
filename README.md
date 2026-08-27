@@ -62,7 +62,8 @@ distinct compositions, with no tower mandatory and none dead.
 ```bash
 npm install
 npm run dev        # play at localhost:5173
-npm test           # 70 tests: the table, the sim, upgrades, the campaign, diversity
+npm test           # 131 tests
+npm run coverage   # where the tests are, and are not
 npm run typecheck
 ```
 
@@ -80,6 +81,10 @@ That is what makes all of this possible:
 
 Balance changes are made by editing a table of numbers and re-running these,
 never by feel. [DESIGN.md](DESIGN.md) has the full rationale.
+
+A test also enforces the rule that makes all of it possible: nothing under
+`src/sim` may import from the renderer, touch the DOM, or call `Math.random()`.
+Break any of those and the browser and the harnesses stop being the same game.
 
 ## Licence
 
