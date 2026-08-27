@@ -123,6 +123,36 @@ A Forge-and-Stamp board handles the shell and then watches the cores walk past.
 The chain only ever runs inward. Nothing anywhere puts a layer back on, which
 is what bounds a cascade however it is triggered.
 
+## Breadth versus depth
+
+Gold buys two different things: **another tower**, or **another tier on a tower
+you own**. For a long time the first was strictly better and the second was
+therefore dead content.
+
+The arithmetic is what made it so. A tower is a linear unit of power at a flat
+45-64 gold, and it brings coverage as well as damage -- it watches its own patch
+of lane. A tier multiplies one tower whose base is capped, for 50-255. Measured
+at the worst point, the Stamp's `die` chain cost 380 gold and added 49 dps
+against Crystal, its own best target, while the same 380 gold bought 8.4 more
+Stamps for 217 dps. Breadth was 4.4x better value, and a board of forty towers
+that never upgraded cleared all twenty rounds with 19 of 20 lives.
+
+Difficulty cannot fix this. Raising toughness scales the requirement for both
+builds by the same factor, so it never separates them -- it just kills the
+smaller board first. What separates them is *when* their power arrives: two
+builds own the same towers through round 7, and only from round 10 does one
+hold tiers while the other holds tower count.
+
+So tiers were repriced against what they displace, and the rounds were shaped
+into a ramp across 10-15 followed by real weight in 16-20, where a board that
+spent on paths is finished and a board still buying its fortieth tower is not.
+A board that never upgrades now loses on round 17 at every tower count it can
+afford, up to filling every one of the 103 lane-adjacent cells.
+
+`npm run diversity` is blind to this axis -- it holds the slot count at eighteen
+and gives every tower a tier-3 intent, so every build it samples is a depth
+build. `tests/breadth.test.ts` is what guards it.
+
 ## Economy: paid for processing
 
 Gold is awarded **per layer broken**, not per kill. Each layer carries its own

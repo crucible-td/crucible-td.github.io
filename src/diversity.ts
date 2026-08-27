@@ -20,6 +20,7 @@
 import { parseArgs } from 'node:util';
 import { runCampaign } from './campaign.ts';
 import { parseLoadout } from './sim/loadout.ts';
+import { BOARD, PATH_LENGTH, cellCentre, isBuildableCell, pointAt } from './sim/path.ts';
 import { Rng } from './sim/rng.ts';
 import { TOWER_IDS } from './sim/towers.ts';
 import { pathsFor, tiersOf } from './sim/upgrades.ts';
@@ -54,6 +55,85 @@ const SLOTS: [number, number][] = [
   [23, 9],
   [23, 11],
 ];
+
+/**
+ * Every buildable cell close enough to the lane to be worth a tower, in lane
+ * order.
+ *
+ * `SLOTS` above is eighteen hand-picked positions, which is the right size for
+ * asking "which towers" but far too small for asking "how many". A player is
+ * not limited to eighteen: the board has 269 buildable cells and 103 of them
+ * sit within a tower's reach of the lane. Measuring whether breadth beats
+ * depth means being able to build the board a player would actually build.
+ */
+export function laneCells(maxDistance = 70): [number, number][] {
+  const out: { col: number; row: number; at: number }[] = [];
+  for (let row = 0; row < BOARD.rows; row++) {
+    for (let col = 0; col < BOARD.cols; col++) {
+      if (!isBuildableCell(col, row)) continue;
+      const centre = cellCentre(col, row);
+      let nearest = Infinity;
+      let at = 0;
+      // Sampled rather than solved: the lane is a polyline, and six pixels is
+      // finer than a tower's reach by an order of magnitude.
+      for (let d = 0; d < PATH_LENGTH; d += 6) {
+        const p = pointAt(d);
+        const gap = Math.hypot(p.x - centre.x, p.y - centre.y);
+        if (gap < nearest) {
+          nearest = gap;
+          at = d;
+        }
+      }
+      if (nearest <= maxDistance) out.push({ col, row, at });
+    }
+  }
+  // Lane order, so taking the first n gives a board that covers the run-up
+  // rather than a random scatter -- the way a player fills a lane.
+  out.sort((a, b) => a.at - b.at);
+  return out.map((c) => [c.col, c.row]);
+}
+
+/**
+ * A loadout of `n` towers along the lane, cycling through `comp`, with no
+ * upgrades named at all.
+ *
+ * This is the shape of build that exposed the breadth-versus-depth problem: a
+ * player who never upgrades and simply spends every coin on another tower.
+ * `planFor` above is its opposite -- it gives every tower a tier-3 intent --
+ * and the two together are the axis the diversity meter does not measure.
+ */
+export function breadthPlan(n: number, comp: TowerId[]): string {
+  const cells = laneCells();
+  const picks: string[] = [];
+  for (let i = 0; i < n && i < cells.length; i++) {
+    const [col, row] = cells[i]!;
+    picks.push(`${comp[i % comp.length]}@${col},${row}`);
+  }
+  return picks.join(' ');
+}
+
+/**
+ * The same board as `breadthPlan`, with every tower intending its tier-3 path.
+ *
+ * The pair is the point: two loadouts identical in shape and position, one
+ * spending its gold on more towers and the other on upgrading fewer. That is
+ * the axis `runDiversity` cannot see, because it holds slots fixed at eighteen
+ * and always intends tier 3, so every build it samples is a depth build.
+ */
+export function depthPlan(n: number, comp: TowerId[]): string {
+  const cells = laneCells();
+  const picks: string[] = [];
+  for (let i = 0; i < n && i < cells.length; i++) {
+    const [col, row] = cells[i]!;
+    const tower = comp[i % comp.length]!;
+    // Alternate the two branches across slots, as planFor does, so a board is
+    // not measured on one branch's numbers alone.
+    const path = pathsFor(tower)[i % 2]!;
+    const top = tiersOf(tower, path)[2]!;
+    picks.push(`${tower}@${col},${row}+${top.id}`);
+  }
+  return picks.join(' ');
+}
 
 export interface BuildResult {
   /** How many of each tower, the thing that actually makes builds different. */

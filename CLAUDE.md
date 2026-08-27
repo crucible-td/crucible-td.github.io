@@ -34,6 +34,7 @@ rendering state, keep it in `src/render/`.
 | `src/sim/riders.ts` | **Riders.** One lingering effect per element, scaled by the table cell. |
 | `src/sim/towers.ts`, `src/sim/waves.ts` | Tower stats and wave composition, as flat data. |
 | `src/sim/upgrades.ts` | **Upgrade paths.** Two per tower, three tiers deep; the interesting tiers rewrite table cells. |
+| `src/diversity.ts` | The build-diversity meter, plus `breadthPlan`/`depthPlan` for the breadth-vs-depth axis it cannot itself measure. |
 | `src/sim/loadout.ts` | The `towerId@col,row[+upgradeId]` grammar both harnesses parse. |
 | `src/sim/freeplay.ts` | Rounds past the authored campaign, generated from a seed. |
 | `src/sim/world.ts` | `step()`, `applyElement()`, layer breaking, placement. The only place damage is resolved. |
@@ -49,7 +50,7 @@ rendering state, keep it in `src/render/`.
 
 ```bash
 npm run dev        # play it at localhost:5173
-npm test           # vitest: 157 tests
+npm test           # vitest: 165 tests
 npm run test:fast  # the 144 that are not balance measurements -- under a second
 npm run coverage   # where the tests are, and are not
 npm run typecheck  # tsc --noEmit
@@ -98,10 +99,19 @@ Reference points from the current tuning, all measurable:
 
 - Every one of the five towers clears round 1 on its own. That is deliberate:
   the opening is a preference, not a puzzle.
-- 124 of 720 sampled 18-tower compositions clear all twenty rounds, in 124
-  distinct compositions, and no tower appears in every winner.
-- The reference plan wins on every seed with 11 of 20 lives left, climbing 22
-  upgrade tiers, and reaches roughly round 22 in freeplay.
+- 61 of 720 sampled 18-tower compositions clear all twenty rounds, in 61
+  distinct compositions, and no tower appears in every winner. The win rate
+  halved when upgrades were made to matter, which is the cost of that change
+  and is still comfortably inside the 5-50% band the meter asserts.
+- The reference plan wins on every seed with 11-15 of 20 lives left, climbing
+  46 upgrade tiers across all eighteen of its towers.
+- **Upgrades have to stay worth buying.** A board that never upgrades must lose,
+  at every tower count it can afford. This is the newest property and the one
+  most easily broken by an economy tweak, because a tower is a linear unit of
+  power at a flat price and a tier multiplies one capped tower for several times
+  that price. `npm run diversity` cannot see it -- the meter holds slots at
+  eighteen and always intends tier 3, so every build it samples is a depth
+  build. `tests/breadth.test.ts` is what watches this axis.
 - Sample size is part of that measurement, and it is easy to underestimate how
   much. At 120 builds the meter called the Vat mandatory and a hand-built
   Vat-free board then cleared all twenty rounds with 18 lives left. At 240 it
@@ -130,7 +140,7 @@ Two structural rules the resistance table has to keep obeying, both asserted in
 
 ## What is tested, and what is not
 
-`npm test` runs 157 tests; `npm run coverage` reports where they are. The split
+`npm test` runs 165 tests; `npm run coverage` reports where they are. The split
 is deliberate and worth knowing before adding more:
 
 - **`src/sim` is at 100% statements.** The twenty resistance cells are asserted
@@ -184,8 +194,9 @@ A `PostToolUse` hook runs `npm run typecheck && npm run test:fast` after any
 edit to a `.ts` file under `src/` or `tests/`. It lives in
 `.claude/hooks/check-after-edit.sh` and is wired up in `.claude/settings.json`.
 
-`test:fast` is `npm test` minus `tests/campaign.test.ts` and
-`tests/diversity.test.ts`, which is 144 of the 157 tests and about two seconds
+`test:fast` is `npm test` minus `tests/campaign.test.ts`,
+`tests/diversity.test.ts` and `tests/breadth.test.ts`, which is 144 of the 165
+tests and about half a second
 against roughly eighty-five for the full run. Those two files are almost the
 entire cost: the diversity suite runs a 720-build campaign sample at module
 load, and the campaign suite plays twenty rounds on several seeds. They are the
@@ -213,7 +224,7 @@ instead transmuted enemies between states -- is complete, measured, and tagged
 
 v2.1 is current: HP and damage, layers that break inward, money per layer,
 5 towers with two three-tier upgrade paths each, 20 authored rounds, seeded
-freeplay past them, and four harnesses. `npm test` (157 tests),
+freeplay past them, and four harnesses. `npm test` (165 tests),
 `npm run typecheck` and `npm run build` all pass.
 
 Still unbuilt, and left as the owner's own AI-tooling exercise:
