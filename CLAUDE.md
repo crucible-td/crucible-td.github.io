@@ -46,6 +46,7 @@ rendering state, keep it in `src/render/`.
 ```bash
 npm run dev        # play it at localhost:5173
 npm test           # vitest: 131 tests
+npm run test:fast  # the 118 that are not balance measurements -- under a second
 npm run coverage   # where the tests are, and are not
 npm run typecheck  # tsc --noEmit
 npm run sim -- --all-waves                 # balance report for every wave
@@ -159,9 +160,21 @@ written for the number rather than for the risk.
 
 ## Automated checks (hook)
 
-A `PostToolUse` hook runs `npm run typecheck && npm test` after any edit to a
-`.ts` file under `src/` or `tests/`. It lives in
+A `PostToolUse` hook runs `npm run typecheck && npm run test:fast` after any
+edit to a `.ts` file under `src/` or `tests/`. It lives in
 `.claude/hooks/check-after-edit.sh` and is wired up in `.claude/settings.json`.
+
+`test:fast` is `npm test` minus `tests/campaign.test.ts` and
+`tests/diversity.test.ts`, which is 118 of the 131 tests and about two seconds
+instead of twenty-five. Those two files are almost the
+entire cost: the diversity suite runs a 240-build campaign sample at module
+load, and the campaign suite plays twenty rounds on several seeds. They are the
+measurements the project is judged on, but they answer a question about balance
+rather than about whether the edit just made compiles and behaves, and a
+twenty-five-second pause after every edit turns the hook into something to
+switch off. Run them with `npm test` after a balance change -- and CI runs the
+full suite on every push before it will deploy, so nothing merges on the fast
+set alone.
 
 On failure it exits 2 and prints the compiler/test output to stderr, which is
 Claude Code's convention for "block and feed this back to the model" -- so a

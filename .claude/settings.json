@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-after-edit.sh\"",
-            "statusMessage": "Typechecking and testing Crucible..."
+            "statusMessage": "Typechecking and running Crucible fast tests..."
           }
         ]
       }
