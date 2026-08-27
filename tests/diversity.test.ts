@@ -21,8 +21,21 @@ import { TOWER_IDS } from '../src/sim/towers.ts';
  * finding was an artifact of an under-powered sample, not a fact about the
  * game. Random compositions are mostly bad ones, so it takes a lot of them to
  * turn up enough good builds to generalise from.
+ *
+ * Raised from 240 to 720 when riders landed, for the same reason and with the
+ * same evidence. At 240 the verdict rested on a single build: the tuning
+ * before riders produced exactly one Vat-free winner out of 34, and the tuning
+ * after produced none out of 34 -- a pass and a fail separated by one sample,
+ * from a change that moved the Vat's presence among winners not at all (99%
+ * at 960 builds, before and after). A hand-built Vat-free board clears all
+ * twenty rounds with 9 of 20 lives under this tuning, which is the direct
+ * evidence the meter was too coarse to see. 720 is where the verdict stops
+ * flipping. It makes this the slowest file in the suite by a wide margin --
+ * three times the sample, each campaign running longer in ticks now that
+ * chilled charges walk slower -- which is exactly why the per-edit hook runs
+ * `npm run test:fast` and leaves this suite to `npm test` and to CI.
  */
-const REPORT = runDiversity({ slots: 18, sample: 240, seed: 1, rounds: 20 });
+const REPORT = runDiversity({ slots: 18, sample: 720, seed: 1, rounds: 20 });
 
 describe('build diversity', () => {
   it('lets every single tower survive the opening round', () => {

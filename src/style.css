@@ -135,6 +135,10 @@ canvas {
 .tower .blurb { display: block; color: var(--dim); font-size: 12px; margin-top: 3px; }
 /* Concrete before/after numbers, set apart from the flavour line above them. */
 .tower .change { color: var(--ink); font-variant-numeric: tabular-nums; opacity: 0.85; }
+/* The lingering effect, tinted with the tower's own colour: it is a property
+   of the element, so it should read as belonging to the tower, not as more
+   flavour text. */
+.tower .rider { color: var(--slot, var(--dim)); opacity: 0.95; }
 
 #inspect { margin: 4px 0 14px; padding-top: 10px; border-top: 1px solid var(--edge); }
 .inspectHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }

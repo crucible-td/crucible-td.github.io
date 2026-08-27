@@ -18,6 +18,19 @@ import type { TowerId, UpgradeId } from './types.ts';
  *
  * A path is opt-in and paid for, which makes it the safest home for a rule
  * change that would be too strong applied to everyone.
+ *
+ * Every `damage` here is 10% below where it sat before riders existed, and
+ * that is what riders cost. They were a straight power gain across all five
+ * towers -- the reference campaign finished with 15 of 20 lives instead of 9,
+ * a run with no tension left in it -- so something had to pay.
+ *
+ * The tiers pay rather than `towers.ts`, for a reason worth keeping. A rider's
+ * strength is the resistance cell times a constant, and tiers are what push
+ * cells up: a Blast Furnace does not merely hurt Molten, it *ignites* Molten,
+ * where a bare Forge does neither. The gain therefore concentrates in upgraded
+ * towers, so the bill belongs to them. Cutting base rate instead was measured
+ * and rejected -- it taxed the thin early board hardest and put leaks into
+ * rounds 4 and 5, which teach immunities and must not bite.
  */
 export interface UpgradeDef {
   id: UpgradeId;
@@ -46,13 +59,13 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'kiln2', towerId: 'forge', path: 'kiln', tier: 2,
     name: 'Reverberatory Kiln', cost: 110,
     blurb: 'A real bite on Molten now, and a hotter throw.',
-    overrides: { MOLTEN: { HEAT: 0.9 } }, stats: { damage: 6 },
+    overrides: { MOLTEN: { HEAT: 0.9 } }, stats: { damage: 5 },
   },
   kiln3: {
     id: 'kiln3', towerId: 'forge', path: 'kiln', tier: 3,
     name: 'Blast Furnace', cost: 230,
     blurb: 'Molten is no longer a wall to Heat at all. It is a target.',
-    overrides: { MOLTEN: { HEAT: 1.4 } }, stats: { damage: 9, cooldown: 26 },
+    overrides: { MOLTEN: { HEAT: 1.4 } }, stats: { damage: 8, cooldown: 26 },
   },
   bellows1: {
     id: 'bellows1', towerId: 'forge', path: 'bellows', tier: 1,
@@ -64,13 +77,13 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'bellows2', towerId: 'forge', path: 'bellows', tier: 2,
     name: 'Double Bellows', cost: 95,
     blurb: 'Faster still, and each throw lands heavier.',
-    stats: { cooldown: 17, damage: 6 },
+    stats: { cooldown: 17, damage: 5 },
   },
   bellows3: {
     id: 'bellows3', towerId: 'forge', path: 'bellows', tier: 3,
     name: 'Forced Draught', cost: 200,
     blurb: 'A continuous roar. Nothing in the game clears Ore faster.',
-    stats: { cooldown: 11, damage: 8 },
+    stats: { cooldown: 11, damage: 7 },
   },
 
   // -- Chiller: Deposition lifts Cold's wall against Crystal ----------------
@@ -84,13 +97,13 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'depo2', towerId: 'chiller', path: 'depo', tier: 2,
     name: 'Frost Lattice', cost: 130,
     blurb: 'Crystal cracks under cold about as well as anything else.',
-    overrides: { CRYSTAL: { COLD: 1.0 } }, stats: { damage: 8 },
+    overrides: { CRYSTAL: { COLD: 1.0 } }, stats: { damage: 7 },
   },
   depo3: {
     id: 'depo3', towerId: 'chiller', path: 'depo', tier: 3,
     name: 'Absolute Zero', cost: 245,
     blurb: 'Cold answers every layer in the game, and Crystal worst of all.',
-    overrides: { CRYSTAL: { COLD: 1.75 } }, stats: { damage: 11 },
+    overrides: { CRYSTAL: { COLD: 1.75 } }, stats: { damage: 10 },
   },
   super1: {
     id: 'super1', towerId: 'chiller', path: 'super', tier: 1,
@@ -102,13 +115,13 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'super2', towerId: 'chiller', path: 'super', tier: 2,
     name: 'Cryo Cannon', cost: 105,
     blurb: 'Further again, and colder.',
-    stats: { range: 152, damage: 8 },
+    stats: { range: 152, damage: 7 },
   },
   super3: {
     id: 'super3', towerId: 'chiller', path: 'super', tier: 3,
     name: 'Glacier', cost: 205,
     blurb: 'Covers a quarter of the lane on its own.',
-    stats: { range: 185, damage: 11, cooldown: 40 },
+    stats: { range: 185, damage: 10, cooldown: 40 },
   },
 
   // -- Stamp: Dampened trades the Crystal specialism for general weight -----
@@ -122,14 +135,14 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'damp2', towerId: 'stamp', path: 'damp', tier: 2,
     name: 'Drop Hammer', cost: 120,
     blurb: 'Molten is now a good target rather than a poor one.',
-    overrides: { MOLTEN: { KINETIC: 1.75 } }, stats: { damage: 12 },
+    overrides: { MOLTEN: { KINETIC: 1.75 } }, stats: { damage: 11 },
   },
   damp3: {
     id: 'damp3', towerId: 'stamp', path: 'damp', tier: 3,
     name: 'Pile Driver', cost: 235,
     blurb: 'Crushes anything it can reach. Vapor still floats over it.',
     overrides: { MOLTEN: { KINETIC: 2.25 }, ORE: { KINETIC: 1.75 } },
-    stats: { damage: 16 },
+    stats: { damage: 14 },
   },
   die1: {
     id: 'die1', towerId: 'stamp', path: 'die', tier: 1,
@@ -141,13 +154,13 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'die2', towerId: 'stamp', path: 'die', tier: 2,
     name: 'Shatter Die', cost: 110,
     blurb: 'Shaped to split Crystal along its faults.',
-    overrides: { CRYSTAL: { KINETIC: 2.75 } }, stats: { range: 116, damage: 12 },
+    overrides: { CRYSTAL: { KINETIC: 2.75 } }, stats: { range: 116, damage: 11 },
   },
   die3: {
     id: 'die3', towerId: 'stamp', path: 'die', tier: 3,
     name: 'Fracture Press', cost: 220,
     blurb: 'Crystal simply comes apart. Nothing else shatters like it.',
-    overrides: { CRYSTAL: { KINETIC: 3.5 } }, stats: { range: 130, damage: 17 },
+    overrides: { CRYSTAL: { KINETIC: 3.5 } }, stats: { range: 130, damage: 15 },
   },
 
   // -- Vat: Reclaimer ends with Solvent's own wall lifted -------------------
@@ -161,7 +174,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'recl2', towerId: 'vat', path: 'recl', tier: 2,
     name: 'Scrubber Tower', cost: 115,
     blurb: 'A dedicated answer to a gas round.',
-    overrides: { VAPOR: { SOLVENT: 3.25 } }, stats: { damage: 7 },
+    overrides: { VAPOR: { SOLVENT: 3.25 } }, stats: { damage: 6 },
   },
   recl3: {
     id: 'recl3', towerId: 'vat', path: 'recl', tier: 3,
@@ -170,7 +183,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     // Lifts Solvent's own wall -- the Vat's whole limitation, undone at a
     // price, and only at the very top of the path.
     overrides: { VAPOR: { SOLVENT: 4.0 }, CRYSTAL: { SOLVENT: 0.6 } },
-    stats: { damage: 9 },
+    stats: { damage: 8 },
   },
   cat1: {
     id: 'cat1', towerId: 'vat', path: 'cat', tier: 1,
@@ -190,7 +203,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     name: 'Flood Tank', cost: 210,
     blurb: 'Drowns a whole stretch of lane in one slow wash.',
     overrides: { SLAG: { SOLVENT: 3.0 }, ORE: { SOLVENT: 1.8 } },
-    stats: { splash: 64, damage: 8 },
+    stats: { splash: 64, damage: 7 },
   },
 
   // -- Lens: Focus is raw power, Prism is spread ----------------------------
@@ -198,19 +211,19 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'focus1', towerId: 'lens', path: 'focus', tier: 1,
     name: 'Focusing Array', cost: 70,
     blurb: 'A markedly heavier beam, at the same slow cadence.',
-    stats: { damage: 20 },
+    stats: { damage: 18 },
   },
   focus2: {
     id: 'focus2', towerId: 'lens', path: 'focus', tier: 2,
     name: 'Collimator', cost: 135,
     blurb: 'Heavier and a little quicker.',
-    stats: { damage: 28, cooldown: 66 },
+    stats: { damage: 25, cooldown: 66 },
   },
   focus3: {
     id: 'focus3', towerId: 'lens', path: 'focus', tier: 3,
     name: 'Solar Lance', cost: 255,
     blurb: 'One shot removes most things outright, from anywhere on the map.',
-    stats: { damage: 44, cooldown: 58 },
+    stats: { damage: 40, cooldown: 58 },
   },
   prism1: {
     id: 'prism1', towerId: 'lens', path: 'prism', tier: 1,
@@ -223,14 +236,14 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     name: 'Spectrometer', cost: 120,
     blurb: 'Finds a weakness in Crystal as well.',
     overrides: { ORE: { HEAT: 2.5 }, CRYSTAL: { HEAT: 1.75 } },
-    stats: { damage: 18 },
+    stats: { damage: 16 },
   },
   prism3: {
     id: 'prism3', towerId: 'lens', path: 'prism', tier: 3,
     name: 'Full Spectrum', cost: 240,
     blurb: 'Every layer has a wavelength that hurts it, including Vapor.',
     overrides: { ORE: { HEAT: 3.0 }, CRYSTAL: { HEAT: 2.5 }, VAPOR: { HEAT: 1.5 } },
-    stats: { damage: 24 },
+    stats: { damage: 22 },
   },
 };
 

@@ -3,6 +3,7 @@ import { PATH_LENGTH, isBuildableCell, cellCentre, pointAt } from './path.ts';
 import { Rng } from './rng.ts';
 import { isImmune, resolveResistance } from './resistance.ts';
 import type { ResistanceOverrides } from './resistance.ts';
+import { MAX_CHILL, RIDERS, perTick } from './riders.ts';
 import { TOWERS } from './towers.ts';
 import { UPGRADES, pathsFor, tiersOf } from './upgrades.ts';
 import { STATES } from './types.ts';
@@ -185,7 +186,15 @@ export function startWave(w: World): boolean {
 
 // --- simulation -------------------------------------------------------------
 
-function spawnCharge(w: World, state: State, dist: number, scale = 1): Charge {
+/**
+ * Put one charge on the lane.
+ *
+ * Exported because it is the only place that knows the full shape of a
+ * `Charge`. Tests used to build the literal themselves and drifted every time
+ * a field was added; now there is one constructor and adding a rider field
+ * cannot silently leave a test charge half-initialised.
+ */
+export function spawnCharge(w: World, state: State, dist: number, scale = 1): Charge {
   const c: Charge = {
     id: w.nextId++,
     state,
@@ -195,6 +204,13 @@ function spawnCharge(w: World, state: State, dist: number, scale = 1): Charge {
     speedMult: 1,
     alive: true,
     flash: 0,
+    chillTicks: 0,
+    chillFactor: 0,
+    burnTicks: 0,
+    burnDamage: 0,
+    corrodeTicks: 0,
+    corrodeDamage: 0,
+    shoveCd: 0,
   };
   w.charges.push(c);
   return c;
@@ -246,6 +262,17 @@ function breakLayer(w: World, c: Charge): void {
     const offset = def.childCount === 1 ? 0 : w.rng.range(-12, 12);
     const child = spawnCharge(w, inner, Math.max(0, c.dist + offset), c.scale);
     child.flash = FLASH_TICKS;
+    // Corrosion is the one rider that survives a break. Solvent strips what it
+    // touches all the way down, so a wash over a Crystal keeps eating both
+    // Molten cores that climb out of it -- the Vat's payoff for depth, and the
+    // only rider that knows the layer system exists. Chill and burn do not
+    // transfer: they were applied to a shell that is now gone.
+    //
+    // The damage carried across is already resolved against the *parent's*
+    // layer. Re-resolving it here would need a firing element this function
+    // does not have, and snapshotting is the same rule projectiles follow.
+    child.corrodeTicks = c.corrodeTicks;
+    child.corrodeDamage = c.corrodeDamage;
   }
 }
 
@@ -274,12 +301,112 @@ export function applyElement(
     return;
   }
 
-  c.hp -= damage * mult;
+  damageDirect(w, c, damage * mult);
+  // The lingering half of the hit, at the same strength the table just gave
+  // the damage. Applied after, so a charge the shot already broke does not
+  // catch fire on its way out.
+  if (c.alive) applyRider(w, c, element, mult);
+}
+
+/**
+ * Take hp off a charge and break the layer if that finished it.
+ *
+ * Separated from `applyElement` because damage-over-time must never re-enter
+ * the table: resolving a burn tick would re-apply Heat's rider, which would
+ * refresh the burn, which would burn forever. Riders resolve once, when the
+ * hit lands, and tick as flat numbers afterwards.
+ *
+ * Everything still funnels into `breakLayer`, so a charge finished by a burn
+ * pays its bounty and emits its events exactly like one finished by a shot.
+ */
+function damageDirect(w: World, c: Charge, amount: number): void {
+  if (!c.alive) return;
+  c.hp -= amount;
   c.flash = FLASH_TICKS;
   if (c.hp <= 0) {
     breakLayer(w, c);
   } else {
     emit(w, 'hit', c);
+  }
+}
+
+/**
+ * Apply the element's rider, scaled by the resistance cell that scaled the hit.
+ *
+ * Only reached with `mult > 0`, so immunity blocks the rider as surely as it
+ * blocks the damage -- Crystal is never chilled, Vapor is never shoved, and
+ * neither needs a line of code saying so.
+ *
+ * None of the three timed riders stack. A second application takes the
+ * stronger value and refreshes the clock, so massing one tower buys coverage
+ * and rate, never a charge frozen solid or dissolving at ten times speed.
+ */
+function applyRider(w: World, c: Charge, element: Element, mult: number): void {
+  const rider = RIDERS[element];
+  switch (rider.kind) {
+    case 'chill': {
+      c.chillFactor = Math.min(MAX_CHILL, Math.max(c.chillFactor, rider.factor * mult));
+      c.chillTicks = Math.max(c.chillTicks, rider.ticks);
+      return;
+    }
+    case 'ignite': {
+      c.burnDamage = Math.max(c.burnDamage, perTick(rider.dps) * mult);
+      c.burnTicks = Math.max(c.burnTicks, rider.ticks);
+      return;
+    }
+    case 'corrode': {
+      c.corrodeDamage = Math.max(c.corrodeDamage, perTick(rider.dps) * mult);
+      c.corrodeTicks = Math.max(c.corrodeTicks, rider.ticks);
+      return;
+    }
+    case 'shove': {
+      // Per *charge*, not per tower: a bank of Stamps cannot chain shoves into
+      // a stall-lock however many of them have the target in range. Cold owns
+      // throughput; Kinetic only owns position.
+      if (c.shoveCd > 0) return;
+      c.shoveCd = rider.cooldown;
+      // Heavy things do not fly backwards. A slab that could be pushed around
+      // is a slab that never arrives, and toughness is the dial every boss and
+      // every freeplay round is built out of.
+      c.dist = Math.max(0, c.dist - (rider.pixels * mult) / Math.sqrt(c.scale));
+      return;
+    }
+  }
+}
+
+/**
+ * Tick every rider in progress, before anything moves.
+ *
+ * Ordered first in `step()` so a chill applied last tick is already in
+ * `speedMult` when `advanceCharges` reads it. Fixed rather than incidental:
+ * the browser and the headless harness have to agree about balance, so the
+ * order effects resolve in cannot be an accident of where a call sits.
+ */
+function advanceEffects(w: World): void {
+  for (const c of w.charges) {
+    if (!c.alive) continue;
+    if (c.shoveCd > 0) c.shoveCd--;
+
+    // speedMult is derived, never assigned from outside. One owner, so there
+    // is exactly one answer to "why is this thing walking at this speed".
+    if (c.chillTicks > 0) {
+      c.chillTicks--;
+      c.speedMult = 1 - c.chillFactor;
+      if (c.chillTicks === 0) c.chillFactor = 0;
+    } else {
+      c.speedMult = 1;
+    }
+
+    if (c.burnTicks > 0) {
+      c.burnTicks--;
+      damageDirect(w, c, c.burnDamage);
+      if (!c.alive) continue;
+    }
+
+    if (c.corrodeTicks > 0) {
+      c.corrodeTicks--;
+      damageDirect(w, c, c.corrodeDamage);
+    }
   }
 }
 
@@ -395,6 +522,7 @@ export function step(w: World): void {
     spawnCharge(w, next.state, 0, next.scale);
   }
 
+  advanceEffects(w);
   advanceCharges(w);
   fireTowers(w);
   advanceProjectiles(w);

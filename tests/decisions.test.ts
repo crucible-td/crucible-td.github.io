@@ -4,6 +4,8 @@ import {
   cardState,
   describeMultiplier,
   describeOverrides,
+  describeRider,
+  describeRiderGains,
   describeStats,
   elementLabel,
   panelKey,
@@ -11,6 +13,7 @@ import {
 } from '../src/render/decisions.ts';
 import { TOWERS } from '../src/sim/towers.ts';
 import { UPGRADES } from '../src/sim/upgrades.ts';
+import { ELEMENT_IDS } from '../src/sim/types.ts';
 
 /**
  * Presentation is where this project's bugs actually come from. Eight real
@@ -142,7 +145,7 @@ describe('describing a stat change', () => {
     // path from the start.
     const midPath = { ...base, cooldown: 22 };
     const [line] = describeStats(midPath, 'bellows2');
-    expect(line).toContain('Damage 4 → 6');
+    expect(line).toContain(`Damage 4 → ${UPGRADES.bellows2.stats!.damage!}`);
     const rateLine = describeStats(midPath, 'bellows2')[1]!;
     expect(rateLine).toContain(`${rate(22)} → ${rate(UPGRADES.bellows2.stats!.cooldown!)}`);
   });
@@ -161,5 +164,41 @@ describe('describing a stat change', () => {
   it('says nothing when a value would not actually change', () => {
     const already = { ...base, range: UPGRADES.die1.stats!.range! };
     expect(describeStats(already, 'die1')).toEqual([]);
+  });
+});
+
+describe('describeRider', () => {
+  it('names the lingering effect for every element, so no tower card is blank', () => {
+    for (const e of ELEMENT_IDS) expect(describeRider(e).length).toBeGreaterThan(0);
+  });
+
+  it('gives the two Heat towers one line, because the rider belongs to the element', () => {
+    expect(describeRider(TOWERS.forge.element)).toBe(describeRider(TOWERS.lens.element));
+  });
+});
+
+describe('describeRiderGains', () => {
+  it('says a wall-lifting tier starts the rider working there too', () => {
+    // Absolute Zero does not merely let the Chiller hurt Crystal, it lets the
+    // Chiller *slow* Crystal -- the best reason in the game to climb a path,
+    // and invisible in the multiplier alone.
+    const lines = describeRiderGains('depo3');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('Crystal');
+    expect(lines[0]).toContain('slowed');
+  });
+
+  it('says nothing for a tier that only makes an existing counter stronger', () => {
+    // die3 takes Crystal + Kinetic from 2.0 to 3.5. The Stamp was already
+    // knocking Crystal back, so there is no news here and printing a line
+    // every tier would bury the one that matters.
+    expect(describeRiderGains('die3')).toEqual([]);
+  });
+
+  it('ignores cells rewritten for an element the tower does not throw', () => {
+    // recl3 lifts Crystal + Solvent, which is the Vat's own element -- but it
+    // also has to not claim anything about the columns it leaves alone.
+    expect(describeRiderGains('recl3')).toEqual(['Crystal can now be corroded too']);
+    expect(describeRiderGains('bellows1')).toEqual([]);
   });
 });

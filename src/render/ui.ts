@@ -4,6 +4,8 @@ import {
   cardState,
   describeMultiplier,
   describeOverrides,
+  describeRider,
+  describeRiderGains,
   describeStats,
   elementLabel,
   panelKey,
@@ -85,7 +87,8 @@ export class Ui {
         `<span class="row"><span class="name">${def.name}</span>` +
         `<span class="elem">${elementLabel(def.element)}</span>` +
         `<span class="cost">${def.cost}g</span></span>` +
-        `<span class="blurb">${def.blurb}</span></span>`;
+        `<span class="blurb">${def.blurb}</span>` +
+        `<span class="blurb rider">${describeRider(def.element)}</span></span>`;
       btn.addEventListener('click', () => this.handlers.onSelect(id));
       list.appendChild(btn);
       this.buttons.set(id, btn);
@@ -220,7 +223,11 @@ export class Ui {
         btn.className = 'tower';
         btn.dataset.upgrade = up.id;
         btn.style.setProperty('--slot', TOWERS[inspected.def].color);
-        const changes = [...describeStats(effective(inspected), up.id), ...describeOverrides(up.id)]
+        const changes = [
+          ...describeStats(effective(inspected), up.id),
+          ...describeOverrides(up.id),
+          ...describeRiderGains(up.id),
+        ]
           .map((line) => `<span class="blurb change">${line}</span>`)
           .join('');
         btn.innerHTML =

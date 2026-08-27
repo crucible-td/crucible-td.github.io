@@ -3,22 +3,18 @@ import { ECONOMY } from '../src/sim/economy.ts';
 import { PATH_LENGTH, isBuildableCell } from '../src/sim/path.ts';
 import { STATES } from '../src/sim/types.ts';
 import type { State } from '../src/sim/types.ts';
-import { applyElement, createWorld, placeTower, startWave, step } from '../src/sim/world.ts';
+import { applyElement, createWorld, placeTower, spawnCharge, startWave, step } from '../src/sim/world.ts';
 import type { World } from '../src/sim/world.ts';
 
-/** Drop a single charge onto the lane without running a wave. */
+/**
+ * Drop a single charge onto the lane without running a wave.
+ *
+ * Goes through the sim's own constructor rather than building the literal
+ * here. Riders added seven fields to `Charge`, and a hand-rolled test charge
+ * would have gone on compiling with none of them set.
+ */
 function seedCharge(w: World, state: State, dist = 0) {
-  w.charges.push({
-    id: w.nextId++,
-    state,
-    dist,
-    hp: STATES[state].hp,
-    scale: 1,
-    speedMult: 1,
-    alive: true,
-    flash: 0,
-  });
-  return w.charges[w.charges.length - 1]!;
+  return spawnCharge(w, state, dist);
 }
 
 /** Hit a charge hard enough to take the layer off in one go. */

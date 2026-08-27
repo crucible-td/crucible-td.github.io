@@ -120,10 +120,40 @@ export interface Charge {
    * exactly twenty cells.
    */
   scale: number;
+  /**
+   * Movement multiplier, derived from `chillTicks` every tick.
+   *
+   * Never written directly. `advanceEffects()` owns it, so there is one place
+   * that decides how fast anything walks.
+   */
   speedMult: number;
   alive: boolean;
   /** Ticks of visual highlight remaining. Render-only, but kept deterministic. */
   flash: number;
+
+  /**
+   * Riders in progress. See `riders.ts` for what applies them.
+   *
+   * Flat numbers rather than nested objects, matching `flash` and `speedMult`:
+   * a charge stays a plain record that a test can read a field off, and the
+   * sim stays free of allocation per hit.
+   *
+   * Damage is stored already resolved against the table, snapshotted when the
+   * hit landed -- the same discipline `Projectile.overrides` uses. A tick of
+   * burn must never re-enter the table, or it would re-apply its own rider and
+   * refresh itself forever.
+   */
+  chillTicks: number;
+  /** Fraction of speed removed while chilled, capped at MAX_CHILL. */
+  chillFactor: number;
+  burnTicks: number;
+  /** Resolved damage per tick. */
+  burnDamage: number;
+  corrodeTicks: number;
+  /** Resolved damage per tick. Inherited by children when the layer breaks. */
+  corrodeDamage: number;
+  /** Ticks until this charge may be shoved again, whatever hits it. */
+  shoveCd: number;
 }
 
 export interface Tower {

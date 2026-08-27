@@ -327,6 +327,57 @@ export class Renderer {
       ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
       ctx.stroke();
     }
+
+    this.drawRiders(c, p.x, p.y, r);
+  }
+
+  /**
+   * What is currently eating, freezing or burning this charge.
+   *
+   * Riders are invisible otherwise: a Molten core at half pace looks exactly
+   * like a Molten core, and a player who cannot see the slow cannot learn that
+   * putting a Chiller before the corner was the reason the round held. Each
+   * tell borrows the colour of the tower that caused it, so the lane reads
+   * back as which of your towers is doing the work.
+   *
+   * Read-only over the sim, like the rest of this file -- these fields tick in
+   * `advanceEffects`, which is what keeps the browser and the headless harness
+   * agreeing about what happened.
+   */
+  private drawRiders(c: Charge, x: number, y: number, r: number): void {
+    const { ctx } = this;
+
+    if (c.chillTicks > 0) {
+      // A frost rim, opaque in proportion to how hard the charge is slowed --
+      // so the difference between Cold on Molten and Cold on Ore is visible on
+      // the lane rather than only in the resistance table.
+      ctx.strokeStyle = `rgba(91, 200, 245, ${0.35 + c.chillFactor})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (c.burnTicks > 0) {
+      // Embers above the charge. Deterministic wobble from the charge id, not
+      // Math.random: two runs of the same seed must draw the same frame.
+      ctx.fillStyle = 'rgba(255, 140, 66, 0.85)';
+      for (let i = 0; i < 3; i++) {
+        const a = ((c.id * 37 + i * 120 + c.burnTicks * 4) % 360) * (Math.PI / 180);
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(a) * (r + 1), y + Math.sin(a) * (r + 1) - 2, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    if (c.corrodeTicks > 0) {
+      // A drip below. Sits under the charge so it never competes with the
+      // health bar above it.
+      ctx.fillStyle = 'rgba(154, 230, 110, 0.75)';
+      ctx.beginPath();
+      ctx.ellipse(x, y + r - 1, r * 0.5, r * 0.28, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
 
