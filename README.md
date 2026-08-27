@@ -63,6 +63,7 @@ distinct compositions, with no tower mandatory and none dead.
 npm install
 npm run dev        # play at localhost:5173
 npm test           # 131 tests
+npm run test:fast  # the 118 that are not balance measurements -- under a second
 npm run coverage   # where the tests are, and are not
 npm run typecheck
 ```
