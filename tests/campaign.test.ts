@@ -22,7 +22,14 @@ describe('reference campaign', () => {
     const r = runCampaign(PLAN, 1, 20000);
     expect(r.won).toBe(true);
     expect(r.wavesCleared).toBe(20);
-    expect(r.livesLeft).toBe(9);
+    // 9 before riders, 11 after. Riders were a straight power gain across all
+    // five towers and took this to 15 left unpaid; the 10% cut to upgrade-tier
+    // damage is what brought it back. Paid from the tiers rather than from
+    // `towers.ts` deliberately: a rider scales with the resistance cell, and
+    // tiers are what push cells up, so the gain concentrates in upgraded
+    // towers. Cutting base rate instead taxed the thin early board -- it put
+    // leaks into rounds 4 and 5, which are teaching rounds and must not bite.
+    expect(r.livesLeft).toBe(11);
   });
 
   it('wins on every seed tried, not just the lucky one', () => {

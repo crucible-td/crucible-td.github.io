@@ -59,6 +59,51 @@ out of every winning build.
 Round 1 is bare Ore, which nothing is immune to, so the opening is genuinely a
 preference. Immunities then arrive one per round, each teaching a single cell.
 
+## Riders: the lingering half of a hit
+
+Damage is not all an element does. Every element carries exactly one **rider**,
+and its magnitude is scaled by the same resistance cell that scales the damage.
+
+| Element | Rider | | Survives the break? |
+|---|---|---|---|
+| **HEAT** | Ignite | burns, hot and brief | no |
+| **COLD** | Chill | slows the charge down | no |
+| **KINETIC** | Shove | knocks it back down the lane | n/a, instant |
+| **SOLVENT** | Corrode | eats slowly | **yes — onto the children** |
+
+One rule generates all of the behaviour worth having, and none of it is a
+special case in tower code:
+
+**An immune cell means no damage and no rider.** Crystal is never chilled,
+Vapor is never shoved, and nothing anywhere says so — the table already did.
+This is also the answer to "which monsters walk slow": Cold slows Molten to
+little over half pace (×2.0), Vapor by a third (×1.6), Ore barely at all
+(×0.5), and Crystal not at all. The Cold column, read back as speed.
+
+**An upgrade that rewrites a cell moves the rider with it.** An Absolute Zero
+Chiller does not merely start hurting Crystal, it starts *slowing* Crystal. A
+Blast Furnace starts igniting Molten. That interaction cost nothing to build
+and is the best reason in the game to climb a path.
+
+Two riders exist to stay out of each other's way. Cold owns throughput, so
+Kinetic owns position instead: a shove is capped per *charge* rather than per
+tower, so a bank of Stamps cannot chain one into a stall-lock, and it is
+divided by the square root of toughness, because a boss that can be pushed
+around is a boss that never arrives. None of the three timed riders stack —
+a second application takes the stronger value and refreshes the clock.
+
+Corrode is the only one that knows the layer system exists, and it is the Vat's
+whole identity: a wash over a Crystal keeps eating the two Molten cores that
+climb out of it. Its damage is small and its duration is long, because almost
+all of its value is being still alive when the layer breaks.
+
+Riders were a straight power gain across all five towers — the reference
+campaign went from 9 lives left to 15, a run with no tension in it — and every
+upgrade tier's damage is 10% lower than before to pay for it. The tiers pay
+rather than the base towers because that is where the gain concentrates: a
+rider's strength is a table cell times a constant, and tiers are what push
+cells up.
+
 ## Layers
 
 Enemies are stacks. Breaking the outer layer does not kill the charge — it

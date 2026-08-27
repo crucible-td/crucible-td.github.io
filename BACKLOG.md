@@ -32,28 +32,20 @@ What to check on an actual device:
 
 Failure here is likely to be about precision rather than about events firing.
 
-## Towers that are more fun to use
+## Towers that are more fun to use -- partly shipped
 
-Every tower currently does the same *thing*: throw an element at the furthest
-charge in range, for damage, on a cooldown. They differ only in numbers —
-element, damage, rate, range, splash — plus one flag for ground-only. The
-resistance table makes the *choice* of tower interesting, but it does not make
-any individual tower interesting to watch or to place.
+Riders shipped: every element now carries one lingering effect scaled by its
+resistance cell (Heat ignites, Cold chills, Kinetic shoves, Solvent corrodes
+and the corrosion follows what breaks out). See DESIGN.md. That answers the
+"hits an area over time" and "interacts with the lane" directions, and Corrode
+answers "payoff that depends on the layer system".
 
-Directions worth considering, none decided:
-
-- Behaviour that is not "single projectile at the furthest target": a beam that
-  pierces along the lane, a chain that jumps between charges, something that
-  hits an area over time rather than instantly.
-- Towers that interact with the lane rather than the charge — slowing a
-  stretch, or changing where charges are when they arrive.
-- Towers whose payoff depends on the layer system specifically, since that is
-  the part of this game no other tower defense has.
-
-The constraint to respect: every gameplay rule goes through the resistance
-table and `applyElement()`. A new behaviour should be a new kind of *outcome*,
-not a special case in tower code — the same discipline that kept the
-transmutation table honest.
+What is still open from the original item is the *targeting* half, which riders
+did not touch: every tower still throws one projectile at the furthest charge
+in range. A beam that pierces along the lane, or a chain that jumps between
+charges, would be a genuinely different shape of tower rather than a different
+outcome on impact. The same constraint applies -- it has to be a new kind of
+outcome, not a special case in tower code.
 
 ## Enemies as monsters
 
@@ -81,7 +73,7 @@ balance implications, so it cannot break the diversity property.
 
 ## Open balance finding
 
-A run still ends holding roughly 790 gold. Lengthening the campaign to twenty
+A run still ends holding roughly 800 gold. Lengthening the campaign to twenty
 rounds and adding three-tier upgrade paths brought it down from 995 and got the
 reference plan spending on 18 towers and 22 upgrade tiers, but most of the
 remaining surplus accrues *during* the final rounds, after the last purchase

@@ -1,4 +1,6 @@
 import { RESISTANCE } from '../sim/resistance.ts';
+import { RIDERS } from '../sim/riders.ts';
+import { TOWERS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
 import type { Element, State, Tower, UpgradeId } from '../sim/types.ts';
@@ -131,6 +133,70 @@ export function describeOverrides(id: UpgradeId): string[] {
           `${describeMultiplier(mult)} (was ${before})`,
       );
     }
+  }
+  return out;
+}
+
+/**
+ * An element's rider in words, for the tower card.
+ *
+ * The card already names the element and shows the table, so this says the one
+ * thing neither of those can: what lingers after the hit. Kept here rather
+ * than in `towers.ts` because a rider belongs to the element, and two towers
+ * share Heat -- writing it into each tower's blurb would be two copies of one
+ * fact, drifting apart the first time the dial moved.
+ */
+export function describeRider(element: Element): string {
+  const rider = RIDERS[element];
+  switch (rider.kind) {
+    case 'chill':
+      return 'Slows what it hurts';
+    case 'ignite':
+      return 'Sets fire to what it hurts';
+    case 'corrode':
+      return 'Corrodes, and the corrosion follows what breaks out';
+    case 'shove':
+      return 'Knocks what it hurts back down the lane';
+  }
+}
+
+/** The verb form, for describing a cell an upgrade has just opened up. */
+function riderVerb(element: Element): string {
+  const rider = RIDERS[element];
+  switch (rider.kind) {
+    case 'chill':
+      return 'slowed';
+    case 'ignite':
+      return 'set alight';
+    case 'corrode':
+      return 'corroded';
+    case 'shove':
+      return 'knocked back';
+  }
+}
+
+/**
+ * Cells this branch opens up for the tower's rider as well as its damage.
+ *
+ * Riders scale by the same multiplier the damage does, so a tier that lifts an
+ * immunity does two things at once: an Absolute Zero Chiller does not merely
+ * start hurting Crystal, it starts *slowing* Crystal. That is the best reason
+ * in the game to climb a path and it was invisible -- `describeOverrides`
+ * reports the new multiplier, which reads as a damage change and nothing more.
+ *
+ * Only wall-lifting counts. A cell going from 1.6 to 2.5 strengthens a rider
+ * the player can already see working, and saying so on every tier would bury
+ * the one line that is genuinely news.
+ */
+export function describeRiderGains(id: UpgradeId): string[] {
+  const up = UPGRADES[id];
+  const element = TOWERS[up.towerId].element;
+  const out: string[] = [];
+  for (const [state, row] of Object.entries(up.overrides ?? {})) {
+    const next = row[element];
+    if (next === undefined || next <= 0) continue;
+    if (RESISTANCE[state as State][element] > 0) continue;
+    out.push(`${STATES[state as State].label} can now be ${riderVerb(element)} too`);
   }
   return out;
 }

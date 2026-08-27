@@ -3,7 +3,10 @@
 A tower defense built around **counters and layers**. Enemies ("charges") walk a
 fixed lane wearing a **state** (Ore, Slag, Molten, Crystal, Vapor). Towers throw
 an **element** (Heat, Cold, Kinetic, Solvent) for damage, and how much of it
-lands depends on the state it hits. Break a layer and what is underneath keeps
+lands depends on the state it hits. Each element also leaves something behind
+-- Cold slows, Heat burns, Kinetic shoves, Solvent corrodes -- at a strength
+the same table cell decides, so a Chiller halves a Molten's pace and does
+nothing at all to a Crystal. Break a layer and what is underneath keeps
 walking: a Crystal shell becomes two Molten cores, each of which becomes a Slag
 remnant. You are paid per layer broken.
 
@@ -28,6 +31,7 @@ rendering state, keep it in `src/render/`.
 | Path | What it is |
 |---|---|
 | `src/sim/resistance.ts` | **The resistance table.** Twenty cells that define the entire game. |
+| `src/sim/riders.ts` | **Riders.** One lingering effect per element, scaled by the table cell. |
 | `src/sim/towers.ts`, `src/sim/waves.ts` | Tower stats and wave composition, as flat data. |
 | `src/sim/upgrades.ts` | **Upgrade paths.** Two per tower, three tiers deep; the interesting tiers rewrite table cells. |
 | `src/sim/loadout.ts` | The `towerId@col,row[+upgradeId]` grammar both harnesses parse. |
@@ -45,8 +49,8 @@ rendering state, keep it in `src/render/`.
 
 ```bash
 npm run dev        # play it at localhost:5173
-npm test           # vitest: 131 tests
-npm run test:fast  # the 118 that are not balance measurements -- under a second
+npm test           # vitest: 157 tests
+npm run test:fast  # the 144 that are not balance measurements -- under a second
 npm run coverage   # where the tests are, and are not
 npm run typecheck  # tsc --noEmit
 npm run sim -- --all-waves                 # balance report for every wave
@@ -94,13 +98,21 @@ Reference points from the current tuning, all measurable:
 
 - Every one of the five towers clears round 1 on its own. That is deliberate:
   the opening is a preference, not a puzzle.
-- 77 of 320 sampled 18-tower compositions clear all twenty rounds, in 77
+- 124 of 720 sampled 18-tower compositions clear all twenty rounds, in 124
   distinct compositions, and no tower appears in every winner.
-- The reference plan wins on every seed with about 9 of 20 lives left, climbing
-  22 upgrade tiers, and reaches roughly round 22 in freeplay.
-- Sample size is part of that measurement. At 120 builds the meter called the
-  Vat mandatory and a hand-built Vat-free board then cleared all twenty rounds
-  with 18 lives left. Raise the sample before believing a verdict.
+- The reference plan wins on every seed with 11 of 20 lives left, climbing 22
+  upgrade tiers, and reaches roughly round 22 in freeplay.
+- Sample size is part of that measurement, and it is easy to underestimate how
+  much. At 120 builds the meter called the Vat mandatory and a hand-built
+  Vat-free board then cleared all twenty rounds with 18 lives left. At 240 it
+  did it again when riders landed: the tuning before produced exactly one
+  Vat-free winner out of 34 and the tuning after produced none out of 34, a
+  pass and a fail one build apart, from a change that moved the Vat's presence
+  among winners not at all (99% at 960 builds, before and after). The test now
+  samples 720, which is where the verdict stops flipping.
+- **When the meter names a mandatory tower, hand-build a board without it
+  before believing the verdict.** It is one campaign run against a
+  twenty-minute sweep, and it has been the deciding evidence twice.
 
 If a change makes round 1 punishing, or drives the number of winning builds
 toward one, it has removed the point of this version.
@@ -118,7 +130,7 @@ Two structural rules the resistance table has to keep obeying, both asserted in
 
 ## What is tested, and what is not
 
-`npm test` runs 131 tests; `npm run coverage` reports where they are. The split
+`npm test` runs 157 tests; `npm run coverage` reports where they are. The split
 is deliberate and worth knowing before adding more:
 
 - **`src/sim` is at 100% statements.** The twenty resistance cells are asserted
@@ -150,6 +162,14 @@ written for the number rather than for the risk.
 
 - Every gameplay rule goes through the resistance table and `applyElement()`.
   Do not add special cases to tower code.
+- **A lingering effect belongs to the element, not to the tower.** `riders.ts`
+  holds one rider per element and `applyElement()` applies it at the same
+  multiplier it just used for damage, so an immunity blocks the rider too and
+  an upgrade that rewrites a cell moves the rider with it for free. A rider
+  keyed on `TowerId` would be the special case this rule exists to prevent.
+- Damage-over-time ticks must never re-enter the table. Riders resolve once, at
+  the moment the hit lands, and tick as flat numbers afterwards -- resolving a
+  burn tick would re-apply Heat's rider and refresh the burn forever.
 - All twenty table cells are asserted in `tests/resistance.test.ts`. Changing a
   cell deliberately means updating that test; changing one by accident fails it.
 - The layer chain in `STATES` only ever runs inward, which is what bounds a
@@ -165,13 +185,13 @@ edit to a `.ts` file under `src/` or `tests/`. It lives in
 `.claude/hooks/check-after-edit.sh` and is wired up in `.claude/settings.json`.
 
 `test:fast` is `npm test` minus `tests/campaign.test.ts` and
-`tests/diversity.test.ts`, which is 118 of the 131 tests and about two seconds
-instead of twenty-five. Those two files are almost the
-entire cost: the diversity suite runs a 240-build campaign sample at module
+`tests/diversity.test.ts`, which is 144 of the 157 tests and about two seconds
+against roughly eighty-five for the full run. Those two files are almost the
+entire cost: the diversity suite runs a 720-build campaign sample at module
 load, and the campaign suite plays twenty rounds on several seeds. They are the
 measurements the project is judged on, but they answer a question about balance
 rather than about whether the edit just made compiles and behaves, and a
-twenty-five-second pause after every edit turns the hook into something to
+minute-and-a-half pause after every edit turns the hook into something to
 switch off. Run them with `npm test` after a balance change -- and CI runs the
 full suite on every push before it will deploy, so nothing merges on the fast
 set alone.
@@ -193,7 +213,7 @@ instead transmuted enemies between states -- is complete, measured, and tagged
 
 v2.1 is current: HP and damage, layers that break inward, money per layer,
 5 towers with two three-tier upgrade paths each, 20 authored rounds, seeded
-freeplay past them, and four harnesses. `npm test` (131 tests),
+freeplay past them, and four harnesses. `npm test` (157 tests),
 `npm run typecheck` and `npm run build` all pass.
 
 Still unbuilt, and left as the owner's own AI-tooling exercise:
@@ -207,7 +227,7 @@ broken until recently and the fix was only verified against emulated events.
 
 The unspent-gold finding is largely closed. It was 995 at the end of a ten-round
 run with nothing left to buy; lengthening the campaign to twenty rounds and
-giving each tower a three-tier path brought it to about 790 while the reference
+giving each tower a three-tier path brought it to about 800 while the reference
 plan now spends on 18 towers and 22 upgrade tiers. Bounty scales with the
 *square root* of a charge's toughness rather than linearly, because paying full
 multiples let heavy rounds fund the towers that beat them -- the same trap that

@@ -9,6 +9,20 @@ import type { TowerDef, TowerId } from './types.ts';
  * only which element you bring but what shape of tower carries it: the Forge
  * is cheap, short and constant, the Lens is expensive, distant and slow, and
  * they play nothing alike despite reading the same column of the table.
+ *
+ * A tower's lingering effect is deliberately NOT here. It belongs to the
+ * element, in `riders.ts`, scaled by the same resistance cell that scales the
+ * damage -- so the Chiller slows because Cold slows, and it slows Molten four
+ * times as hard as Ore because that is what the table already said about Cold.
+ * A rider keyed on `TowerId` would be the special case that rule exists to
+ * prevent, and it would put the Forge and the Lens out of step for no reason.
+ *
+ * These numbers are unchanged by riders. Riders were a straight power gain and
+ * something had to pay for them, but the bill went to `upgrades.ts` -- a
+ * rider's strength is a table cell times a constant, and tiers are what push
+ * cells up, so the gain concentrates in upgraded towers. Cutting rate here was
+ * measured and rejected: it taxed the thin early board hardest and put leaks
+ * into rounds 4 and 5, which teach immunities and must not bite.
  */
 export const TOWERS: Record<TowerId, TowerDef> = {
   forge: {
@@ -22,7 +36,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 0,
     color: '#ff8c42',
-    blurb: 'Cheap and constant. Strong against Ore, useless against Molten.',
+    blurb: 'Cheap and constant, and what it hits keeps burning. Nothing to Molten.',
   },
   chiller: {
     id: 'chiller',
@@ -35,7 +49,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 0,
     color: '#5bc8f5',
-    blurb: 'The answer to Molten, and the only reach that troubles Vapor.',
+    blurb: 'Molten crawls at half pace under it. Crystal does not feel it at all.',
   },
   stamp: {
     id: 'stamp',
@@ -48,7 +62,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: true,
     splash: 0,
     color: '#d8d8d8',
-    blurb: 'Heavy hits at fair reach. Shatters Crystal; cannot touch Vapor.',
+    blurb: 'Heavy hits that shove a charge back. Shatters Crystal; Vapor floats over.',
   },
   vat: {
     id: 'vat',
@@ -61,7 +75,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 36,
     color: '#9ae66e',
-    blurb: 'Splashes a crowd. Never the best answer, never a useless one.',
+    blurb: 'Splashes a crowd, and the corrosion follows whatever breaks out of it.',
   },
   lens: {
     id: 'lens',
@@ -74,7 +88,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 0,
     color: '#ffd166',
-    blurb: 'Reaches most of the lane and hits hard, but rarely.',
+    blurb: 'Reaches most of the lane and leaves it alight, but fires rarely.',
   },
 };
 
