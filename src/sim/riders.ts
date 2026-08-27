@@ -40,8 +40,8 @@ export const RIDERS: Record<Element, Rider> = {
   /**
    * Hot and brief. Ignite is the smallest rider in the game on purpose: Heat
    * is the only element carried by two towers, so anything it gains is gained
-   * twice over. Forty ticks against the Forge's 31 means a Forge keeps its
-   * target alight continuously, while the Lens at 75 lights fires that go out
+   * twice over. Forty ticks against the Forge's 30 means a Forge keeps its
+   * target alight continuously, while the Lens at 74 lights fires that go out
    * between beams -- the same rider reading differently on the two towers that
    * share it, which is what `towers.ts` says the Heat pair is for.
    */
@@ -50,7 +50,7 @@ export const RIDERS: Record<Element, Rider> = {
   /**
    * The one the game most obviously wanted, and the largest of the four.
    *
-   * 60 ticks against the Chiller's 54 means one Chiller holds a target chilled
+   * 60 ticks against the Chiller's 48 means one Chiller holds a target chilled
    * continuously, so the slow reads as a property of the tower rather than as
    * a flicker. Through the table it lands as x0.44 on Molten -- the fastest
    * ground layer walks at little over half pace -- x0.35 on Vapor, x0.22 on
@@ -90,8 +90,9 @@ export const RIDERS: Record<Element, Rider> = {
    * x1.6 on Molten it is under a fifth of what the Vat's own shot does -- and
    * almost all of its value is that it is still running when the layer breaks.
    * A short corrode is a worse version of ignite; a long one is a different
-   * effect. The Vat pays for it in rate: 82 ticks, the slowest tower by half
-   * again, measured back to where the roster sat before riders existed.
+   * effect. The Vat is already the slowest tower in the game at 60 ticks, and
+   * the only one with splash, which is what makes a long corrode worth having
+   * on it and nothing else.
    */
   SOLVENT: { kind: 'corrode', dps: 0.5, ticks: 300 },
 };

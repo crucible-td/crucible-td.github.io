@@ -22,14 +22,14 @@ describe('reference campaign', () => {
     const r = runCampaign(PLAN, 1, 20000);
     expect(r.won).toBe(true);
     expect(r.wavesCleared).toBe(20);
-    // 9 before riders, 11 after. Riders were a straight power gain across all
-    // five towers and took this to 15 left unpaid; the 10% cut to upgrade-tier
-    // damage is what brought it back. Paid from the tiers rather than from
-    // `towers.ts` deliberately: a rider scales with the resistance cell, and
-    // tiers are what push cells up, so the gain concentrates in upgraded
-    // towers. Cutting base rate instead taxed the thin early board -- it put
-    // leaks into rounds 4 and 5, which are teaching rounds and must not bite.
-    expect(r.livesLeft).toBe(11);
+    // 13, and the plan behind it changed shape to get there. It used to name an
+    // upgrade path for eight of its eighteen towers; under the current tuning
+    // that version loses on round 18 with 1725 gold still in hand, because
+    // tiers are now worth their price and leaving ten towers bare is no longer
+    // playable. The plan names all eighteen, buys 46 tiers, and wins on every
+    // seed with 11-15 lives. See tests/breadth.test.ts for the property that
+    // forced the change.
+    expect(r.livesLeft).toBe(13);
   });
 
   it('wins on every seed tried, not just the lucky one', () => {

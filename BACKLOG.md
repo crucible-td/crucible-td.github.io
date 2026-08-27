@@ -73,13 +73,20 @@ balance implications, so it cannot break the diversity property.
 
 ## Open balance finding
 
-A run still ends holding roughly 800 gold. Lengthening the campaign to twenty
-rounds and adding three-tier upgrade paths brought it down from 995 and got the
-reference plan spending on 18 towers and 22 upgrade tiers, but most of the
-remaining surplus accrues *during* the final rounds, after the last purchase
-point. No pricing change reaches it — cutting every upgrade cost by two-thirds
-in an earlier version moved it barely at all. The real fixes are more rounds or
-shifting income earlier.
+A run still ends holding gold -- about 1360 on the reference plan, and rather
+more on boards that spend badly. The figure has moved around a lot (995 in the
+ten-round version, ~800 after twenty rounds and three-tier paths) and no pricing
+change has ever reached it, because most of the surplus accrues *during* the
+final rounds, after the last useful purchase point.
+
+What changed recently is what the surplus was hiding. It used to be cosmetic;
+measurement showed it was exploitable, because the cheapest thing to convert
+spare gold into was another tower, and towers were strictly better value than
+tiers. That is fixed (see DESIGN.md, "Breadth versus depth"), but the surplus
+itself remains, and it is worth remembering that a large idle balance is
+evidence that *something* is underpriced rather than merely untidy.
+
+The real fixes are still more rounds, or shifting income earlier.
 
 ## Larger scope, not started
 
