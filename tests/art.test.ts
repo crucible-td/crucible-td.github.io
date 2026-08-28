@@ -81,4 +81,16 @@ describe('svg markup', () => {
     // even-odd both fill solid and the shapes disappear.
     expect(svgMarkup(TOWER_ART.lens, '#fff', 24)).toContain('fill-rule="evenodd"');
   });
+
+  it('draws every field paintArt draws, so a monster in the DOM keeps its face', () => {
+    // svgMarkup only ever sees TOWER_ART today, and no tower has eyes, so a
+    // renderer that silently dropped the field would pass every other test
+    // here and still ship an eyeless monster the day MONSTER_ART reaches the
+    // panel. Assert on the field, not on a tower, so that day is covered now.
+    const art = { body: MONSTER_ART.ORE.body, accent: MONSTER_ART.ORE.accent, eyes: MONSTER_ART.ORE.eyes };
+    const svg = svgMarkup(art, '#fff', 24);
+    expect(svg).toContain(art.body);
+    expect(svg).toContain(art.accent!);
+    expect(svg).toContain(art.eyes!);
+  });
 });
