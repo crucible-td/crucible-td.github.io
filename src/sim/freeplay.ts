@@ -22,11 +22,36 @@ export const AUTHORED_ROUNDS = WAVES.length;
  */
 const POOL: State[] = ['ORE', 'MOLTEN', 'VAPOR', 'CRYSTAL'];
 
+/**
+ * The bulk pressure the last authored round actually asked for.
+ *
+ * Median, not max and not mean, of that round's group hpScales: the slab
+ * group in a leading position (round 20's CRYSTAL at 55) is a spike by
+ * design and would drag a mean or max upward, making freeplay open harder
+ * than the round a player just survived. The median lands on the bulk
+ * groups instead -- the pressure that was actually sustained -- so freeplay
+ * continues that curve rather than restarting above or below it.
+ */
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
+}
+
+const LAST_WAVE_SCALES = WAVES[WAVES.length - 1]!.groups.map((g) => g.hpScale ?? 1);
+
+/** The bulk toughness round 20 finished at -- freeplay's opening scale. */
+export const AUTHORED_FLOOR = median(LAST_WAVE_SCALES);
+
+/** How far above the bulk floor the authored slab sits, kept the same ratio in freeplay. */
+export const SLAB_RATIO = Math.max(...LAST_WAVE_SCALES) / AUTHORED_FLOOR;
+
 export function freeplayWave(round: number, rng: Rng): Wave {
   const past = round - AUTHORED_ROUNDS;
 
-  // Compounding toughness, starting near where the authored rounds finish.
-  const scale = 2.2 * Math.pow(1.11, past);
+  // Compounding toughness, continuing the authored curve rather than
+  // restarting it: round 21 is a touch harder than round 20, not a coast.
+  const scale = AUTHORED_FLOOR * Math.pow(1.11, past);
   // Counts grow slowly and level off, so the lane stays readable.
   const bulk = Math.min(30, 18 + Math.floor(past * 0.8));
 
@@ -46,7 +71,7 @@ export function freeplayWave(round: number, rng: Rng): Wave {
       count: 4 + Math.floor(past / 5),
       gap: 110,
       delay: 0,
-      hpScale: Number((scale * 6).toFixed(2)),
+      hpScale: Number((scale * SLAB_RATIO).toFixed(2)),
     });
   }
 

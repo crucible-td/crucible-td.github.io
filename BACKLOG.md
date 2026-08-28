@@ -32,41 +32,6 @@ What to check on an actual device:
 
 Failure here is likely to be about precision rather than about events firing.
 
-## Freeplay is calibrated to a campaign that no longer exists
-
-`freeplayWave()` opens at `scale = 2.2 * 1.11^past`, with a comment saying it
-starts "near where the authored rounds finish". That was true when round 20 sat
-at `hpScale` around 2. The mid-game ramp that made upgrades worth buying left it
-stranded:
-
-| | ORE | MOLTEN | VAPOR | CRYSTAL |
-|---|---|---|---|---|
-| authored round 20 | 17 | 17 | 16 | 55 |
-| freeplay round 21 | 2.7 | 2.2 | 2.6 | 2.9 |
-
-So a player survives a genuinely hard round 20 and then coasts; freeplay does not
-regain round-20 pressure until roughly round 40. Measured, the reference plan now
-reaches freeplay round 35, where CLAUDE.md's reference figures were written
-against 22.
-
-Nothing caught this because nothing tests the *seam*. `tests/freeplay.test.ts`
-checks freeplay's internal consistency -- determinism, monotonic difficulty, slab
-cadence -- and never compares round 21 to round 20, and the campaign test only
-asserts `wavesCleared > 20`, which a thirteen-round overshoot passes easily.
-
-**This is now player-facing.** It used to be reachable only through
-`--rounds` on the harnesses, so the anticlimax was something a measurement saw
-and a player never did. Clearing round 20 now offers a button into freeplay,
-which means the first thing anyone sees after a hard-won victory is a round
-markedly easier than the one before it. The defect did not change; its
-audience did.
-
-The cheap fix is to derive the opening scale from the last authored round's own
-groups rather than the literal `2.2`, plus one assertion that round 21 sits in a
-sane band around round 20. The expensive question underneath is whether freeplay
-should continue the *curve* or restart gentler and re-climb; that is a design
-call, not a tuning one.
-
 ## Towers that are more fun to use -- partly shipped
 
 Riders shipped: every element now carries one lingering effect scaled by its

@@ -62,6 +62,41 @@ describe('freeplay generation', () => {
   });
 });
 
+describe('the seam at round 21', () => {
+  // Freeplay used to open from a hardcoded 2.2 with a comment claiming it
+  // started "near where the authored rounds finish" -- true when round 20
+  // sat at hpScale ~2, false once round 20 grew to bulk groups at 16-17.
+  // These pin the seam to round 20's own numbers so a future retune of the
+  // campaign moves freeplay's floor with it instead of drifting again.
+  function median(values: number[]): number {
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
+  }
+
+  it('opens no easier than round 20 finished, so a brutal last round is not a coast', () => {
+    const round20Median = median(WAVES[WAVES.length - 1]!.groups.map((g) => g.hpScale ?? 1));
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const round21Median = median(
+        freeplayWave(AUTHORED_ROUNDS + 1, new Rng(seed)).groups.map((g) => g.hpScale ?? 1),
+      );
+      expect(round21Median, `seed ${seed}`).toBeGreaterThanOrEqual(round20Median);
+      expect(round21Median, `seed ${seed}`).toBeLessThan(round20Median * 1.5);
+    }
+  });
+
+  it('keeps the slab a comparable spike above the floor, not a trivially easier one', () => {
+    const round20Groups = WAVES[WAVES.length - 1]!.groups.map((g) => g.hpScale ?? 1);
+    const round20SlabRatio = Math.max(...round20Groups) / median(round20Groups);
+    const slabRound = AUTHORED_ROUNDS + 5;
+    const w = freeplayWave(slabRound, new Rng(1));
+    const bulkFloor = median(w.groups.slice(1).map((g) => g.hpScale ?? 1));
+    const slab = w.groups[0]!.hpScale ?? 1;
+    expect(slab / bulkFloor).toBeGreaterThan(round20SlabRatio * 0.8);
+    expect(slab / bulkFloor).toBeLessThan(round20SlabRatio * 1.5);
+  });
+});
+
 describe('wave lookup', () => {
   it('returns the authored rounds untouched', () => {
     for (let i = 0; i < AUTHORED_ROUNDS; i++) {
