@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../src/sim/economy.ts';
+import { AUTHORED_ROUNDS } from '../src/sim/freeplay.ts';
 import { PATH_LENGTH, isBuildableCell } from '../src/sim/path.ts';
 import { STATES } from '../src/sim/types.ts';
 import type { State } from '../src/sim/types.ts';
-import { applyElement, createWorld, placeTower, spawnCharge, startWave, step } from '../src/sim/world.ts';
+import {
+  applyElement,
+  createWorld,
+  enterFreeplay,
+  placeTower,
+  spawnCharge,
+  startWave,
+  step,
+} from '../src/sim/world.ts';
 import type { World } from '../src/sim/world.ts';
 
 /**
@@ -20,6 +29,17 @@ function seedCharge(w: World, state: State, dist = 0) {
 /** Hit a charge hard enough to take the layer off in one go. */
 function breakOnce(w: World, c: ReturnType<typeof seedCharge>, element: Parameters<typeof applyElement>[2]) {
   applyElement(w, c, element, 999);
+}
+
+/**
+ * Put a world at the end of a won campaign, driven by hand rather than by
+ * playing all twenty rounds -- the same shortcut headless.ts and
+ * tests/upgrades.test.ts take to reach an arbitrary round without simulating
+ * every one before it.
+ */
+function markWon(w: World): void {
+  w.waveIndex = AUTHORED_ROUNDS;
+  w.status = 'won';
 }
 
 describe('determinism', () => {
@@ -174,5 +194,46 @@ describe('wave flow', () => {
     expect(w.status).toBe('idle');
     expect(w.waveIndex).toBe(1);
     expect(w.stats.goldEarned).toBeGreaterThan(ECONOMY.roundClearBonus(1));
+  });
+});
+
+describe('entering freeplay', () => {
+  it('refuses while idle, since there is no finished run to continue', () => {
+    const w = createWorld(1);
+    expect(enterFreeplay(w)).toBe(false);
+    expect(w.freeplay).toBe(false);
+    expect(w.status).toBe('idle');
+  });
+
+  it('refuses mid-wave, since freeplay is a choice made after winning', () => {
+    const w = createWorld(1);
+    startWave(w);
+    expect(w.status).toBe('running');
+    expect(enterFreeplay(w)).toBe(false);
+    expect(w.freeplay).toBe(false);
+    expect(w.status).toBe('running');
+  });
+
+  it('accepts once the campaign is won, and reopens the idle state', () => {
+    const w = createWorld(1);
+    markWon(w);
+    expect(enterFreeplay(w)).toBe(true);
+    expect(w.freeplay).toBe(true);
+    expect(w.status).toBe('idle');
+  });
+
+  it('lets the round after 20 start and finish without re-declaring a win', () => {
+    const w = createWorld(1);
+    markWon(w);
+    enterFreeplay(w);
+    // No towers are placed, so every charge in round 21 walks off the lane and
+    // leaks rather than being killed. Lives are padded out so that leaking
+    // fifty-odd charges cannot itself end the run -- this test is only about
+    // whether `step` re-wins at this waveIndex, not about surviving combat.
+    w.lives = 1_000_000;
+    expect(startWave(w)).toBe(true);
+    for (let i = 0; i < 20000 && w.status === 'running'; i++) step(w);
+    expect(w.status).toBe('idle');
+    expect(w.waveIndex).toBe(AUTHORED_ROUNDS + 1);
   });
 });

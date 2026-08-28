@@ -9,13 +9,31 @@ import {
   describeRiderGains,
   describeStats,
   elementLabel,
+  endOverlay,
   towerForKey,
   panelKey,
   rate,
+  roundHint,
+  waveLabel,
 } from '../src/render/decisions.ts';
 import { TOWERS, TOWER_IDS } from '../src/sim/towers.ts';
 import { UPGRADES } from '../src/sim/upgrades.ts';
 import { ELEMENT_IDS } from '../src/sim/types.ts';
+import type { Stats } from '../src/sim/types.ts';
+import { WAVES } from '../src/sim/waves.ts';
+
+/** A stats block with every field zeroed, for tests that only care about one. */
+function zeroStats(): Stats {
+  return {
+    breaks: 0,
+    kills: 0,
+    wasted: 0,
+    leaks: 0,
+    leaksByState: { ORE: 0, SLAG: 0, MOLTEN: 0, CRYSTAL: 0, VAPOR: 0 },
+    livesLost: 0,
+    goldEarned: 0,
+  };
+}
 
 /**
  * Presentation is where this project's bugs actually come from. Eight real
@@ -270,5 +288,62 @@ describe('armTower', () => {
     // to build is a different intent from inspecting one already built. Letting
     // go of a tower is neither, so it must not shut a panel the player opened.
     expect(armTower('lens', 'lens').closeInspect).toBe(false);
+  });
+});
+
+describe('waveLabel', () => {
+  it('reads N/total for an authored round', () => {
+    expect(waveLabel({ waveIndex: 6, freeplay: false })).toBe(`7/${WAVES.length}`);
+  });
+
+  it('clamps to the total rather than counting past it', () => {
+    expect(waveLabel({ waveIndex: WAVES.length, freeplay: false })).toBe(
+      `${WAVES.length}/${WAVES.length}`,
+    );
+  });
+
+  it('drops the denominator in freeplay, because there is no total to count towards', () => {
+    expect(waveLabel({ waveIndex: WAVES.length, freeplay: true })).toBe(`${WAVES.length + 1}+`);
+  });
+});
+
+describe('roundHint', () => {
+  it('names the round and shows the authored wave its own hint, same as it always has', () => {
+    expect(roundHint({ waveIndex: 2, freeplay: false })).toBe(`Wave 3: ${WAVES[2]!.hint}`);
+  });
+
+  it('names the round in freeplay rather than reading a wave that does not exist', () => {
+    // Never call freeplayWave for this: it pulls from the seeded RNG, and
+    // spending a roll just to fetch a hint would desync the browser from
+    // npm run sim on every frame this runs.
+    expect(roundHint({ waveIndex: WAVES.length, freeplay: true })).toBe(
+      `Freeplay round ${WAVES.length + 1}. It does not stop.`,
+    );
+  });
+
+  it('returns an unprefixed empty string when there is no hint to show', () => {
+    // An index past the authored rounds with freeplay still false should not
+    // happen in play, but it must fail safe rather than printing "Wave N: "
+    // with nothing after the colon.
+    expect(roundHint({ waveIndex: WAVES.length, freeplay: false })).toBe('');
+  });
+});
+
+describe('endOverlay', () => {
+  it('is null while the run has not ended', () => {
+    expect(endOverlay({ status: 'idle', waveIndex: 0, stats: zeroStats() })).toBeNull();
+    expect(endOverlay({ status: 'running', waveIndex: 0, stats: zeroStats() })).toBeNull();
+  });
+
+  it('offers freeplay only on a win', () => {
+    const result = endOverlay({ status: 'won', waveIndex: WAVES.length, stats: zeroStats() });
+    expect(result?.canContinue).toBe(true);
+    expect(result?.title).toBe('Furnace cold');
+  });
+
+  it('never offers freeplay on a loss', () => {
+    const result = endOverlay({ status: 'lost', waveIndex: 9, stats: zeroStats() });
+    expect(result?.canContinue).toBe(false);
+    expect(result?.title).toBe('Breach');
   });
 });

@@ -3,7 +3,8 @@ import { RIDERS } from '../sim/riders.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
-import type { Element, State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import type { Element, State, Status, Stats, Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import { WAVES } from '../sim/waves.ts';
 
 /**
  * The decisions the interface makes, without the interface.
@@ -129,6 +130,66 @@ export function cardState(opts: { gold: number; cost: number; isSelected: boolea
  */
 export function panelKey(tower: Pick<Tower, 'id' | 'upgrades'>): string {
   return `${tower.id}:${tower.upgrades.join('>')}`;
+}
+
+/**
+ * The wave readout: "7/20" for an authored round, "21+" once freeplay opens.
+ *
+ * Freeplay drops the denominator rather than printing one past the total,
+ * because there is no total to count towards -- that is the whole point of
+ * the mode.
+ */
+export function waveLabel(opts: { waveIndex: number; freeplay: boolean }): string {
+  if (opts.freeplay) return `${opts.waveIndex + 1}+`;
+  return `${Math.min(opts.waveIndex + 1, WAVES.length)}/${WAVES.length}`;
+}
+
+/**
+ * The line under the board naming the round in play.
+ *
+ * Built from the round number by string interpolation, never by calling
+ * `freeplayWave`: that function calls `rng.range()` to build its wave, and
+ * spending a roll of the seeded RNG just to fetch a hint string would
+ * desynchronise the browser from `npm run sim` on every frame this runs.
+ *
+ * Both branches name their round -- an authored round as "Wave N: ...", a
+ * freeplay one as "Freeplay round N." -- so the two modes read as one
+ * consistent shape rather than one that mentions the round and one that
+ * assumes the reader already knows it.
+ */
+export function roundHint(opts: { waveIndex: number; freeplay: boolean }): string {
+  if (opts.freeplay) return `Freeplay round ${opts.waveIndex + 1}. It does not stop.`;
+  const hint = WAVES[opts.waveIndex]?.hint;
+  return hint ? `Wave ${opts.waveIndex + 1}: ${hint}` : '';
+}
+
+/**
+ * What the end-of-run overlay says, and whether it offers freeplay.
+ *
+ * `canContinue` is true only on a win: a lost run never offers freeplay, and a
+ * run already in freeplay can never be `'won'` again, so that one condition
+ * covers both cases the overlay has to distinguish.
+ */
+export function endOverlay(opts: {
+  status: Status;
+  waveIndex: number;
+  stats: Stats;
+}): { title: string; body: string; canContinue: boolean } | null {
+  if (opts.status === 'won') {
+    return {
+      title: 'Furnace cold',
+      body: `All ${WAVES.length} rounds held. ${opts.stats.breaks} layers broken, ${opts.stats.kills} charges destroyed, ${opts.stats.goldEarned} gold earned.`,
+      canContinue: true,
+    };
+  }
+  if (opts.status === 'lost') {
+    return {
+      title: 'Breach',
+      body: `The line failed on round ${opts.waveIndex + 1}. ${opts.stats.leaks} charges got through, and ${opts.stats.wasted} shots landed on something immune to them.`,
+      canContinue: false,
+    };
+  }
+  return null;
 }
 
 /** "HEAT" -> "Heat". */
