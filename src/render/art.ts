@@ -194,13 +194,23 @@ export function paintArt(
   ctx.restore();
 }
 
-/** The same artwork as inline SVG, for the build menu and upgrade panel. */
-export function svgMarkup(art: Art, color: string, px: number): string {
+/**
+ * The same artwork as inline SVG, for the build menu and upgrade panel.
+ *
+ * `darkDetail` mirrors `paintArt`'s option of the same name, which is the
+ * tone eyes are drawn in on canvas -- but there it is only supplied for
+ * monsters, and towers (the only art this renders today) have none. Rather
+ * than making every call site pass a colour that would never be seen, this
+ * defaults to the one value `paintArt` is ever actually called with, so the
+ * day `MONSTER_ART` reaches the DOM its face comes with it unasked.
+ */
+export function svgMarkup(art: Art, color: string, px: number, darkDetail = '#14110f'): string {
   const accent = art.accent
     ? `<path d="${art.accent}" fill="${art.accentColor ?? color}"/>`
     : '';
+  const eyes = art.eyes ? `<path d="${art.eyes}" fill="${darkDetail}"/>` : '';
   return (
     `<svg width="${px}" height="${px}" viewBox="0 0 24 24" aria-hidden="true">` +
-    `<path d="${art.body}" fill="${color}" fill-rule="evenodd"/>${accent}</svg>`
+    `<path d="${art.body}" fill="${color}" fill-rule="evenodd"/>${accent}${eyes}</svg>`
   );
 }
