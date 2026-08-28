@@ -216,6 +216,55 @@ To change what it checks, edit the script; to disable it, remove the block from
 `.claude/settings.json`. Hooks are reloaded when a session starts, so changes
 to either file take effect in the next session.
 
+## Delegation
+
+Three subagents live in `.claude/agents/`. There is no fourth: the CTO is *this
+session*, whatever model it was started with, and no configuration can make a
+top-level session change model per task. Start CTO sessions on Opus.
+
+| Agent | Model | For |
+|---|---|---|
+| `developer` | Sonnet | An already-scoped change. Reads, edits, tests, commits on the current branch. |
+| `qa` | Haiku | Running the existing checks and reporting them verbatim. Read-only apart from mechanical fixes outside `src/sim/`. |
+| `architect` | Opus | Escalation *upward* from a cheaper session: a hard design question, or an independent review. No Write or Edit -- it advises. |
+
+A `model:` in frontmatter is absolute, so a Sonnet session still gets Sonnet
+work and Haiku checks, and can still reach Opus through `architect`. The Agent
+tool's `model` parameter overrides frontmatter for one call.
+
+**Delegate on judgment, not reflex.** Every subagent starts cold and pays for
+this file before it does anything -- roughly ten to fifteen thousand tokens
+before the first useful token. So:
+
+- **Delegate to `developer`** when the approach is decided and the remaining
+  work is writing it across a few files.
+- **Delegate to `qa`** when a check is long and noisy -- `npm test`,
+  `npm run diversity`, `npm run sim -- --all-waves`. Not for a quick one: a
+  cold boot to avoid reading fifty lines of output is a net loss.
+- **Do it here** when the task is small, or when deciding *what* to do is most
+  of the work. Ambiguity costs more delegated than done.
+
+Delegated work is not finished until this session has read the diff.
+
+Balance retuning is not delegated. It runs through the `balance-pass` skill in
+this session, because the diversity verdict is a judgement call about the
+game's identity -- and the section below still reserves a balance-analyst
+subagent as the owner's own exercise.
+
+### Git
+
+Git is the source of truth, and agents work in a way that stays reviewable.
+
+- Substantial work gets a feature branch and a pull request. Nothing lands on
+  `main` directly.
+- **Push and merge need the owner's explicit approval, every time.** The
+  `permissions.ask` block in `.claude/settings.json` forces a prompt on
+  `git push`, `git merge` and `gh pr merge` as a backstop; the rule holds
+  whether or not the prompt fires.
+- Commits are coherent and their messages say the intent. No secrets, no build
+  output, no scratch files -- `dist/` and `node_modules` are already ignored.
+- Subagents commit but never push, merge, or change branches.
+
 ## Where the project stands
 
 **v2 is a pivot.** The original game -- towers that never dealt damage and
