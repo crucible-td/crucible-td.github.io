@@ -32,6 +32,52 @@ What to check on an actual device:
 
 Failure here is likely to be about precision rather than about events firing.
 
+## Clicking the road while a tower is armed does nothing
+
+`boardAction()` in `src/render/decisions.ts` decides `place` whenever a tower
+is armed and the clicked cell holds no tower — it does not know whether that
+cell is on the lane. A click on the road therefore falls through to
+`placeTower()`, which checks `isBuildableCell` and quietly refuses, leaving the
+tower armed with no feedback at all. The player is stuck holding a selection
+with no visible way to let go of it short of Escape or right-click, neither of
+which is discoverable — the same class of bug `decisions.ts`'s own header
+comment calls out as this project's real source of interface bugs.
+
+The fix: clicking an unbuildable cell while armed should deselect, the same as
+clicking the tower just placed does today. That means `boardAction` needs a
+third fact about the clicked cell (buildable or not) alongside `selected` and
+`towerHere`, and a new outcome — or `disarm` reused — for "armed, no tower
+here, and it's not a legal cell anyway." Belongs in `decisions.ts` with a test
+of its own, per the architecture rule: this is a decision, not a drawing.
+
+## Freeplay is calibrated to a campaign that no longer exists
+
+`freeplayWave()` opens at `scale = 2.2 * 1.11^past`, with a comment saying it
+starts "near where the authored rounds finish". That was true when round 20 sat
+at `hpScale` around 2. The mid-game ramp that made upgrades worth buying left it
+stranded:
+
+| | ORE | MOLTEN | VAPOR | CRYSTAL |
+|---|---|---|---|---|
+| authored round 20 | 17 | 17 | 16 | 55 |
+| freeplay round 21 | 2.7 | 2.2 | 2.6 | 2.9 |
+
+So a player survives a genuinely hard round 20 and then coasts; freeplay does not
+regain round-20 pressure until roughly round 40. Measured, the reference plan now
+reaches freeplay round 35, where CLAUDE.md's reference figures were written
+against 22.
+
+Nothing caught this because nothing tests the *seam*. `tests/freeplay.test.ts`
+checks freeplay's internal consistency -- determinism, monotonic difficulty, slab
+cadence -- and never compares round 21 to round 20, and the campaign test only
+asserts `wavesCleared > 20`, which a thirteen-round overshoot passes easily.
+
+The cheap fix is to derive the opening scale from the last authored round's own
+groups rather than the literal `2.2`, plus one assertion that round 21 sits in a
+sane band around round 20. The expensive question underneath is whether freeplay
+should continue the *curve* or restart gentler and re-climb; that is a design
+call, not a tuning one.
+
 ## Towers that are more fun to use -- partly shipped
 
 Riders shipped: every element now carries one lingering effect scaled by its

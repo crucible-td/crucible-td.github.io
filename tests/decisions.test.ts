@@ -2,16 +2,18 @@ import { describe, expect, it } from 'vitest';
 import {
   boardAction,
   cardState,
+  armTower,
   describeMultiplier,
   describeOverrides,
   describeRider,
   describeRiderGains,
   describeStats,
   elementLabel,
+  towerForKey,
   panelKey,
   rate,
 } from '../src/render/decisions.ts';
-import { TOWERS } from '../src/sim/towers.ts';
+import { TOWERS, TOWER_IDS } from '../src/sim/towers.ts';
 import { UPGRADES } from '../src/sim/upgrades.ts';
 import { ELEMENT_IDS } from '../src/sim/types.ts';
 
@@ -200,5 +202,53 @@ describe('describeRiderGains', () => {
     // also has to not claim anything about the columns it leaves alone.
     expect(describeRiderGains('recl3')).toEqual(['Crystal can now be corroded too']);
     expect(describeRiderGains('bellows1')).toEqual([]);
+  });
+});
+
+describe('towerForKey', () => {
+  it('maps the number keys onto the build menu, in menu order', () => {
+    // The menu is rendered from TOWER_IDS, so the keys must come from the same
+    // place. They used to be a second list written out in a keydown handler.
+    TOWER_IDS.forEach((id, i) => {
+      expect(towerForKey(String(i + 1))).toBe(id);
+    });
+  });
+
+  it('follows the roster rather than a hardcoded count', () => {
+    // The roster is planned to grow to eight. The key after the last tower must
+    // be dead, and the last tower's key must be live, without anyone editing a
+    // bound in an event handler.
+    expect(towerForKey(String(TOWER_IDS.length))).toBe(TOWER_IDS[TOWER_IDS.length - 1]);
+    expect(towerForKey(String(TOWER_IDS.length + 1))).toBeNull();
+  });
+
+  it('ignores keys that are not a tower slot', () => {
+    for (const key of ['0', 'a', 'Escape', ' ', '', 'F1', '-1']) {
+      expect(towerForKey(key), `${key} should select nothing`).toBeNull();
+    }
+  });
+});
+
+describe('armTower', () => {
+  it('arms a tower when nothing is held', () => {
+    expect(armTower(null, 'forge')).toEqual({ selected: 'forge', closeInspect: true });
+  });
+
+  it('swaps straight to another tower', () => {
+    expect(armTower('forge', 'vat')).toEqual({ selected: 'vat', closeInspect: true });
+  });
+
+  it('disarms when the tower already held is pressed again', () => {
+    // The click path always did this and the number key did not, so pressing 2
+    // twice left the Chiller armed with no way to notice. Both paths now share
+    // this function, which is the point of it existing.
+    expect(armTower('chiller', 'chiller')).toEqual({ selected: null, closeInspect: false });
+  });
+
+  it('leaves the upgrade panel alone when disarming', () => {
+    // Closing the panel is tied to *arming* something, because picking a tower
+    // to build is a different intent from inspecting one already built. Letting
+    // go of a tower is neither, so it must not shut a panel the player opened.
+    expect(armTower('lens', 'lens').closeInspect).toBe(false);
   });
 });

@@ -1,9 +1,9 @@
 import { RESISTANCE } from '../sim/resistance.ts';
 import { RIDERS } from '../sim/riders.ts';
-import { TOWERS } from '../sim/towers.ts';
+import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
-import type { Element, State, Tower, UpgradeId } from '../sim/types.ts';
+import type { Element, State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 
 /**
  * The decisions the interface makes, without the interface.
@@ -39,6 +39,42 @@ export function boardAction(opts: { selected: boolean; towerHere: boolean }): Bo
   // so the click cannot mean "build". Clicking the tower you just placed is the
   // natural way to stop placing, and doing nothing was the old behaviour.
   return opts.towerHere ? 'disarm' : 'place';
+}
+
+/**
+ * Which tower a number key selects, or null if that key means nothing.
+ *
+ * Derived from `TOWER_IDS` rather than a list written out here, because the
+ * build menu is rendered from `TOWER_IDS` too and the two must not be able to
+ * disagree. The old version hardcoded five ids in a keydown handler: adding a
+ * sixth tower would have left key 6 silently dead, and reordering the roster
+ * would have quietly pointed every key at the wrong tower with nothing to
+ * catch it. The roster is planned to grow to eight.
+ */
+export function towerForKey(key: string): TowerId | null {
+  if (!/^[0-9]$/.test(key)) return null;
+  return TOWER_IDS[Number(key) - 1] ?? null;
+}
+
+/**
+ * What arming a tower does to the current selection.
+ *
+ * Clicking a build card and pressing its number key are the same intent, so
+ * they have to reach the same answer. They did not: the card toggled off when
+ * you clicked the armed tower again and closed the upgrade panel, while the
+ * number key did neither, so `2` after `2` left the Chiller armed and a panel
+ * open behind it. One function, used by both.
+ *
+ * Returns the next selection and whether the inspect panel should close --
+ * picking something to build is a different intent from inspecting something
+ * already built.
+ */
+export function armTower(
+  current: TowerId | null,
+  pressed: TowerId,
+): { selected: TowerId | null; closeInspect: boolean } {
+  const selected = current === pressed ? null : pressed;
+  return { selected, closeInspect: selected !== null };
 }
 
 export interface CardState {

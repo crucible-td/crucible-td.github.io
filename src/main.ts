@@ -7,7 +7,7 @@
 import { Renderer } from './render/canvas.ts';
 import { createClock, nextSpeed, ticksFor } from './render/clock.ts';
 import type { Speed } from './render/clock.ts';
-import { boardAction } from './render/decisions.ts';
+import { armTower, boardAction, towerForKey } from './render/decisions.ts';
 import { Ui } from './render/ui.ts';
 import { BOARD } from './sim/path.ts';
 import type { Tower, TowerId, UpgradeId } from './sim/types.ts';
@@ -54,15 +54,26 @@ function cycleSpeed(): void {
   ui.sync(world, selected, inspected, speed);
 }
 
+/**
+ * Arm a tower, from wherever the intent came from.
+ *
+ * Both the build card and its number key land here. They used to be two
+ * implementations and had drifted apart -- the key neither toggled off nor
+ * closed the upgrade panel -- so the decision itself now lives in
+ * `decisions.ts` where a test can reach it, and this is only the wiring.
+ */
+function selectTower(id: TowerId): void {
+  const next = armTower(selected, id);
+  selected = next.selected;
+  if (next.closeInspect) inspected = null;
+  // Repaint now: picking a tower lights its column in the resistance table,
+  // and that should answer "what does this one do" on the same click.
+  ui.sync(world, selected, inspected, speed);
+}
+
 const ui = new Ui({
   onSelect(id) {
-    selected = selected === id ? null : id;
-    // Picking something to build is a different intent from inspecting what is
-    // already built, so it closes the panel.
-    if (selected) inspected = null;
-    // Repaint now: picking a tower lights its column in the resistance table,
-    // and that should answer "what does this one do" on the same click.
-    ui.sync(world, selected, inspected, speed);
+    selectTower(id);
   },
   onUpgrade(tower, id) {
     upgradeTower(world, tower, id);
@@ -141,25 +152,27 @@ canvas.addEventListener('click', (ev) => {
 canvas.addEventListener('contextmenu', (ev) => {
   ev.preventDefault();
   selected = null;
+  ui.sync(world, selected, inspected, speed);
 });
 
 window.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape') {
     selected = null;
     inspected = null;
+    // Repaint now, for the same reason the click handler does: the next
+    // animation frame may be a long way off in an unfocused tab, and a build
+    // card still lit after the player pressed Escape reads as a stuck menu.
+    ui.sync(world, selected, inspected, speed);
   }
   if (ev.key === ' ') {
     ev.preventDefault();
     startWave(world);
   }
-  // Digits pick towers and now run 1-5, so the speed controls take letters.
+  // Digits pick towers, so the speed controls take letters.
   if (ev.key === 'p' || ev.key === 'P') togglePause();
   if (ev.key === 'f' || ev.key === 'F') cycleSpeed();
-  const n = Number(ev.key);
-  if (n >= 1 && n <= 5) {
-    const ids: TowerId[] = ['forge', 'chiller', 'stamp', 'vat', 'lens'];
-    selected = ids[n - 1] ?? null;
-  }
+  const keyed = towerForKey(ev.key);
+  if (keyed) selectTower(keyed);
 });
 
 if (import.meta.env.DEV) {
