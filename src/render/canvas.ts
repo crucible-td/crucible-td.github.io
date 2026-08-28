@@ -8,13 +8,8 @@ import { TOWERS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
 import type { Charge, SimEvent, Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import { towerAt } from '../sim/world.ts';
 import type { World } from '../sim/world.ts';
-
-/** The tower standing on the hovered cell, if any. Render-side only. */
-function towerAtPoint(world: World, hover: { col: number; row: number }): Tower | null {
-  const c = cellCentre(hover.col, hover.row);
-  return world.towers.find((t) => t.x === c.x && t.y === c.y) ?? null;
-}
 
 interface Floater {
   x: number;
@@ -99,7 +94,7 @@ export class Renderer {
     // or whichever one the cursor is over. Range is the whole reason placement
     // matters, so it should not be visible only in the second before you
     // commit to a spot.
-    const hovered = hover && !selected ? towerAtPoint(world, hover) : null;
+    const hovered = hover && !selected ? (towerAt(world, hover.col, hover.row) ?? null) : null;
     const showRange = inspected ?? hovered;
     if (showRange) this.drawRange(showRange, showRange === inspected ? previewUpgrade : null);
 
@@ -216,7 +211,7 @@ export class Renderer {
     const { ctx } = this;
     const def = TOWERS[selected];
     const c = cellCentre(hover.col, hover.row);
-    const blocked = !isBuildableCell(hover.col, hover.row) || world.towers.some((t) => t.x === c.x && t.y === c.y);
+    const blocked = !isBuildableCell(hover.col, hover.row) || towerAt(world, hover.col, hover.row) !== undefined;
     const affordable = world.gold >= def.cost;
     const ok = !blocked && affordable;
 
