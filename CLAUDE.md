@@ -50,8 +50,8 @@ rendering state, keep it in `src/render/`.
 
 ```bash
 npm run dev        # play it at localhost:5173
-npm test           # vitest: 165 tests
-npm run test:fast  # the 144 that are not balance measurements -- under a second
+npm test           # vitest: 190 tests
+npm run test:fast  # the 169 that are not balance measurements -- under a second
 npm run coverage   # where the tests are, and are not
 npm run typecheck  # tsc --noEmit
 npm run sim -- --all-waves                 # balance report for every wave
@@ -123,6 +123,12 @@ Reference points from the current tuning, all measurable:
 - **When the meter names a mandatory tower, hand-build a board without it
   before believing the verdict.** It is one campaign run against a
   twenty-minute sweep, and it has been the deciding evidence twice.
+- Freeplay continues the authored curve rather than restarting it: round 21
+  opens at the *median* toughness of round 20's own groups, computed from
+  `WAVES` at module load, so retuning the campaign moves the seam with it. The
+  reference plan now clears freeplay round 24 and dies on 25 on every seed --
+  it used to coast to round 35 against a scale still calibrated to a round 20
+  that had long since been retuned. `tests/freeplay.test.ts` guards the seam.
 
 If a change makes round 1 punishing, or drives the number of winning builds
 toward one, it has removed the point of this version.
@@ -140,7 +146,7 @@ Two structural rules the resistance table has to keep obeying, both asserted in
 
 ## What is tested, and what is not
 
-`npm test` runs 165 tests; `npm run coverage` reports where they are. The split
+`npm test` runs 190 tests; `npm run coverage` reports where they are. The split
 is deliberate and worth knowing before adding more:
 
 - **`src/sim` is at 100% statements.** The twenty resistance cells are asserted
@@ -195,7 +201,7 @@ edit to a `.ts` file under `src/` or `tests/`. It lives in
 `.claude/hooks/check-after-edit.sh` and is wired up in `.claude/settings.json`.
 
 `test:fast` is `npm test` minus `tests/campaign.test.ts`,
-`tests/diversity.test.ts` and `tests/breadth.test.ts`, which is 144 of the 165
+`tests/diversity.test.ts` and `tests/breadth.test.ts`, which is 169 of the 190
 tests and about half a second
 against roughly eighty-five for the full run. Those two files are almost the
 entire cost: the diversity suite runs a 720-build campaign sample at module
@@ -273,7 +279,7 @@ instead transmuted enemies between states -- is complete, measured, and tagged
 
 v2.1 is current: HP and damage, layers that break inward, money per layer,
 5 towers with two three-tier upgrade paths each, 20 authored rounds, seeded
-freeplay past them, and four harnesses. `npm test` (165 tests),
+freeplay past them, and four harnesses. `npm test` (190 tests),
 `npm run typecheck` and `npm run build` all pass.
 
 Still unbuilt, and left as the owner's own AI-tooling exercise:

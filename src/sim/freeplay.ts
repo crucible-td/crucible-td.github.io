@@ -22,6 +22,14 @@ export const AUTHORED_ROUNDS = WAVES.length;
  */
 const POOL: State[] = ['ORE', 'MOLTEN', 'VAPOR', 'CRYSTAL'];
 
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
+}
+
+const LAST_WAVE_SCALES = WAVES[WAVES.length - 1]!.groups.map((g) => g.hpScale ?? 1);
+
 /**
  * The bulk pressure the last authored round actually asked for.
  *
@@ -32,15 +40,6 @@ const POOL: State[] = ['ORE', 'MOLTEN', 'VAPOR', 'CRYSTAL'];
  * groups instead -- the pressure that was actually sustained -- so freeplay
  * continues that curve rather than restarting above or below it.
  */
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
-}
-
-const LAST_WAVE_SCALES = WAVES[WAVES.length - 1]!.groups.map((g) => g.hpScale ?? 1);
-
-/** The bulk toughness round 20 finished at -- freeplay's opening scale. */
 export const AUTHORED_FLOOR = median(LAST_WAVE_SCALES);
 
 /** How far above the bulk floor the authored slab sits, kept the same ratio in freeplay. */
