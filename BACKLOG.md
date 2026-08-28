@@ -54,6 +54,13 @@ checks freeplay's internal consistency -- determinism, monotonic difficulty, sla
 cadence -- and never compares round 21 to round 20, and the campaign test only
 asserts `wavesCleared > 20`, which a thirteen-round overshoot passes easily.
 
+**This is now player-facing.** It used to be reachable only through
+`--rounds` on the harnesses, so the anticlimax was something a measurement saw
+and a player never did. Clearing round 20 now offers a button into freeplay,
+which means the first thing anyone sees after a hard-won victory is a round
+markedly easier than the one before it. The defect did not change; its
+audience did.
+
 The cheap fix is to derive the opening scale from the last authored round's own
 groups rather than the literal `2.2`, plus one assertion that round 21 sits in a
 sane band around round 20. The expensive question underneath is whether freeplay
@@ -90,9 +97,6 @@ balance implications, so it cannot break the diversity property.
 
 ## Deferred, with the work already partly done
 
-- **Freeplay has no button.** `World.freeplay`, `freeplayWave()` and `waveAt()`
-  all work and the harnesses reach them via `--rounds`, but clearing round 20
-  just ends the run. This is shipped work sitting behind no UI.
 - **Per-tower target priority** — first/last/strongest/deepest. "Deepest stack"
   is a genuinely different choice here than in other tower defenses, because a
   slab hides several tougher layers underneath.
