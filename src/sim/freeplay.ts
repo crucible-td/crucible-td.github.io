@@ -1,4 +1,5 @@
 import type { Rng } from './rng.ts';
+import { median } from './stats.ts';
 import type { State } from './types.ts';
 import { WAVES } from './waves.ts';
 import type { Wave } from './waves.ts';
@@ -21,12 +22,6 @@ export const AUTHORED_ROUNDS = WAVES.length;
  * of a build rather than a matter of luck.
  */
 const POOL: State[] = ['ORE', 'MOLTEN', 'VAPOR', 'CRYSTAL'];
-
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
-}
 
 const LAST_WAVE_SCALES = WAVES[WAVES.length - 1]!.groups.map((g) => g.hpScale ?? 1);
 

@@ -68,6 +68,10 @@ describe('the seam at round 21', () => {
   // sat at hpScale ~2, false once round 20 grew to bulk groups at 16-17.
   // These pin the seam to round 20's own numbers so a future retune of the
   // campaign moves freeplay's floor with it instead of drifting again.
+  //
+  // Deliberately re-implemented rather than imported from `sim/stats.ts`: a
+  // seam test that validated the source against its own helper would pass
+  // for the wrong reason if that helper ever drifted.
   function median(values: number[]): number {
     const sorted = [...values].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
