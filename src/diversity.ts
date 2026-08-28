@@ -24,6 +24,7 @@ import { BOARD, PATH_LENGTH, cellCentre, isBuildableCell, pointAt } from './sim/
 import { Rng } from './sim/rng.ts';
 import { TOWER_IDS } from './sim/towers.ts';
 import { pathsFor, tiersOf } from './sim/upgrades.ts';
+import { median } from './sim/stats.ts';
 import type { TowerId } from './sim/types.ts';
 import { AUTHORED_ROUNDS } from './sim/freeplay.ts';
 
@@ -142,14 +143,6 @@ export interface BuildResult {
   won: boolean;
   roundsCleared: number;
   livesLeft: number;
-}
-
-/** Median of a list, or 0 when empty. */
-function median(xs: number[]): number {
-  if (xs.length === 0) return 0;
-  const s = [...xs].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
 }
 
 export interface DiversityReport {
