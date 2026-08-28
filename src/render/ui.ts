@@ -26,16 +26,13 @@ function el<T extends HTMLElement>(id: string): T {
   return node as T;
 }
 
-/**
- * Human-readable one-liner for a resistance cell.
- *
- * Zero is the one the player most needs to read at a glance, so it gets a word
- * rather than a number -- an immunity is a wall, not a small multiplier.
- */
-
-
 export interface UiHandlers {
-  onSelect(id: TowerId | null): void;
+  /**
+   * Always a real tower: the build menu has no "nothing" card. Deselecting is
+   * expressed by arming the tower that is already armed, which `armTower`
+   * resolves -- so this parameter never needed to admit null.
+   */
+  onSelect(id: TowerId): void;
   onStartWave(): void;
   onRestart(): void;
   onUpgrade(tower: Tower, id: UpgradeId): void;
@@ -45,15 +42,6 @@ export interface UiHandlers {
   onTogglePause(): void;
   onCycleSpeed(): void;
 }
-
-/**
- * "MOLTEN + Kinetic: splits x3 -> chips" for every cell a branch rewrites.
- *
- * Reuses describeOutcome so the upgrade panel and the resistance reference
- * always describe an Outcome the same way.
- */
-
-
 
 export class Ui {
   private buttons = new Map<TowerId, HTMLButtonElement>();
@@ -164,7 +152,7 @@ export class Ui {
       el('overlayTitle').textContent = world.status === 'won' ? 'Furnace cold' : 'Breach';
       el('overlayBody').textContent =
         world.status === 'won'
-          ? `All ten rounds held. ${world.stats.breaks} layers broken, ${world.stats.kills} charges destroyed, ${world.stats.goldEarned} gold earned.`
+          ? `All ${WAVES.length} rounds held. ${world.stats.breaks} layers broken, ${world.stats.kills} charges destroyed, ${world.stats.goldEarned} gold earned.`
           : `The line failed on round ${world.waveIndex + 1}. ${world.stats.leaks} charges got through, and ${world.stats.wasted} shots landed on something immune to them.`;
     }
   }

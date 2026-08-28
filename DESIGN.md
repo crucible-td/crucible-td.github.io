@@ -1,30 +1,41 @@
 # CRUCIBLE — Design Document (v2)
 
+> **On this document.** Everything below describes v2, the current game. The
+> original version — towers that dealt no damage and instead *transmuted*
+> enemies between states — is retired and tagged `v1-transmutation`. If you find
+> prose here claiming there is no healthbar, or that Ore resists Kinetic, it is
+> v1 text that outlived the pivot and should be deleted rather than believed.
+
 ## One line
-A tower defense where towers don't deal damage, they change what the enemy *is* —
-and you get paid for processing, not for killing.
+A tower defense where every enemy is a stack of layers, each layer answers to a
+different element, and you are paid for every layer you break.
 
 ## The core loop
-Enemies ("charges") walk a fixed path carrying raw material in a **state**.
-Towers apply an **element**. What happens depends on the state it hits.
-There is no healthbar. There is a state machine.
+Enemies ("charges") walk a fixed lane wearing a **layer** — a state of matter.
+Towers throw an **element**. The layer decides how much of that damage lands,
+and what the hit leaves behind afterwards.
 
-The player's job is to arrange towers *in the right order along the path* so that
-material enters as raw Ore and leaves as nothing. A well-built lane reads like a
-foundry line: soften, freeze, shatter.
+Break a layer and the charge is not dead: what was underneath keeps walking, at
+the same point on the lane, answering to different elements than the shell did.
+The player's job is to cover every layer the lane will show them, and to arrange
+the board so that whatever climbs out of a break walks into the tower that
+answers it. A well-built lane reads like a foundry line: shatter, cool, dissolve.
 
-## The five states
+## The five layers
 
-| State | Speed | Behaviour |
-|---|---|---|
-| **ORE** | slow | Default spawn state. Armored: resists Kinetic almost entirely. |
-| **SLAG** | slow | Ore with its armor stripped. Fragile, but stable — it won't change on its own. |
-| **MOLTEN** | fast | Volatile. Drips: leaves a brief burning tile that damages nothing but blocks Vapor. |
-| **CRYSTAL** | very slow | Inert and tough, but structurally brittle. The state you *want* things in. |
-| **VAPOR** | fast | Floats. Ignores ground-only towers entirely. Immune to Kinetic. |
+Speed is pixels per tick at 60Hz. HP is what the layer absorbs before it breaks,
+before the round's toughness multiplier. Bounty is paid when it breaks.
 
-Anything that reaches the end leaks. Leak cost scales with state:
-ORE 1 life, MOLTEN 2, VAPOR 3, CRYSTAL 1, SLAG 1.
+| Layer | Speed | HP | Leak | Bounty | Breaks into | Character |
+|---|---|---|---|---|---|---|
+| **ORE** | 1.0 | 12 | 1 | 2 | 1 × Slag | The default spawn. Heat's specialty; Cold slides off it. |
+| **SLAG** | 1.4 | 6 | 1 | 1 | — | What is left when anything else is stripped. Quick, thin, and the last of it. |
+| **MOLTEN** | 1.8 | 14 | 2 | 3 | 1 × Slag | Already melted, so Heat does nothing at all. Chill it or dissolve it. |
+| **CRYSTAL** | 0.9 | 22 | 2 | 4 | **2 × Molten** | Slow and tough, and inert to both Cold and Solvent. Shatter it — and then deal with what comes out. |
+| **VAPOR** | 2.4 | 10 | 3 | 3 | — | Floats over ground-only towers and Kinetic passes straight through. Fast, and the most expensive thing to let past. |
+
+Anything reaching the end leaks, costing the lives in the Leak column: Vapor is
+worth three, Molten and Crystal two, Ore and Slag one each.
 
 ## The resistance table
 
@@ -160,21 +171,36 @@ bounty, so depth of enemy rather than number of enemies is what makes a round
 lucrative.
 
 This single rule does a lot of work:
-- Long processing chains out-earn one-shot kills, so the game teaches its own
-  strategy through the wallet.
-- Splitting Molten is *profitable but dangerous* — three enemies means three
-  processing streams. Good players sometimes split on purpose.
+- Deep enemies out-earn shallow ones, so the game teaches its own strategy
+  through the wallet: one Crystal pays five times on the way down (shell, two
+  cores, two remnants) where a bare Slag pays once.
+- Shattering a Crystal is *profitable but dangerous* — the payout is immediate
+  and so are the two Molten cores, which Heat cannot touch at all. A
+  Forge-and-Stamp board takes the shell apart and then watches the cores walk
+  past. That is the game's best trap and it is paid for in gold.
 - Thematically exact: you run a foundry. You're paid for refining ore.
 
-## Towers (M2 target: 8, each with 2 upgrade branches)
+Bounty scales with the **square root** of a charge's toughness, not linearly.
+Paying full multiples let a heavy round fund the towers that beat it, which is
+the same trap that made wave size useless as a difficulty dial.
 
-Starter four, one per element:
-- **Forge** (Heat) — short range, fast, cheap. The line's entry point.
-- **Chiller** (Cold) — medium range, slow rate. Expensive early.
-- **Stamp** (Kinetic) — ground-only, tight range, huge burst. Useless out of position.
-- **Vat** (Solvent) — slow, applies over an area. The utility tower. Solvent
-  strips whatever it touches down to Slag, so a Vat always leaves the Stamp
-  something it can finish.
+## Towers
+
+Five, covering four elements — Heat is carried by two of them on purpose, since
+the interesting axis is not only which element you bring but what shape of tower
+carries it. Stats live in `src/sim/towers.ts`; what follows is the shape.
+
+| Tower | Element | Cost | Damage | Range | Cooldown | Shape |
+|---|---|---|---|---|---|---|
+| **Forge** | Heat | 46 | 4 | 92 | 30 | Cheap, short and constant. The line's entry point. |
+| **Chiller** | Cold | 58 | 6 | 110 | 48 | Medium reach, slow rate, expensive early. Its chill is the largest rider in the game. |
+| **Stamp** | Kinetic | 45 | 9 | 90 | 42 | Ground-only, tight range, heavy hits. Useless out of position, and Vapor floats straight over it. |
+| **Vat** | Solvent | 52 | 5 | 100 | 60 | The only tower with splash (36px), and the slowest. Its corrosion follows whatever breaks out. |
+| **Lens** | Heat | 64 | 14 | 260 | 74 | Reaches most of the lane and hits hard, but rarely. The Forge's opposite on the same table column. |
+
+Growing this to eight is still open; see BACKLOG.md, which notes that support
+towers are the change most likely to reintroduce a mandatory tower and therefore
+lean hardest on `npm run diversity`.
 
 ## Upgrade paths
 
@@ -212,15 +238,28 @@ path is what turns those held shots into breaks.
 immunity each; 8–10 mix them; 11–20 escalate through weight rather than new
 vocabulary.
 
-Difficulty past round 10 climbs through a per-group `hpScale` rather than
-through sheer count. Spawning ever more bodies would drown the simulation and
-slow headless playtesting, and a round of a thousand weak charges only asks for
-more of what you already own. Toughness keeps asking the question the
-resistance table poses: did you bring an answer to this layer?
+Difficulty climbs through a per-group `hpScale` rather than through sheer count.
+Spawning ever more bodies would drown the simulation and slow headless
+playtesting, and a round of a thousand weak charges only asks for more of what
+you already own. Toughness keeps asking the question the resistance table poses:
+did you bring an answer to this layer?
+
+Rounds 1–4 carry no toughness at all, so the opening stays a preference rather
+than a puzzle. A mild lift starts at round 5. Rounds 10–15 are a *ramp* rather
+than a step, and 16–20 carry the real weight — that shape is not cosmetic, it is
+what makes upgrades worth buying, and the reasoning is under "Breadth versus
+depth" above.
 
 One mechanism covers both bosses and freeplay. A **slab** is a deep stack at
 high `hpScale` — a Crystal shell whose Molten cores inherit its toughness — and
 freeplay is the same dial turned by a formula, compounding without end.
+
+**Known gap:** freeplay's formula was calibrated when round 20 finished near
+`hpScale 2`, and the ramp above left it far behind — round 21 is currently about
+six times *easier* than round 20, and freeplay does not regain round-20 pressure
+until roughly round 40. The seam between the last authored round and the first
+generated one is not asserted anywhere, which is why the ramp could move without
+anything failing. See BACKLOG.md.
 
 Bounty scales with the **square root** of toughness, not linearly. Paying full
 multiples let a heavy round fund the towers that beat it, which is the same
