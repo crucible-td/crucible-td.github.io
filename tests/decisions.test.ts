@@ -28,31 +28,51 @@ import { ELEMENT_IDS } from '../src/sim/types.ts';
  */
 describe('what a click on the board means', () => {
   it('places when a tower is armed and the cell is free', () => {
-    expect(boardAction({ selected: true, towerHere: false })).toBe('place');
+    expect(boardAction({ selected: true, towerHere: false, buildable: true })).toBe('place');
   });
 
   it('disarms when you click the tower you just placed', () => {
     // Selection persists after building so a line can be laid in one pass, and
     // the preview is already showing red over an occupied cell -- so the click
     // cannot mean "build". It used to mean nothing at all.
-    expect(boardAction({ selected: true, towerHere: true })).toBe('disarm');
+    expect(boardAction({ selected: true, towerHere: true, buildable: false })).toBe('disarm');
+  });
+
+  it('disarms when you click the lane, rather than doing nothing', () => {
+    // The bug this case exists for: a click on the road fell through to
+    // `place`, `placeTower` refused it because the cell is not buildable, and
+    // nothing else happened. The tower stayed armed with no feedback and no
+    // discoverable way to put it down -- Escape and right-click are neither.
+    expect(boardAction({ selected: true, towerHere: false, buildable: false })).toBe('disarm');
+  });
+
+  it('disarms on an illegal cell even though no tower stands there', () => {
+    // `towerHere` was the only reason to disarm before, so an empty-but-illegal
+    // cell was the exact gap. Stated separately from the case above because it
+    // is the combination, not the lane as such, that used to fall through.
+    const lane = boardAction({ selected: true, towerHere: false, buildable: false });
+    const occupied = boardAction({ selected: true, towerHere: true, buildable: true });
+    expect(lane).toBe(occupied);
+  });
+
+  it('still places on a legal empty cell, so a line can be laid in one pass', () => {
+    // Disarming on illegal cells must not cost the persistence that lets a
+    // player lay several towers without re-arming between each one.
+    expect(boardAction({ selected: true, towerHere: false, buildable: true })).toBe('place');
   });
 
   it('inspects a placed tower when nothing is armed', () => {
-    expect(boardAction({ selected: false, towerHere: true })).toBe('inspect');
+    expect(boardAction({ selected: false, towerHere: true, buildable: false })).toBe('inspect');
   });
 
   it('closes the panel when clicking bare ground', () => {
-    expect(boardAction({ selected: false, towerHere: false })).toBe('close');
+    expect(boardAction({ selected: false, towerHere: false, buildable: true })).toBe('close');
   });
 
-  it('never depends on where the pointer last moved', () => {
-    // The touch bug: the handler read its target cell from `hover`, which only
-    // a mousemove sets. Phones never send one, so every tap did nothing and the
-    // game was unplayable on a phone. The signature is the fix -- there is
-    // nowhere to pass hover state even if someone wanted to.
-    const args = Object.keys({ selected: true, towerHere: false });
-    expect(args).toEqual(['selected', 'towerHere']);
+  it('closes rather than disarms when the lane is clicked with nothing armed', () => {
+    // `buildable` must not leak into the unarmed branch: with no tower held
+    // there is nothing to disarm, and an open upgrade panel should still shut.
+    expect(boardAction({ selected: false, towerHere: false, buildable: false })).toBe('close');
   });
 });
 

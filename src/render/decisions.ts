@@ -32,13 +32,32 @@ export type BoardAction = 'place' | 'disarm' | 'inspect' | 'close';
  * Note what is deliberately *not* an input: where the pointer last moved. The
  * cell comes from the click itself, because a touch device never sends a
  * mousemove and reading `hover` made every tap on a phone do nothing at all.
+ * There is nowhere to pass hover state here even if someone wanted to, and the
+ * type signature is what keeps it that way.
+ *
+ * `buildable` is the mirror of that omission -- a fact that has to be *present*
+ * rather than absent. Without it this function could not tell a legal empty
+ * cell from the lane, so a click on the road fell through to `place`, and
+ * `placeTower` refused it silently. The tower stayed armed with no feedback and
+ * no discoverable way to put it down, which is the same "selected tower that
+ * could not be deselected" this module's header already lists once.
  */
-export function boardAction(opts: { selected: boolean; towerHere: boolean }): BoardAction {
+export function boardAction(opts: {
+  selected: boolean;
+  towerHere: boolean;
+  /** False for the lane and anything off the board -- see `isBuildableCell`. */
+  buildable: boolean;
+}): BoardAction {
   if (!opts.selected) return opts.towerHere ? 'inspect' : 'close';
-  // Armed over an occupied cell: the placement preview is already showing red,
-  // so the click cannot mean "build". Clicking the tower you just placed is the
-  // natural way to stop placing, and doing nothing was the old behaviour.
-  return opts.towerHere ? 'disarm' : 'place';
+  // Armed over a cell that cannot take a tower, whether that is because one
+  // already stands there or because it is lane. Either way the click cannot
+  // mean "build", and putting the tower down is the only reading left.
+  //
+  // Deliberately keyed on the *cell*, not on whether `placeTower` succeeded.
+  // Placement also fails when the player cannot afford the tower, and disarming
+  // then would strand the selection exactly as `cardState` below refuses to --
+  // being poor on a legal cell has to keep the tower armed.
+  return opts.towerHere || !opts.buildable ? 'disarm' : 'place';
 }
 
 /**

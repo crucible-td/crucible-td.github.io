@@ -9,7 +9,7 @@ import { createClock, nextSpeed, ticksFor } from './render/clock.ts';
 import type { Speed } from './render/clock.ts';
 import { armTower, boardAction, towerForKey } from './render/decisions.ts';
 import { Ui } from './render/ui.ts';
-import { BOARD } from './sim/path.ts';
+import { BOARD, isBuildableCell } from './sim/path.ts';
 import type { Tower, TowerId, UpgradeId } from './sim/types.ts';
 import { createWorld, placeTower, startWave, step, towerAt, upgradeTower } from './sim/world.ts';
 
@@ -123,7 +123,13 @@ canvas.addEventListener('click', (ev) => {
   const cell = cellUnder(ev);
   const here = towerAt(world, cell.col, cell.row);
 
-  switch (boardAction({ selected: selected !== null, towerHere: here !== undefined })) {
+  switch (
+    boardAction({
+      selected: selected !== null,
+      towerHere: here !== undefined,
+      buildable: isBuildableCell(cell.col, cell.row),
+    })
+  ) {
     case 'inspect':
       inspected = here ?? null;
       previewUpgrade = null;
@@ -137,7 +143,10 @@ canvas.addEventListener('click', (ev) => {
       break;
     case 'place':
       // Selection persists after a successful build so a line can be laid down
-      // in one pass. Escape, right-click, or clicking a placed tower clears it.
+      // in one pass. That persistence is conditional now: clicking the lane
+      // disarms, and buildable cells hug the lane closely enough that a slip
+      // mid-line will do it. Losing the selection to a misclick is the price of
+      // the tower not being stuck to the cursor with no way off.
       placeTower(world, selected!, cell.col, cell.row);
       return;
   }

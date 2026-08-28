@@ -32,24 +32,6 @@ What to check on an actual device:
 
 Failure here is likely to be about precision rather than about events firing.
 
-## Clicking the road while a tower is armed does nothing
-
-`boardAction()` in `src/render/decisions.ts` decides `place` whenever a tower
-is armed and the clicked cell holds no tower — it does not know whether that
-cell is on the lane. A click on the road therefore falls through to
-`placeTower()`, which checks `isBuildableCell` and quietly refuses, leaving the
-tower armed with no feedback at all. The player is stuck holding a selection
-with no visible way to let go of it short of Escape or right-click, neither of
-which is discoverable — the same class of bug `decisions.ts`'s own header
-comment calls out as this project's real source of interface bugs.
-
-The fix: clicking an unbuildable cell while armed should deselect, the same as
-clicking the tower just placed does today. That means `boardAction` needs a
-third fact about the clicked cell (buildable or not) alongside `selected` and
-`towerHere`, and a new outcome — or `disarm` reused — for "armed, no tower
-here, and it's not a legal cell anyway." Belongs in `decisions.ts` with a test
-of its own, per the architecture rule: this is a decision, not a drawing.
-
 ## Freeplay is calibrated to a campaign that no longer exists
 
 `freeplayWave()` opens at `scale = 2.2 * 1.11^past`, with a comment saying it
