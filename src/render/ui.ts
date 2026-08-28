@@ -8,14 +8,16 @@ import {
   describeRiderGains,
   describeStats,
   elementLabel,
+  endOverlay,
   panelKey,
+  roundHint,
+  waveLabel,
 } from './decisions.ts';
 import { RESISTANCE } from '../sim/resistance.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
 import type { Tower, TowerId, UpgradeId } from '../sim/types.ts';
-import { WAVES } from '../sim/waves.ts';
 import type { Speed } from './clock.ts';
 import { availableUpgrades, effective } from '../sim/world.ts';
 import type { World } from '../sim/world.ts';
@@ -35,6 +37,7 @@ export interface UiHandlers {
   onSelect(id: TowerId): void;
   onStartWave(): void;
   onRestart(): void;
+  onFreeplay(): void;
   onUpgrade(tower: Tower, id: UpgradeId): void;
   onCloseInspect(): void;
   /** Hovering a branch previews it on the board; null clears the preview. */
@@ -51,6 +54,7 @@ export class Ui {
     this.buildTableReference();
     el<HTMLButtonElement>('startWave').addEventListener('click', () => handlers.onStartWave());
     el<HTMLButtonElement>('restart').addEventListener('click', () => handlers.onRestart());
+    el<HTMLButtonElement>('freeplay').addEventListener('click', () => handlers.onFreeplay());
     el<HTMLButtonElement>('inspectClose').addEventListener('click', () => handlers.onCloseInspect());
     el<HTMLButtonElement>('pause').addEventListener('click', () => handlers.onTogglePause());
     el<HTMLButtonElement>('speed').addEventListener('click', () => handlers.onCycleSpeed());
@@ -107,7 +111,7 @@ export class Ui {
     this.syncInspect(world, inspected);
     el('gold').textContent = String(world.gold);
     el('lives').textContent = String(world.lives);
-    el('wave').textContent = `${Math.min(world.waveIndex + 1, WAVES.length)}/${WAVES.length}`;
+    el('wave').textContent = waveLabel({ waveIndex: world.waveIndex, freeplay: world.freeplay });
 
     for (const [id, btn] of this.buttons) {
       const state = cardState({ gold: world.gold, cost: TOWERS[id].cost, isSelected: id === selected });
@@ -139,21 +143,21 @@ export class Ui {
     start.textContent = world.status === 'running' ? 'Wave in progress' : 'Start wave';
 
     const hint = el('hint');
-    if (world.status === 'idle' && world.waveIndex < WAVES.length) {
-      hint.textContent = `Wave ${world.waveIndex + 1}: ${WAVES[world.waveIndex]!.hint}`;
-    } else if (world.status === 'running') {
-      hint.textContent = WAVES[world.waveIndex]?.hint ?? '';
+    if (world.status === 'idle' || world.status === 'running') {
+      hint.textContent = roundHint({ waveIndex: world.waveIndex, freeplay: world.freeplay });
     }
 
     const overlay = el('overlay');
-    const ended = world.status === 'won' || world.status === 'lost';
-    overlay.hidden = !ended;
-    if (ended) {
-      el('overlayTitle').textContent = world.status === 'won' ? 'Furnace cold' : 'Breach';
-      el('overlayBody').textContent =
-        world.status === 'won'
-          ? `All ${WAVES.length} rounds held. ${world.stats.breaks} layers broken, ${world.stats.kills} charges destroyed, ${world.stats.goldEarned} gold earned.`
-          : `The line failed on round ${world.waveIndex + 1}. ${world.stats.leaks} charges got through, and ${world.stats.wasted} shots landed on something immune to them.`;
+    const result = endOverlay({
+      status: world.status,
+      waveIndex: world.waveIndex,
+      stats: world.stats,
+    });
+    overlay.hidden = result === null;
+    if (result) {
+      el('overlayTitle').textContent = result.title;
+      el('overlayBody').textContent = result.body;
+      el<HTMLButtonElement>('freeplay').hidden = !result.canContinue;
     }
   }
 

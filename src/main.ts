@@ -11,7 +11,7 @@ import { armTower, boardAction, towerForKey } from './render/decisions.ts';
 import { Ui } from './render/ui.ts';
 import { BOARD, isBuildableCell } from './sim/path.ts';
 import type { Tower, TowerId, UpgradeId } from './sim/types.ts';
-import { createWorld, placeTower, startWave, step, towerAt, upgradeTower } from './sim/world.ts';
+import { createWorld, enterFreeplay, placeTower, startWave, step, towerAt, upgradeTower } from './sim/world.ts';
 
 const canvas = document.getElementById('board') as HTMLCanvasElement | null;
 if (!canvas) throw new Error('missing #board canvas');
@@ -99,6 +99,13 @@ const ui = new Ui({
     world = createWorld(Math.floor(Math.random() * 1e9));
     selected = null;
     inspected = null;
+  },
+  onFreeplay() {
+    enterFreeplay(world);
+    // Repaint now, same reason as onUpgrade: the overlay's own button just
+    // changed what it should say, and the next animation frame may be a long
+    // way off in a throttled background tab.
+    ui.sync(world, selected, inspected, speed);
   },
 });
 

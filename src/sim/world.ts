@@ -169,6 +169,22 @@ export function availableUpgrades(t: Tower) {
     .filter((u): u is NonNullable<typeof u> => u !== undefined);
 }
 
+/**
+ * Continue past a finished campaign into freeplay.
+ *
+ * Gated on `'won'` because freeplay is a continuation of a completed run, not
+ * a difficulty setting chosen up front -- the authored campaign has to stay
+ * the thing that ends. `waveIndex` is already 20 by the time a run can be
+ * `'won'`, and `waveAt` already answers round 21 for it, so there is nothing
+ * else to touch.
+ */
+export function enterFreeplay(w: World): boolean {
+  if (w.status !== 'won') return false;
+  w.freeplay = true;
+  w.status = 'idle';
+  return true;
+}
+
 export function startWave(w: World): boolean {
   if (w.status !== 'idle') return false;
   if (!w.freeplay && w.waveIndex >= AUTHORED_ROUNDS) return false;
