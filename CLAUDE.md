@@ -205,13 +205,32 @@ So the test is not "is this task big enough to be worth delegating". It is:
   it happens. That is `developer`. The tell is that writing the brief feels
   like writing a specification rather than like thinking out loud.
 
-**Neither? Keep it.** This session is allowed to do its own work, and should
-prefer to when deciding *what* to do is most of the task. Ambiguity costs more
-delegated than done -- a subagent given an underspecified brief will resolve
-the ambiguity by guessing, and the guess arrives as finished code. Reviewing a
-wrong guess costs more than the work saved. A review, an investigation, a
-design call, or a small edit in a file already in context are all fine to keep,
-and no obligation to delegate overrides that.
+**There is a floor under both tests, and it is not about line count.** A task
+can be perfectly specifiable and still not worth delegating: renaming a symbol
+across three files is a complete brief and an obvious waste of a cold boot. Two
+checks catch this:
+
+- **If the brief would take longer to write than the work would take to do,
+  keep it.** Writing a good brief is most of the thinking; at that point the
+  delegation is buying only the typing.
+- **Is the file already open in this session?** Line count is a poor proxy for
+  cost -- a large change across files never read here can be cheaper to hand
+  over than a small one in a file already in context, where the marginal cost
+  of doing it is nearly zero.
+
+Coordination is never free either: every delegation ends with this session
+reading the diff, so its true cost is the subagent's tokens *plus* a review
+here. Of the three delegations measured above, one needed a correction
+afterwards and another needed documentation the brief had not thought to ask
+for. Budget for that rather than treating the handover as the end.
+
+**Neither test met? Keep it.** This session is allowed to do its own work, and
+should prefer to when deciding *what* to do is most of the task. Ambiguity
+costs more delegated than done -- a subagent given an underspecified brief will
+resolve the ambiguity by guessing, and the guess arrives as finished code.
+Reviewing a wrong guess costs more than the work saved. A review, an
+investigation, a design call, or a small edit in a file already in context are
+all fine to keep, and no obligation to delegate overrides that.
 
 Balance retuning is never delegated. It runs through the `balance-pass` skill
 in this session, because the diversity verdict is a judgement call about the
