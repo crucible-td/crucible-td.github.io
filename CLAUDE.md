@@ -220,5 +220,5 @@ Remaining work is in [BACKLOG.md](BACKLOG.md), including the one item with a
 known risk: the game has never been tested on a real phone. Touch placement was
 broken until recently and the fix was only verified against emulated events.
 
-Still unbuilt, and left as the owner's own AI-tooling exercise: **a
-balance-analyst subagent**, best pinned to a cheaper model in its frontmatter.
+Still unbuilt: **a balance-analyst subagent**, best pinned to a cheaper model
+in its frontmatter.

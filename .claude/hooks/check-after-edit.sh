@@ -4,14 +4,16 @@
 # "block and feed this back to Claude" -- so a failure lands in the model's
 # context automatically, without the user needing to paste it in.
 #
-# Fast tests only, deliberately. The full suite takes ~24 seconds, and all but
-# half a second of that is two files: tests/diversity.test.ts runs a 240-build
+# Fast tests only, deliberately. The full suite takes ~55 seconds, and all but
+# half a second of that is two files: tests/diversity.test.ts runs a 720-build
 # campaign sample at module load, and tests/campaign.test.ts plays twenty
 # rounds on several seeds. Those are the measurements this project is built
 # on, but they answer a question about balance, not about whether the edit
-# just made compiles and behaves -- and a 24-second pause after every keystroke
-# turns the hook into something to switch off. `npm test` still runs
-# everything, and CI runs it on every push before it will deploy.
+# just made compiles and behaves -- and a 55-second pause after every keystroke
+# turns the hook into something to switch off. `npm run test:sampled` runs a
+# 120-build sample in ~8 seconds if you want a smoke check on a balance edit;
+# `npm test` runs everything, and CI runs it on every push before it will
+# deploy.
 set -uo pipefail
 
 project="${CLAUDE_PROJECT_DIR:-/Users/markuskragh/Documents/Claude/TD Game}"

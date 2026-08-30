@@ -32,29 +32,6 @@ What to check on an actual device:
 
 Failure here is likely to be about precision rather than about events firing.
 
-## The hook script's comments describe a suite that no longer exists
-
-**Small, self-contained, and in a file that shapes behaviour.**
-
-`.claude/hooks/check-after-edit.sh` explains in its header why it runs
-`test:fast` rather than the full suite. Two of its numbers are now wrong:
-
-| It says | Actually |
-|---|---|
-| "The full suite takes ~24 seconds" | ~55 seconds |
-| "a 240-build campaign sample" | 720 builds |
-
-It also predates `npm run test:sampled`, which is now the middle option
-between `test:fast` and the full run and is worth a mention in the same
-comment.
-
-The reasoning in the header is still exactly right -- a long pause after every
-edit turns the hook into something to switch off -- so this is a numbers-and-
-mention correction, not a rewrite. Nothing about the script's behaviour needs
-to change.
-
-Left for the owner because `.claude/` is his own AI-tooling work.
-
 ## Cut the token cost of how sessions are run
 
 **Not a code change. Prompted by hitting the Pro plan's weekly limit.**
