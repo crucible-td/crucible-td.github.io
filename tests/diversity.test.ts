@@ -35,7 +35,41 @@ import { TOWER_IDS } from '../src/sim/towers.ts';
  * chilled charges walk slower -- which is exactly why the per-edit hook runs
  * `npm run test:fast` and leaves this suite to `npm test` and to CI.
  */
-const REPORT = runDiversity({ slots: 18, sample: 720, seed: 1, rounds: 20 });
+const AUTHORITATIVE_SAMPLE = 720;
+
+/**
+ * The sample can be lowered for a faster local run, and only for that.
+ *
+ * `CRUCIBLE_DIVERSITY_SAMPLE=120 npx vitest run` turns a fifty-second suite
+ * into a five-second one, which is the difference between a check that gets
+ * run during a balance edit and one that does not. The default stays
+ * authoritative, so forgetting the variable gives the slow correct answer
+ * rather than a fast wrong one, and CI -- which sets nothing -- always
+ * measures at full strength.
+ *
+ * The two assertions that are artifacts at a small sample do not run in that
+ * mode. This is not squeamishness: at 120 builds this file reported the Vat as
+ * mandatory on a game where a hand-built Vat-free board cleared all twenty
+ * rounds. Asserting it anyway would fail a healthy game, and a suite that
+ * cries wolf under its own documented conditions is worse than one that says
+ * plainly it did not look.
+ */
+const SAMPLE = Number(process.env.CRUCIBLE_DIVERSITY_SAMPLE ?? AUTHORITATIVE_SAMPLE);
+const UNDER_SAMPLED = SAMPLE < AUTHORITATIVE_SAMPLE;
+
+if (UNDER_SAMPLED) {
+  console.warn(
+    `\n  diversity: sampling ${SAMPLE} builds, not ${AUTHORITATIVE_SAMPLE}.` +
+      `\n  NOT AUTHORITATIVE -- the mandatory-tower and per-tower-usefulness` +
+      `\n  verdicts are skipped. Run npm test with no environment override` +
+      `\n  before believing anything about build diversity.\n`,
+  );
+}
+
+const REPORT = runDiversity({ slots: 18, sample: SAMPLE, seed: 1, rounds: 20 });
+
+/** Winner counts are absolute, so the floor has to move with the sample. */
+const MIN_WINNERS = Math.max(3, Math.round(15 * (SAMPLE / AUTHORITATIVE_SAMPLE)));
 
 describe('build diversity', () => {
   it('lets every single tower survive the opening round', () => {
@@ -54,19 +88,26 @@ describe('build diversity', () => {
   });
 
   it('finds enough winners for the mandatory check to mean anything', () => {
-    expect(REPORT.winners.length).toBeGreaterThanOrEqual(15);
+    expect(REPORT.winners.length, `sample ${SAMPLE}`).toBeGreaterThanOrEqual(MIN_WINNERS);
   });
 
-  it('makes no tower mandatory', () => {
+  it.skipIf(UNDER_SAMPLED)('makes no tower mandatory', () => {
     // The direct detector for the defect this whole version exists to fix. If
     // a tower shows up in every winning build, the game has a right answer
     // again, whatever the difficulty numbers say.
+    //
+    // Skipped below the authoritative sample: this is the assertion that
+    // reported a false positive at 120 builds, and the header comment explains
+    // why running it anyway would be worse than not running it.
     expect(REPORT.mustBuild, `mandatory: ${REPORT.mustBuild.join(', ')}`).toEqual([]);
   });
 
-  it('keeps every tower genuinely useful', () => {
+  it.skipIf(UNDER_SAMPLED)('keeps every tower genuinely useful', () => {
     // The opposite failure: a tower nobody wants. v1's Vat appeared in none of
     // the builds worth making, which made it decoration rather than a choice.
+    //
+    // Also sample-sensitive: a presence ratio taken over ten winners moves in
+    // tenths, so a healthy tower can dip under the floor by chance alone.
     for (const t of TOWER_IDS) {
       expect(REPORT.presence[t], `${t} appears in no winning build`).toBeGreaterThan(0.1);
     }

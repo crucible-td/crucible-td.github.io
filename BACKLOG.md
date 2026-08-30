@@ -32,6 +32,58 @@ What to check on an actual device:
 
 Failure here is likely to be about precision rather than about events firing.
 
+## The hook script's comments describe a suite that no longer exists
+
+**Small, self-contained, and in a file that shapes behaviour.**
+
+`.claude/hooks/check-after-edit.sh` explains in its header why it runs
+`test:fast` rather than the full suite. Two of its numbers are now wrong:
+
+| It says | Actually |
+|---|---|
+| "The full suite takes ~24 seconds" | ~55 seconds |
+| "a 240-build campaign sample" | 720 builds |
+
+It also predates `npm run test:sampled`, which is now the middle option
+between `test:fast` and the full run and is worth a mention in the same
+comment.
+
+The reasoning in the header is still exactly right -- a long pause after every
+edit turns the hook into something to switch off -- so this is a numbers-and-
+mention correction, not a rewrite. Nothing about the script's behaviour needs
+to change.
+
+Left for the owner because `.claude/` is his own AI-tooling work.
+
+## Cut the token cost of how sessions are run
+
+**Not a code change. Prompted by hitting the Pro plan's weekly limit.**
+
+Analysis of where a week's tokens actually went, in rough order of size:
+
+1. **Conversation length dominates.** Every request re-sends the whole
+   conversation, so a token spent early is re-billed on every later turn. The
+   expensive pattern is one long session covering several unrelated jobs; the
+   cheap one is a session per task. This is free to fix and worth more than
+   everything below it combined. (Caveat: prompt caching makes re-sent context
+   cheaper than the raw count suggests, and how the weekly limit counts cached
+   reads is not something this project can observe -- so the direction is
+   certain and the multiplier is not.)
+2. **Whole-file reads.** Dumping a 300-line file to read one section costs
+   ~4k tokens *and* keeps them in context for the rest of the session.
+   Targeted line ranges and greps instead.
+3. **Oversized pull request bodies.** Several have run 800-1,100 words. That is
+   expensive output, and it persists in context afterwards. The same content
+   fits in ~250 words.
+4. **Re-running checks that already passed.** The hook already proves an edit
+   compiles; a second full-suite run to confirm it is pure cost.
+
+The durable fix for 2-4 is a short **session protocol** section in CLAUDE.md --
+deliberately short, because CLAUDE.md is paid for on every cold subagent boot
+and three commits were just spent shrinking it. Roughly eighty tokens buys all
+four points; it should not grow past that. Item 1 is a habit rather than a
+document, and no file can enforce it.
+
 ## Towers that are more fun to use -- partly shipped
 
 Riders shipped: every element now carries one lingering effect scaled by its

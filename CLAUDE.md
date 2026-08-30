@@ -61,6 +61,7 @@ verified to fail when violated.
 npm run dev        # play it at localhost:5173
 npm test           # vitest: 191 tests
 npm run test:fast  # the 170 that are not balance measurements -- under a second
+npm run test:sampled # whole suite, weak diversity verdict -- 8s not 55s
 npm run coverage   # where the tests are, and are not
 npm run typecheck  # tsc --noEmit
 npm run sim -- --all-waves                 # balance report for every wave
@@ -107,6 +108,14 @@ look identical from the sim report alone.
 structural rules the resistance table must obey, and the lessons past tunings
 cost real time to learn.** Read it before changing a cell. The `balance-pass`
 skill is the workflow that runs against it.
+
+`npm test` spends almost all of its fifty-odd seconds on one line: the
+720-build diversity sweep, which runs at module load. `npm run test:sampled`
+drops that to 120 builds and the suite to eight seconds, for iterating on a
+balance edit. It **skips the mandatory-tower and tower-usefulness verdicts and
+says so**, because those are the assertions that read a false positive at a
+small sample. It is a smoke check, never the answer -- `npm test` with no
+override is, and that is what CI runs.
 
 Balance retuning is not delegated -- see Delegation below.
 
