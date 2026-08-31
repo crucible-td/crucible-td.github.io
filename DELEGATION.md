@@ -9,16 +9,18 @@ the roster and the non-negotiables; the reasoning lives here.
 
 **Read this before the first delegation in a session.**
 
-## The three agents
+## The four agents
 
 | Agent | Model | For |
 |---|---|---|
 | `developer` | Sonnet | An already-scoped change. Reads, edits, tests, commits on the current branch. |
 | `qa` | Haiku | Running the existing checks and reporting them. Read-only apart from mechanical fixes outside `src/sim/`. |
+| `balance-analyst` | Sonnet | Running the balance harnesses and diagnosing the leak breakdown against the documented table. Read-only; never the mandatory-tower/diversity verdict or the retuning edit. |
 | `architect` | Opus | Escalation *upward* from a cheaper session: a hard design question, or an independent review. No Write or Edit -- it advises. |
 
-There is no fourth: the CTO is *this session*, whatever model it was started
-with, and no configuration can make a top-level session change model per task.
+None of these is the CTO: that is *this session*, whatever model it was
+started with, and no configuration can make a top-level session change model
+per task, or a subagent inherit that role.
 
 A `model:` in frontmatter is absolute, so a Sonnet session still gets Sonnet
 work and Haiku checks, and can still reach Opus through `architect`. The Agent
@@ -84,9 +86,12 @@ Reviewing a wrong guess costs more than the work saved. A review, an
 investigation, a design call, or a small edit in a file already in context are
 all fine to keep, and no obligation to delegate overrides that.
 
-Balance retuning is never delegated. It runs through the `balance-pass` skill
-in this session, because the diversity verdict is a judgement call about the
-game's identity rather than a number to report.
+Balance retuning is never delegated. Measuring and diagnosing are:
+`balance-analyst` can run the three harnesses and map a leak to the
+documented cause without this session spending context on the raw JSON. What
+stays here is the edit itself, the re-measure that proves it worked, and the
+diversity verdict -- through the `balance-pass` skill -- because that verdict
+is a judgement call about the game's identity rather than a number to report.
 
 **Delegated work is not finished until this session has read the diff.**
 

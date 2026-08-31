@@ -169,13 +169,15 @@ in the next session.
 
 ## Delegation
 
-Three subagents live in `.claude/agents/`. There is no fourth: the CTO is *this
-session*, whatever model it was started with.
+Four subagents live in `.claude/agents/`. None of them is the CTO: that is
+*this session*, whatever model it was started with, and no configuration lets
+a subagent take that role or change this session's model per task.
 
 | Agent | Model | For |
 |---|---|---|
 | `developer` | Sonnet | An already-scoped change. Reads, edits, tests, commits on the current branch. |
 | `qa` | Haiku | Running the existing checks and reporting them. Read-only apart from mechanical fixes outside `src/sim/`. |
+| `balance-analyst` | Sonnet | Running the balance harnesses and diagnosing the leak breakdown against the documented table. Read-only; never the mandatory-tower/diversity verdict or the retuning edit. |
 | `architect` | Opus | Escalation *upward* from a cheaper session: a hard design question, or an independent review. No Write or Edit -- it advises. |
 
 **[DELEGATION.md](DELEGATION.md) holds how to decide, and it is not obvious --
@@ -188,9 +190,11 @@ small to be worth a cold boot should simply be kept.
 Three rules that hold without reading it:
 
 - **Delegated work is not finished until this session has read the diff.**
-- **Balance retuning is never delegated.** It runs through the `balance-pass`
-  skill in this session, because the diversity verdict is a judgement call
-  about the game's identity rather than a number to report.
+- **Balance retuning is never delegated.** `balance-analyst` may run the
+  harnesses and diagnose a leak against the documented table -- that is
+  measuring, not deciding. The edit itself and the diversity verdict run
+  through the `balance-pass` skill in this session, because the verdict is a
+  judgement call about the game's identity rather than a number to report.
 - **This session may keep any task.** No obligation to delegate overrides that.
 
 ## Git
@@ -219,6 +223,3 @@ it got here.
 Remaining work is in [BACKLOG.md](BACKLOG.md), including the one item with a
 known risk: the game has never been tested on a real phone. Touch placement was
 broken until recently and the fix was only verified against emulated events.
-
-Still unbuilt: **a balance-analyst subagent**, best pinned to a cheaper model
-in its frontmatter.

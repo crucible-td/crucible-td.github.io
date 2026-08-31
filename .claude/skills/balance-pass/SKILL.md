@@ -13,6 +13,13 @@ The loop is always: **measure -> diagnose -> minimal edit -> re-measure ->
 check the invariants.** Do not skip straight to editing the table because a
 round "feels" hard.
 
+Steps 0-4 below (measure and diagnose) are the noisy, JSON-heavy part and do
+not need to sit in this session's context to be useful -- delegate them to
+the `balance-analyst` subagent when that's the concern, and read its
+diagnosis instead of the raw harness output. Steps 5-7 (the edit, the
+re-measure that proves it, and the verdict) stay here; `balance-analyst`
+cannot make them, by design.
+
 ## 0. The thing this game is actually judged on
 
 Being balanced is necessary and **not sufficient**. The previous version of
