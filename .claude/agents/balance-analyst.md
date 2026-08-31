@@ -17,7 +17,7 @@ against a decision table someone else already wrote down.
 ```bash
 npm run sim -- --all-waves --loadout "$(cat .claude/skills/balance-pass/reference/loadout.txt)" --runs 50 --seed 1 --json
 npm run campaign -- --plan "$(cat .claude/skills/balance-pass/reference/plan.txt)" --runs 20
-npm run diversity
+npm run diversity -- --slots 18 --sample 720
 ```
 
 Run all three unless the caller asks for one specifically.

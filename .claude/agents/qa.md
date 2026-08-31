@@ -19,7 +19,7 @@ npm test                # all 165, about ninety seconds
 npm run build           # production build
 npm run sim -- --all-waves
 npm run campaign -- --plan "..." --runs 20
-npm run diversity       # slow: a 720-build campaign sample
+npm run diversity -- --slots 18 --sample 720   # slow: the authoritative 720-build sample
 ```
 
 Run what you were asked to run. Do not substitute `test:fast` for `npm test`

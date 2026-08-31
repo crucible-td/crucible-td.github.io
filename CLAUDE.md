@@ -67,7 +67,7 @@ npm run typecheck  # tsc --noEmit
 npm run sim -- --all-waves                 # balance report for every wave
 npm run sim -- --wave 7 --runs 200 --json  # machine-readable, for tooling
 npm run campaign -- --plan "forge@5,1 stamp@5,5 chiller@14,9"  # whole run, real wallet
-npm run diversity                          # how many builds work, and is any tower mandatory
+npm run diversity -- --slots 18 --sample 720  # how many builds work, and is any tower mandatory
 ```
 
 `npm run sim` places towers free and refreshes lives each round, so it measures

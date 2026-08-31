@@ -9,7 +9,8 @@
     {
       "def": "forge",
       "col": 5,
-      "row": 1
+      "row": 1,
+      "upgrade": "kiln3"
     },
     {
       "def": "stamp",
@@ -32,12 +33,14 @@
     {
       "def": "forge",
       "col": 8,
-      "row": 13
+      "row": 13,
+      "upgrade": "bellows3"
     },
     {
       "def": "stamp",
       "col": 11,
-      "row": 9
+      "row": 9,
+      "upgrade": "die3"
     },
     {
       "def": "lens",
@@ -48,7 +51,8 @@
     {
       "def": "chiller",
       "col": 12,
-      "row": 13
+      "row": 13,
+      "upgrade": "super3"
     },
     {
       "def": "stamp",
@@ -59,52 +63,58 @@
     {
       "def": "chiller",
       "col": 14,
-      "row": 9
+      "row": 9,
+      "upgrade": "depo3"
     },
     {
       "def": "vat",
       "col": 14,
       "row": 7,
-      "upgrade": "cat2"
+      "upgrade": "cat3"
     },
     {
       "def": "lens",
       "col": 18,
       "row": 3,
-      "upgrade": "prism2"
+      "upgrade": "prism3"
     },
     {
       "def": "chiller",
       "col": 18,
-      "row": 7
+      "row": 7,
+      "upgrade": "super3"
     },
     {
       "def": "stamp",
       "col": 19,
-      "row": 9
+      "row": 9,
+      "upgrade": "damp3"
     },
     {
       "def": "vat",
       "col": 22,
-      "row": 11
+      "row": 11,
+      "upgrade": "recl3"
     },
     {
       "def": "forge",
       "col": 23,
-      "row": 9
+      "row": 9,
+      "upgrade": "kiln3"
     },
     {
       "def": "stamp",
       "col": 23,
-      "row": 11
+      "row": 11,
+      "upgrade": "die3"
     }
   ],
-  "runs": 40,
+  "runs": 50,
   "seed": 1,
   "results": [
     {
       "wave": 1,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
@@ -122,7 +132,7 @@
     },
     {
       "wave": 2,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
@@ -140,7 +150,7 @@
     },
     {
       "wave": 3,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
@@ -158,12 +168,12 @@
     },
     {
       "wave": 4,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
       "avgGold": 82,
-      "avgTicks": 1086,
+      "avgTicks": 917,
       "avgBreaks": 28,
       "avgWasted": 0,
       "leaksByState": {
@@ -176,12 +186,12 @@
     },
     {
       "wave": 5,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
       "avgGold": 150,
-      "avgTicks": 1136,
+      "avgTicks": 921,
       "avgBreaks": 74,
       "avgWasted": 0,
       "leaksByState": {
@@ -194,12 +204,12 @@
     },
     {
       "wave": 6,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
       "avgGold": 68,
-      "avgTicks": 842,
+      "avgTicks": 820,
       "avgBreaks": 12,
       "avgWasted": 0,
       "leaksByState": {
@@ -212,12 +222,12 @@
     },
     {
       "wave": 7,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
       "avgGold": 155,
-      "avgTicks": 1391.28,
+      "avgTicks": 964.52,
       "avgBreaks": 50,
       "avgWasted": 0,
       "leaksByState": {
@@ -230,12 +240,12 @@
     },
     {
       "wave": 8,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
       "avgGold": 220,
-      "avgTicks": 1458,
+      "avgTicks": 1264,
       "avgBreaks": 98,
       "avgWasted": 0,
       "leaksByState": {
@@ -248,12 +258,12 @@
     },
     {
       "wave": 9,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
       "avgGold": 359,
-      "avgTicks": 1688.13,
+      "avgTicks": 1620.08,
       "avgBreaks": 135,
       "avgWasted": 0,
       "leaksByState": {
@@ -266,12 +276,12 @@
     },
     {
       "wave": 10,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
-      "avgGold": 390,
-      "avgTicks": 1893.78,
+      "avgGold": 486,
+      "avgTicks": 1718.32,
       "avgBreaks": 164,
       "avgWasted": 0,
       "leaksByState": {
@@ -284,12 +294,12 @@
     },
     {
       "wave": 11,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
-      "avgGold": 118,
-      "avgTicks": 926,
+      "avgGold": 189,
+      "avgTicks": 744,
       "avgBreaks": 51,
       "avgWasted": 0,
       "leaksByState": {
@@ -302,12 +312,12 @@
     },
     {
       "wave": 12,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
-      "avgGold": 178,
-      "avgTicks": 1209,
+      "avgGold": 257,
+      "avgTicks": 783,
       "avgBreaks": 60,
       "avgWasted": 0,
       "leaksByState": {
@@ -320,12 +330,12 @@
     },
     {
       "wave": 13,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
-      "avgGold": 278,
-      "avgTicks": 1361.25,
+      "avgGold": 464,
+      "avgTicks": 1015.04,
       "avgBreaks": 75,
       "avgWasted": 0,
       "leaksByState": {
@@ -338,12 +348,12 @@
     },
     {
       "wave": 14,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
-      "avgGold": 172,
-      "avgTicks": 1149,
+      "avgGold": 288,
+      "avgTicks": 917,
       "avgBreaks": 39,
       "avgWasted": 0,
       "leaksByState": {
@@ -356,12 +366,12 @@
     },
     {
       "wave": 15,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
-      "avgGold": 352,
-      "avgTicks": 1685.58,
+      "avgGold": 702,
+      "avgTicks": 1582.54,
       "avgBreaks": 130,
       "avgWasted": 0,
       "leaksByState": {
@@ -374,12 +384,12 @@
     },
     {
       "wave": 16,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
-      "avgGold": 213,
-      "avgTicks": 1452.25,
+      "avgGold": 532,
+      "avgTicks": 1487.86,
       "avgBreaks": 54,
       "avgWasted": 0,
       "leaksByState": {
@@ -392,12 +402,12 @@
     },
     {
       "wave": 17,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
-      "avgGold": 229,
-      "avgTicks": 1319.5,
+      "avgGold": 543,
+      "avgTicks": 1315.14,
       "avgBreaks": 34,
       "avgWasted": 0,
       "leaksByState": {
@@ -410,12 +420,12 @@
     },
     {
       "wave": 18,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
-      "avgGold": 338,
-      "avgTicks": 1548,
+      "avgGold": 902,
+      "avgTicks": 1494.18,
       "avgBreaks": 98,
       "avgWasted": 0,
       "leaksByState": {
@@ -428,12 +438,12 @@
     },
     {
       "wave": 19,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
       "avgLivesLost": 0,
       "avgLeaks": 0,
-      "avgGold": 499,
-      "avgTicks": 1974.7,
+      "avgGold": 1358,
+      "avgTicks": 1936.58,
       "avgBreaks": 159,
       "avgWasted": 0,
       "leaksByState": {
@@ -446,18 +456,18 @@
     },
     {
       "wave": 20,
-      "runs": 40,
+      "runs": 50,
       "winRate": 100,
-      "avgLivesLost": 10.63,
-      "avgLeaks": 6.38,
-      "avgGold": 439.88,
-      "avgTicks": 2436.15,
-      "avgBreaks": 117.38,
+      "avgLivesLost": 0,
+      "avgLeaks": 0,
+      "avgGold": 1310,
+      "avgTicks": 2113.62,
+      "avgBreaks": 128,
       "avgWasted": 0,
       "leaksByState": {
         "ORE": 0,
-        "SLAG": 2.13,
-        "MOLTEN": 4.25,
+        "SLAG": 0,
+        "MOLTEN": 0,
         "CRYSTAL": 0,
         "VAPOR": 0
       }

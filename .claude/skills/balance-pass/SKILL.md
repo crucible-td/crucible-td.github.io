@@ -28,15 +28,24 @@ wrong, because there was exactly one build worth making. Before and after any
 change, run:
 
 ```bash
-npm run diversity
+npm run diversity -- --slots 18 --sample 720
 ```
 
 It runs a large sample of compositions through the full campaign and reports
 how far each gets, how many win, and whether any tower appears in *every*
 winning build. A mandatory tower means the game has a right answer again,
-whatever the difficulty numbers say. Current state: **77 of 320 sampled
-18-tower builds clear all twenty rounds, in 77 distinct compositions, with no
-tower mandatory.**
+whatever the difficulty numbers say. Current state, at the authoritative
+sample (`--slots 18 --sample 720`, matching `tests/diversity.test.ts`):
+**61 of 720 sampled 18-tower builds clear all twenty rounds, in 61 distinct
+compositions, with no tower mandatory.**
+
+Note that the bare `npm run diversity` (no flags) defaults to `--slots 8`,
+which exhaustively runs all 495 eight-tower compositions rather than sampling
+the authoritative 18-slot configuration -- it is a different, smaller
+measurement, not a faster version of the same one. It has produced a false
+"mandatory tower" verdict on this smaller slot count alone; pass `--slots 18
+--sample 720` for a result comparable to the numbers in this file and in
+`BALANCE.md`.
 
 **Sample size is part of the measurement, not a detail.** At 120 builds this
 reported the Vat as mandatory; a hand-built Vat-free board then cleared all
@@ -88,22 +97,33 @@ is the fastest way to spot a build with no answer to a layer.
 | 7 | 100 | 0.00 | 155 | 50 | -- |
 | 8 | 100 | 0.00 | 220 | 98 | -- |
 | 9 | 100 | 0.00 | 359 | 135 | -- |
-| 10 | 100 | 0.00 | 390 | 164 | -- |
-| 11 | 100 | 0.00 | 118 | 51 | -- |
-| 12 | 100 | 0.00 | 178 | 60 | -- |
-| 13 | 100 | 0.00 | 278 | 75 | -- |
-| 14 | 100 | 0.00 | 172 | 39 | -- |
-| 15 | 100 | 0.00 | 352 | 130 | -- |
-| 16 | 100 | 0.00 | 213 | 54 | -- |
-| 17 | 100 | 0.00 | 229 | 34 | -- |
-| 18 | 100 | 0.00 | 338 | 98 | -- |
-| 19 | 100 | 0.00 | 499 | 159 | -- |
-| 20 | 100 | 6.38 | 440 | 117 | SLAG 2.13, MOLTEN 4.25 |
+| 10 | 100 | 0.00 | 486 | 164 | -- |
+| 11 | 100 | 0.00 | 189 | 51 | -- |
+| 12 | 100 | 0.00 | 257 | 60 | -- |
+| 13 | 100 | 0.00 | 464 | 75 | -- |
+| 14 | 100 | 0.00 | 288 | 39 | -- |
+| 15 | 100 | 0.00 | 702 | 130 | -- |
+| 16 | 100 | 0.00 | 532 | 54 | -- |
+| 17 | 100 | 0.00 | 543 | 34 | -- |
+| 18 | 100 | 0.00 | 902 | 98 | -- |
+| 19 | 100 | 0.00 | 1358 | 159 | -- |
+| 20 | 100 | 0.00 | 1310 | 128 | -- |
 
 Twenty authored rounds, and freeplay past them. This board is fully built and
-fully upgraded, so it should coast until the very end -- round 20 is the only
-one that bites. Tension for a *player* lives in the campaign harness below,
-where towers have to be paid for; this table is about round pressure alone.
+fully upgraded, so it coasts clean through every round with no leaks anywhere
+-- there is no round pressure left to measure on a board this complete.
+Tension for a *player* lives entirely in the campaign harness below, where
+towers have to be paid for; this table only ever showed what a maximally
+built board can do, and past round 10 that has always been "everything."
+
+This table was regenerated after finding that `reference/loadout.txt` had
+drifted out of sync with `reference/plan.txt` -- twelve of eighteen towers
+were missing their upgrade entirely, which is what previously made round 20
+leak here. That was a stale fixture, not a balance regression: the properly
+upgraded board (this one) and the campaign harness (which buys the same
+upgrades as it goes) both clear cleanly. If this table ever shows a leak
+again, check `reference/loadout.txt` against `reference/plan.txt` first,
+before assuming `src/sim/` broke something.
 
 ## 3. Measure affordability
 
@@ -111,11 +131,11 @@ where towers have to be paid for; this table is about round pressure alone.
 npm run campaign -- --plan "$(cat .claude/skills/balance-pass/reference/plan.txt)" --runs 20
 ```
 
-All ten rounds on one world, gold and lives carrying over, buying only when the
-wallet covers it. The reference plan wins on every seed with about **9 of 20 lives left**, all
-the damage in rounds 16-20, and it climbs 22 upgrade tiers on the way. Add
-`--rounds N` to push a build past the authored campaign into freeplay; the
-reference build reaches about round 22 before it is overwhelmed.
+All twenty rounds on one world, gold and lives carrying over, buying only when
+the wallet covers it. The reference plan wins on every seed with about **14 of
+20 lives left**, all the damage in rounds 16-18, and it climbs 46 upgrade
+tiers on the way. Add `--rounds N` to push a build past the authored campaign
+into freeplay.
 
 This is the harness that catches economic causes, which look nothing like
 tactical ones. The Forge was mandatory for a while not because Heat was too
