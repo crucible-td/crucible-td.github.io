@@ -135,7 +135,16 @@ All twenty rounds on one world, gold and lives carrying over, buying only when
 the wallet covers it. The reference plan wins on every seed with about **14 of
 20 lives left**, all the damage in rounds 16-18, and it climbs 46 upgrade
 tiers on the way. Add `--rounds N` to push a build past the authored campaign
-into freeplay.
+into freeplay -- the reference plan clears every seed through round 24, then
+**wipes on round 25, unanimously across all 20 seeds** (`wavesCleared: 24,
+livesLeft: 0` every time). `src/sim/freeplay.ts` drops a single deep Crystal
+slab every fifth freeplay round, and round 25 is the first one; its shattered
+Molten floods the lane faster than a fully-upgraded Chiller/Vat pair can
+process it (118 Molten leaks and 45 Slag summed over 20 runs, zero Crystal
+leaks -- the slab breaks correctly, the flood behind it is what kills the
+run). All the gold is already spent by then, so this is tactical, not
+economic. Whether that is a deliberate wall or worth softening hasn't been
+decided; this is a measurement, not a verdict.
 
 This is the harness that catches economic causes, which look nothing like
 tactical ones. The Forge was mandatory for a while not because Heat was too
