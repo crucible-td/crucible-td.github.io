@@ -243,6 +243,45 @@ export function layersRemaining(state: State): number {
 }
 
 /**
+ * The order the layers are listed in, deepest stack first.
+ *
+ * The reference panel is trying to teach two things at once -- what beats a
+ * layer, and what the layer becomes -- so reading it top to bottom should walk
+ * the cascade rather than an arbitrary order. Crystal is three deep and heads
+ * the list; the two single layers that are the end of a chain sit at the
+ * bottom, which is where a player looks last.
+ *
+ * Ties fall back to `STATE_IDS` order, so the result is stable and a sixth
+ * layer cannot make the panel reshuffle itself unpredictably.
+ */
+export function matterRows(): State[] {
+  return [...STATE_IDS].sort((a, b) => {
+    const depth = layersRemaining(b) - layersRemaining(a);
+    return depth !== 0 ? depth : STATE_IDS.indexOf(a) - STATE_IDS.indexOf(b);
+  });
+}
+
+/**
+ * A resistance cell as a number of filled bars, 0 to 4.
+ *
+ * The bars are the half of the panel that works without English, so they carry
+ * the coarse reading -- nothing, poor, fair, good, specialist -- and the
+ * numeral beside them carries the exact one. Zero is reserved: it means
+ * immunity and is drawn as a wall rather than as an empty meter, because "does
+ * nothing" is a different kind of fact from "does very little".
+ *
+ * Capped at four, since an upgraded cell can reach 3.5 and a fifth bar would
+ * mean the panel disagreed with itself about what full looks like.
+ */
+export function barsFor(mult: number): number {
+  if (mult <= 0) return 0;
+  if (mult <= 0.75) return 1;
+  if (mult <= 1.25) return 2;
+  if (mult < 2) return 3;
+  return 4;
+}
+
+/**
  * A resistance cell in words.
  *
  * Zero gets a word rather than a number, because an immunity is a wall and the

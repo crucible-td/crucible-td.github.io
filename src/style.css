@@ -66,7 +66,7 @@ canvas {
   min-height: 1.5em;
 }
 
-#build h2 {
+#build h2, #matter h2 {
   margin: 0 0 10px;
   font-size: 11px;
   letter-spacing: 0.18em;
@@ -138,7 +138,6 @@ canvas {
   align-items: center;
   gap: 4px;
 }
-#tableRef [data-el].active { color: var(--ink); background: rgba(255, 255, 255, 0.07); }
 .tower .blurb { display: block; color: var(--dim); font-size: 12px; margin-top: 3px; }
 /* Concrete before/after numbers, set apart from the flavour line above them. */
 .tower .change { color: var(--ink); font-variant-numeric: tabular-nums; opacity: 0.85; }
@@ -192,11 +191,54 @@ canvas {
 #speedControls button.active { background: #2b2420; border-color: var(--hot); color: var(--hot); }
 #speed { font-variant-numeric: tabular-nums; }
 
-#tableRef { margin-top: 18px; font-size: 12px; color: var(--dim); }
-#tableRef summary { cursor: pointer; }
-#tableRef table { border-collapse: collapse; margin-top: 8px; width: 100%; }
-#tableRef th, #tableRef td { border: 1px solid var(--edge); padding: 3px 4px; text-align: left; font-weight: 400; }
-#tableRef th { color: var(--ink); }
+/* --- The Matter panel ------------------------------------------------------
+ *
+ * The resistance table and the layer chain, in one always-open block. It used
+ * to be a collapsed <details> at the bottom of this sidebar, which is an odd
+ * place to file the thing the whole game is made of.
+ *
+ * Two readings, layered: the bars answer "how good is this" at a glance and in
+ * no language at all, and the numeral underneath answers it exactly. An
+ * immunity is a wall rather than an empty meter, because "does nothing" is a
+ * different kind of fact from "does very little".
+ */
+#matter { margin-top: 18px; }
+#matter h2 { margin-bottom: 8px; }
+#matter table { border-collapse: collapse; width: 100%; }
+#matter th, #matter td { padding: 4px 2px; text-align: left; font-weight: 400; vertical-align: middle; }
+#matter thead th, #matter tr:first-child th { text-align: center; }
+
+/* The layer's own cell: silhouette, name, and what it breaks into. */
+#matter tbody th, #matter tr:not(:first-child) th {
+  text-align: left;
+  padding-right: 6px;
+  border-top: 1px solid var(--edge);
+}
+#matter tr:not(:first-child) th svg { vertical-align: middle; margin-right: 4px; }
+#matter .lname {
+  font-weight: 600; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+}
+#matter .chain {
+  display: flex; align-items: center; gap: 3px;
+  color: var(--dim); font-size: 10px; margin-top: 1px; white-space: nowrap;
+}
+#matter .chain svg { margin: 0; }
+#matter .chain.last { opacity: 0.6; }
+
+#matter td { border-top: 1px solid var(--edge); text-align: center; width: 34px; }
+#matter .bars { display: flex; gap: 1px; justify-content: center; }
+#matter .bars i { width: 3px; height: 10px; background: var(--edge); border-radius: 1px; }
+#matter .bars i.on { background: var(--el, var(--dim)); }
+#matter .mult {
+  display: block; font-size: 9px; color: var(--dim); margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+#matter .wall { color: var(--bad); opacity: 0.7; font-size: 12px; }
+
+/* Lit for whichever tower is armed or inspected, so "what does this one do"
+   is one glance away -- the same behaviour the folded table had. */
+#matter [data-el].active { background: rgba(255, 255, 255, 0.07); }
+#matter [data-el].active .mult { color: var(--ink); }
 
 #overlay {
   position: fixed;

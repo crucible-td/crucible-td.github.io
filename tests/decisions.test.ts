@@ -9,8 +9,10 @@ import {
   describeRiderGains,
   describeStats,
   elementLabel,
+  barsFor,
   endOverlay,
   layersRemaining,
+  matterRows,
   towerForKey,
   panelKey,
   rate,
@@ -170,6 +172,39 @@ describe('describing the table to the player', () => {
       const expected = under === null ? 1 : layersRemaining(under) + 1;
       expect(layersRemaining(state), state).toBe(expected);
     }
+  });
+
+  it('lists the layers deepest first, so the panel reads as the cascade', () => {
+    // Crystal is three creatures deep and heads the list; the two layers that
+    // are the end of a chain sink to the bottom, which is where a player looks
+    // last. Ties keep STATE_IDS order so a sixth layer cannot make the panel
+    // reshuffle itself unpredictably.
+    expect(matterRows()).toEqual(['CRYSTAL', 'ORE', 'MOLTEN', 'SLAG', 'VAPOR']);
+  });
+
+  it('never puts a shallower layer above a deeper one', () => {
+    const depths = matterRows().map(layersRemaining);
+    expect([...depths].sort((a, b) => b - a)).toEqual(depths);
+  });
+
+  it('draws a cell as bars, and reserves none of them for immunity', () => {
+    // Zero is a wall, not an empty meter: "does nothing" is a different kind
+    // of fact from "does very little", and the panel draws them differently.
+    expect(barsFor(0)).toBe(0);
+    expect(barsFor(0.5)).toBe(1);
+    expect(barsFor(0.75)).toBe(1);
+    expect(barsFor(1)).toBe(2);
+    expect(barsFor(1.25)).toBe(2);
+    expect(barsFor(1.5)).toBe(3);
+    expect(barsFor(1.6)).toBe(3);
+    expect(barsFor(2)).toBe(4);
+  });
+
+  it('caps an upgraded cell at four bars', () => {
+    // die3 takes Crystal + Impact to 3.5. A fifth bar would mean the panel
+    // disagreed with itself about what a full meter is.
+    expect(barsFor(3.5)).toBe(4);
+    expect(barsFor(99)).toBe(4);
   });
 
   it('prints multipliers plainly', () => {
