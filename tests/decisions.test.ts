@@ -10,9 +10,12 @@ import {
   describeStats,
   elementLabel,
   barsFor,
+  chargeRadius,
+  chargeReadout,
   endOverlay,
   layersRemaining,
   matterRows,
+  pickCharge,
   towerForKey,
   panelKey,
   rate,
@@ -205,6 +208,66 @@ describe('describing the table to the player', () => {
     // disagreed with itself about what a full meter is.
     expect(barsFor(3.5)).toBe(4);
     expect(barsFor(99)).toBe(4);
+  });
+
+  it('picks the charge nearest the pointer, not merely one that contains it', () => {
+    // Overlap is the normal case, not an edge case: a Crystal breaks into two
+    // Lava at the same point on the lane, so something has to break the tie
+    // and it has to break it the same way every frame.
+    const targets = [
+      { id: 1, x: 100, y: 100, r: 20 },
+      { id: 2, x: 108, y: 100, r: 20 },
+    ];
+    expect(pickCharge(targets, { x: 107, y: 100 })).toBe(2);
+    expect(pickCharge(targets, { x: 99, y: 100 })).toBe(1);
+  });
+
+  it('picks nothing when the pointer is off every charge', () => {
+    const targets = [{ id: 1, x: 100, y: 100, r: 10 }];
+    expect(pickCharge(targets, { x: 100, y: 140 })).toBeNull();
+    expect(pickCharge([], { x: 100, y: 100 })).toBeNull();
+  });
+
+  it('forgives a few pixels, because the small layers are tiny and moving', () => {
+    // An Ash is about ten pixels across. Demanding a hit inside that while it
+    // walks is asking more of a player than the information is worth.
+    const targets = [{ id: 1, x: 100, y: 100, r: 6 }];
+    expect(pickCharge(targets, { x: 109, y: 100 })).toBe(1);
+    expect(pickCharge(targets, { x: 116, y: 100 })).toBeNull();
+  });
+
+  it('sizes a charge the same way the board draws it', () => {
+    // The bug this prevents is a charge you can see but cannot point at, and
+    // it would grow with toughness -- fine in testing, broken on the bosses.
+    expect(chargeRadius('CRYSTAL', 1)).toBeCloseTo(12 * 1.35);
+    expect(chargeRadius('CRYSTAL', 4)).toBeCloseTo(12 * 1.35 * 2);
+    // Capped, so a x14 slab is unmistakable without swallowing the lane.
+    expect(chargeRadius('CRYSTAL', 100)).toBeCloseTo(12 * 1.35 * 2.1);
+  });
+
+  it('tells a player what beats a layer, strongest answer first', () => {
+    const crystal = chargeReadout('CRYSTAL');
+    expect(crystal.label).toBe('Crystal');
+    expect(crystal.counters.map((c) => c.label)).toEqual(['Impact', 'Heat']);
+    expect(crystal.counters[0]!.mult).toBe(2);
+    expect(crystal.immunities.map((i) => i.label)).toEqual(['Cold', 'Acid']);
+    expect(crystal.breaksInto).toEqual({ state: 'MOLTEN', label: 'Lava', count: 2 });
+  });
+
+  it('offers every layer at least two answers, because the table promises it', () => {
+    // Not a property of the readout so much as of the resistance table, but
+    // this is where a player would notice it breaking: a layer with one
+    // counter is a mandatory tower, which is the failure this game is most
+    // afraid of.
+    for (const state of STATE_IDS) {
+      expect(chargeReadout(state).counters.length, state).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('says a terminal layer is the last one rather than inventing a child', () => {
+    expect(chargeReadout('SLAG').breaksInto).toBeNull();
+    expect(chargeReadout('VAPOR').breaksInto).toBeNull();
+    expect(chargeReadout('VAPOR').floats).toBe(true);
   });
 
   it('prints multipliers plainly', () => {

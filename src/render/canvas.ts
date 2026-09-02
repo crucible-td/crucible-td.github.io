@@ -3,12 +3,12 @@
  * which is what lets the same World run identically with no canvas at all.
  */
 import { BOARD, PATH_LENGTH, PATH_POINTS, cellCentre, isBuildableCell, pointAt } from '../sim/path.ts';
-import { ELEMENT_ART, ELEMENT_COLOR, MONSTER_ART, MONSTER_SCALE, TOWER_ART, paintArt } from './art.ts';
+import { ELEMENT_ART, ELEMENT_COLOR, MONSTER_ART, TOWER_ART, paintArt } from './art.ts';
 import { TOWERS } from '../sim/towers.ts';
-import { layersRemaining } from './decisions.ts';
+import { chargeRadius, chargeReadout, layersRemaining } from './decisions.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
-import type { Charge, SimEvent, Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import type { Charge, Element, SimEvent, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { towerAt } from '../sim/world.ts';
 import type { World } from '../sim/world.ts';
 
@@ -297,6 +297,7 @@ export class Renderer {
     selected: TowerId | null,
     inspected: Tower | null = null,
     previewUpgrade: UpgradeId | null = null,
+    hoveredCharge: Charge | null = null,
   ): void {
     const { ctx } = this;
     // One blit for the floor, the channel and everything baked into them.
@@ -337,6 +338,8 @@ export class Renderer {
     for (const c of world.charges) this.drawCharge(c);
     this.drawProjectiles(world);
     this.drawEffects();
+    // Last, so the tag is never drawn under a creature it is describing.
+    if (hoveredCharge) this.drawChargeTag(hoveredCharge);
   }
 
 
@@ -474,11 +477,10 @@ export class Renderer {
 
     // Size by toughness. A slab used to be drawn exactly like an ordinary
     // charge of the same layer, so the hardest thing in the game looked like
-    // the easiest. Sub-linear and capped: a x14 slab must be unmistakable
-    // without swallowing the lane.
-    const toughness = Math.min(Math.sqrt(c.scale), 2.1);
-    const size = s.radius * 2 * MONSTER_SCALE * toughness;
-    const r = size / 2;
+    // the easiest. The formula lives in `decisions.ts` because the picking
+    // that decides what the pointer is over has to agree with it exactly.
+    const r = chargeRadius(c.state, c.scale);
+    const size = r * 2;
 
     if (c.state === 'MOLTEN') {
       const glow = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, r * 1.8);
@@ -651,6 +653,99 @@ export class Renderer {
     }
     ctx.globalAlpha = 1;
     this.floaters = this.floaters.filter((f) => f.life > 0);
+  }
+
+
+  /**
+   * What the pointer is on, spelled out beside it.
+   *
+   * The complaint this answers is the plainest one in the whole pass: a charge
+   * walks past and there is no way to ask what it is or what to hit it with
+   * short of reading a table and matching a colour. Now you point at it.
+   *
+   * It says the three things the lane cannot: what beats this layer and by how
+   * much, what does nothing at all to it, and -- the one that decides whether
+   * breaking it is a good idea -- what climbs out when it does break. Hovering
+   * also lights the matching row in the Matter panel, so a player who does this
+   * a few times has learned to read the table without ever being asked to.
+   */
+  private drawChargeTag(c: Charge): void {
+    const { ctx } = this;
+    const p = pointAt(c.dist);
+    const r = chargeRadius(c.state, c.scale);
+    const info = chargeReadout(c.state);
+    const color = STATES[c.state].color;
+
+    const w = 168;
+    // Title line, the "beaten by" eyebrow, then one line per fact.
+    const rows = info.counters.length + (info.immunities.length > 0 ? 1 : 0) + 1;
+    const h = 42 + rows * 15;
+
+    // Flip to the other side rather than run off the board, and hug the
+    // vertical edges the same way.
+    let x = p.x + r + 12;
+    if (x + w > BOARD.width - 6) x = p.x - r - 12 - w;
+    const y = Math.max(6, Math.min(p.y - h / 2, BOARD.height - h - 6));
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(9, 7, 6, 0.94)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 3);
+    ctx.fill();
+    ctx.stroke();
+    // A stripe in the layer's colour, so the tag is visibly about the thing it
+    // is pointing at and not about the board in general.
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, 2);
+
+    ctx.textAlign = 'left';
+    ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillStyle = color;
+    ctx.fillText(info.label.toUpperCase(), x + 9, y + 17);
+
+    ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillStyle = '#9b8d80';
+    ctx.textAlign = 'right';
+    const lives = `${info.hp} hp \u00b7 ${info.leakCost} ${info.leakCost === 1 ? 'life' : 'lives'}`;
+    ctx.fillText(lives, x + w - 9, y + 17);
+    ctx.textAlign = 'left';
+
+    let ty = y + 46;
+    const line = (label: string, value: string, tone: string, glyph?: Element): void => {
+      if (glyph) paintArt(ctx, ELEMENT_ART[glyph], x + 15, ty - 3.5, 11, ELEMENT_COLOR[glyph]);
+      ctx.fillStyle = tone;
+      ctx.font = glyph ? '600 11px ui-sans-serif, system-ui, sans-serif' : '9px ui-sans-serif, system-ui, sans-serif';
+      ctx.fillText(label, x + (glyph ? 24 : 9), ty);
+      if (value) {
+        ctx.textAlign = 'right';
+        ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillText(value, x + w - 9, ty);
+        ctx.textAlign = 'left';
+      }
+      ty += 15;
+    };
+
+    ctx.fillStyle = '#6d6259';
+    ctx.font = '9px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillText('BEATEN BY', x + 9, y + 33);
+    for (const cn of info.counters) {
+      line(cn.label, `\u00d7${cn.mult}`, ELEMENT_COLOR[cn.element], cn.element);
+    }
+
+    if (info.immunities.length > 0) {
+      const names = info.immunities.map((i) => i.label).join(', ');
+      line(`Nothing at all: ${names}`, '', '#ff5a5a');
+    }
+
+    const b = info.breaksInto;
+    line(
+      b ? `Breaks into ${b.count > 1 ? `${b.count} \u00d7 ` : ''}${b.label}` : 'Last layer',
+      '',
+      b ? STATES[b.state].color : '#6d6259',
+    );
+    ctx.restore();
   }
 
   /** Canvas pixel coords from a mouse event, accounting for CSS scaling. */

@@ -238,6 +238,11 @@ canvas {
 /* Lit for whichever tower is armed or inspected, so "what does this one do"
    is one glance away -- the same behaviour the folded table had. */
 #matter [data-el].active { background: rgba(255, 255, 255, 0.07); }
+/* And lit by row for whatever the pointer is on out on the lane, which is how
+   a player ends up learning this table without deciding to read it. */
+#matter tr[data-state].active th,
+#matter tr[data-state].active td { background: rgba(255, 255, 255, 0.06); }
+#matter tr[data-state].active .mult { color: var(--ink); }
 #matter [data-el].active .mult { color: var(--ink); }
 
 #overlay {

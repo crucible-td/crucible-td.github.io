@@ -19,7 +19,7 @@ import { RESISTANCE } from '../sim/resistance.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { ELEMENT_IDS, STATES } from '../sim/types.ts';
-import type { Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import type { State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import type { Speed } from './clock.ts';
 import { availableUpgrades, effective } from '../sim/world.ts';
 import type { World } from '../sim/world.ts';
@@ -167,7 +167,21 @@ export class Ui {
    */
   private shownTower: string | null = null;
 
-  sync(world: World, selected: TowerId | null, inspected: Tower | null, speed: Speed): void {
+  /**
+   * `hoveredState` is the layer the pointer is over on the lane, if any.
+   *
+   * Lighting its row is what turns the Matter panel from a reference the
+   * player has to decide to read into one they learn by accident: point at a
+   * Crystal because you want to know what it is, and the panel answers in the
+   * same place it will be next time you look.
+   */
+  sync(
+    world: World,
+    selected: TowerId | null,
+    inspected: Tower | null,
+    speed: Speed,
+    hoveredState: State | null = null,
+  ): void {
     this.syncInspect(world, inspected);
     el('gold').textContent = String(world.gold);
     el('lives').textContent = String(world.lives);
@@ -189,6 +203,9 @@ export class Ui {
         : null;
     for (const cell of Array.from(el('matterBody').querySelectorAll<HTMLElement>('[data-el]'))) {
       cell.classList.toggle('active', cell.dataset.el === active);
+    }
+    for (const row of Array.from(el('matterBody').querySelectorAll<HTMLElement>('[data-state]'))) {
+      row.classList.toggle('active', row.dataset.state === hoveredState);
     }
 
     const pause = el<HTMLButtonElement>('pause');

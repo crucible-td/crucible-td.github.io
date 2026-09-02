@@ -1,8 +1,9 @@
+import { MONSTER_SCALE } from './art.ts';
 import { RESISTANCE } from '../sim/resistance.ts';
 import { RIDERS } from '../sim/riders.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
-import { STATES, STATE_IDS } from '../sim/types.ts';
+import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
 import type { Element, State, Status, Stats, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { WAVES } from '../sim/waves.ts';
 
@@ -240,6 +241,103 @@ export function layersRemaining(state: State): number {
     at = STATES[at].breaksInto;
   }
   return depth;
+}
+
+/**
+ * How large a charge is drawn, in pixels of radius.
+ *
+ * Lives here rather than inside the drawing code because two callers need to
+ * agree about it: the renderer, which paints the creature, and the picking
+ * that decides which creature the pointer is over. Two copies of this would
+ * mean a charge you could see but not point at, and the discrepancy would grow
+ * with toughness, so it would look fine in testing and break on the bosses.
+ */
+export function chargeRadius(state: State, scale: number): number {
+  // Sub-linear and capped, so a x14 slab is unmistakable without swallowing
+  // the lane.
+  const toughness = Math.min(Math.sqrt(scale), 2.1);
+  return (STATES[state].radius * MONSTER_SCALE * toughness);
+}
+
+export interface PickTarget {
+  id: number;
+  x: number;
+  y: number;
+  r: number;
+}
+
+/**
+ * Which charge the pointer is over, or null.
+ *
+ * Takes resolved positions rather than a `World`, which keeps it a plain
+ * geometry function with nothing to stub in a test. Nearest-centre wins, so
+ * the answer is stable where two charges overlap -- and they overlap
+ * constantly, since a Crystal breaks into two Lava at the same point on the
+ * lane.
+ *
+ * The four pixels of slop are for the small layers: an Ash is ten pixels
+ * across and asking a player to land inside that while it moves is asking too
+ * much.
+ */
+export function pickCharge(targets: PickTarget[], point: { x: number; y: number }): number | null {
+  let best: number | null = null;
+  let bestDist = Infinity;
+  for (const t of targets) {
+    const d = Math.hypot(t.x - point.x, t.y - point.y);
+    if (d > t.r + 4 || d >= bestDist) continue;
+    best = t.id;
+    bestDist = d;
+  }
+  return best;
+}
+
+export interface ChargeReadout {
+  label: string;
+  hp: number;
+  leakCost: number;
+  floats: boolean;
+  /** Everything above x1, strongest first. The table guarantees at least two. */
+  counters: { element: Element; label: string; mult: number }[];
+  immunities: { element: Element; label: string }[];
+  breaksInto: { state: State; label: string; count: number } | null;
+}
+
+/**
+ * Everything worth knowing about a layer, for the tag shown on hover.
+ *
+ * One source for two surfaces: the tag drawn beside the charge on the lane and
+ * the row lit up in the Matter panel are the same facts, and they must not be
+ * able to disagree about them.
+ *
+ * Counters come out strongest first because that is the order the player wants
+ * to read them in -- "what is my best answer, and what else will do". Ties fall
+ * back to `ELEMENT_IDS` order so the tag never reorders itself between frames.
+ */
+export function chargeReadout(state: State): ChargeReadout {
+  const def = STATES[state];
+  const row = RESISTANCE[state];
+
+  const counters = ELEMENT_IDS.filter((e) => row[e] > 1)
+    .sort((a, b) => row[b] - row[a] || ELEMENT_IDS.indexOf(a) - ELEMENT_IDS.indexOf(b))
+    .map((e) => ({ element: e, label: elementLabel(e), mult: row[e] }));
+
+  const immunities = ELEMENT_IDS.filter((e) => row[e] <= 0).map((e) => ({
+    element: e,
+    label: elementLabel(e),
+  }));
+
+  const child = def.breaksInto;
+  return {
+    label: def.label,
+    hp: def.hp,
+    leakCost: def.leakCost,
+    floats: def.floats,
+    counters,
+    immunities,
+    breaksInto: child
+      ? { state: child, label: STATES[child].label, count: def.childCount }
+      : null,
+  };
 }
 
 /**
