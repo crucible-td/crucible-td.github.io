@@ -2,7 +2,7 @@ import { RESISTANCE } from '../sim/resistance.ts';
 import { RIDERS } from '../sim/riders.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
-import { STATES } from '../sim/types.ts';
+import { STATES, STATE_IDS } from '../sim/types.ts';
 import type { Element, State, Status, Stats, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { WAVES } from '../sim/waves.ts';
 
@@ -214,6 +214,32 @@ const ELEMENT_LABELS: Record<Element, string> = {
 
 export function elementLabel(e: Element): string {
   return ELEMENT_LABELS[e];
+}
+
+/**
+ * How many layers this charge still has, counting the one it is wearing.
+ *
+ * Ore 2, Slag 1, Molten 2, Crystal 3, Vapor 1. Layers are the mechanic the
+ * board could never show: a Crystal and a Vapor of the same size look equally
+ * finished, and only one of them is about to become four more creatures. The
+ * health bar says how close this layer is to breaking and says nothing at all
+ * about what is under it.
+ *
+ * Walked from `breaksInto` rather than written out as five numbers, because a
+ * literal would be a second copy of the chain and would quietly disagree with
+ * it the first time the chain moved. The walk terminates by construction --
+ * `STATES` only ever runs inward and nothing may put a layer back on -- but it
+ * is guarded anyway, since a cycle here would hang the render loop rather than
+ * fail a test.
+ */
+export function layersRemaining(state: State): number {
+  let depth = 0;
+  let at: State | null = state;
+  while (at !== null && depth <= STATE_IDS.length) {
+    depth++;
+    at = STATES[at].breaksInto;
+  }
+  return depth;
 }
 
 /**

@@ -5,6 +5,7 @@
 import { BOARD, PATH_POINTS, cellCentre, isBuildableCell, pointAt } from '../sim/path.ts';
 import { ELEMENT_ART, ELEMENT_COLOR, MONSTER_ART, MONSTER_SCALE, TOWER_ART, paintArt } from './art.ts';
 import { TOWERS } from '../sim/towers.ts';
+import { layersRemaining } from './decisions.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
 import type { Charge, SimEvent, Tower, TowerId, UpgradeId } from '../sim/types.ts';
@@ -334,7 +335,51 @@ export class Renderer {
       ctx.stroke();
     }
 
+    this.drawLayerPips(c, p.x, p.y, r, s.color);
     this.drawRiders(c, p.x, p.y, r);
+  }
+
+  /**
+   * How many layers are still to come, as one diamond each.
+   *
+   * The single mechanic the board could never show. A Crystal and a Gas of the
+   * same size look equally finished, and only one of them is about to become
+   * four more creatures; the health bar reports this layer's progress and says
+   * nothing whatever about the depth behind it. So the pips are permanent
+   * rather than shown on hover -- everything else about a charge can be asked
+   * for, and this had no tell at all.
+   *
+   * Drawn below the charge, because the health bar owns the space above it.
+   * They count *down* as the stack is broken open, so a Crystal worked through
+   * to its last Ash is visibly nearly finished.
+   */
+  private drawLayerPips(c: Charge, x: number, y: number, r: number, color: string): void {
+    const { ctx } = this;
+    const n = layersRemaining(c.state);
+    // One layer left is the common case and needs no pip: an Ash showing a
+    // single mark would be noise on most of the charges on the lane.
+    if (n < 2) return;
+
+    // Sized for a canvas that is usually drawn smaller than its 960px: at 4.8px
+    // wide these vanished on a laptop, and three of them still fit inside a
+    // 40px lane at this size.
+    const gap = 8;
+    const startX = x - ((n - 1) * gap) / 2;
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.strokeStyle = 'rgba(20, 17, 15, 0.85)';
+    ctx.lineWidth = 0.8;
+    for (let i = 0; i < n; i++) {
+      ctx.beginPath();
+      ctx.moveTo(startX + i * gap, y + r + 2.6);
+      ctx.lineTo(startX + i * gap + 3.2, y + r + 5.8);
+      ctx.lineTo(startX + i * gap, y + r + 9);
+      ctx.lineTo(startX + i * gap - 3.2, y + r + 5.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   /**
@@ -381,7 +426,7 @@ export class Renderer {
       // health bar above it.
       ctx.fillStyle = 'rgba(154, 230, 110, 0.75)';
       ctx.beginPath();
-      ctx.ellipse(x, y + r - 1, r * 0.5, r * 0.28, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y + r - 3, r * 0.5, r * 0.28, 0, 0, Math.PI * 2);
       ctx.fill();
     }
   }

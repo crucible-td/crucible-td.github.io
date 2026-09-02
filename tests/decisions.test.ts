@@ -10,6 +10,7 @@ import {
   describeStats,
   elementLabel,
   endOverlay,
+  layersRemaining,
   towerForKey,
   panelKey,
   rate,
@@ -18,7 +19,7 @@ import {
 } from '../src/render/decisions.ts';
 import { TOWERS, TOWER_IDS } from '../src/sim/towers.ts';
 import { UPGRADES } from '../src/sim/upgrades.ts';
-import { ELEMENT_IDS } from '../src/sim/types.ts';
+import { ELEMENT_IDS, STATES, STATE_IDS } from '../src/sim/types.ts';
 import type { Stats } from '../src/sim/types.ts';
 import { WAVES } from '../src/sim/waves.ts';
 
@@ -147,6 +148,28 @@ describe('when the upgrade panel rebuilds', () => {
 describe('describing the table to the player', () => {
   it('calls a wall a wall rather than printing a zero', () => {
     expect(describeMultiplier(0)).toBe('immune');
+  });
+
+  it('counts every layer still under a charge, so the board can show depth', () => {
+    // The number the board draws as pips. A Crystal is three creatures deep
+    // and a Gas is one, and nothing else on the lane distinguishes them --
+    // that is the whole reason this exists.
+    expect(layersRemaining('CRYSTAL')).toBe(3);
+    expect(layersRemaining('ORE')).toBe(2);
+    expect(layersRemaining('MOLTEN')).toBe(2);
+    expect(layersRemaining('SLAG')).toBe(1);
+    expect(layersRemaining('VAPOR')).toBe(1);
+  });
+
+  it('reads the depth off the chain rather than off a list of its own', () => {
+    // The failure this guards is a silent one: five numbers written out by
+    // hand would keep passing the test above while disagreeing with STATES
+    // the moment anyone changed what a layer breaks into.
+    for (const state of STATE_IDS) {
+      const under = STATES[state].breaksInto;
+      const expected = under === null ? 1 : layersRemaining(under) + 1;
+      expect(layersRemaining(state), state).toBe(expected);
+    }
   });
 
   it('prints multipliers plainly', () => {
