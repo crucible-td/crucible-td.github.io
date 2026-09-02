@@ -32,6 +32,19 @@ export interface StateDef {
   breaksInto: State | null;
   /** How many of the inner layer appear. More than one gives the cascade. */
   childCount: number;
+  /**
+   * The colour this layer is drawn in.
+   *
+   * Presentational, but it obeys a rule that comes from the resistance table:
+   * **a layer is never painted in the hue of an element it is immune to.**
+   * Colour is the fastest thing the eye reads, so a Molten drawn in Heat's own
+   * orange and a Crystal drawn in Cold's own cyan -- both of which shipped for
+   * a long time -- taught the exact opposite of the truth. Matching the
+   * element that *beats* the layer is fine, and even useful.
+   *
+   * `tests/palette.test.ts` enforces it against RESISTANCE, so reintroducing
+   * the bug fails rather than merely looking wrong.
+   */
   color: string;
   /** Drawn radius in px. */
   radius: number;
@@ -47,11 +60,11 @@ export const STATES: Record<State, StateDef> = {
     bounty: 2,
     breaksInto: 'SLAG',
     childCount: 1,
-    color: '#8c7b6b',
+    color: '#a3866a',
     radius: 11,
   },
   SLAG: {
-    label: 'Slag',
+    label: 'Ash',
     speed: 1.4,
     leakCost: 1,
     floats: false,
@@ -59,11 +72,11 @@ export const STATES: Record<State, StateDef> = {
     bounty: 1,
     breaksInto: null,
     childCount: 0,
-    color: '#5f5a55',
+    color: '#9aa7ad',
     radius: 10,
   },
   MOLTEN: {
-    label: 'Molten',
+    label: 'Lava',
     speed: 1.8,
     leakCost: 2,
     floats: false,
@@ -71,7 +84,7 @@ export const STATES: Record<State, StateDef> = {
     bounty: 3,
     breaksInto: 'SLAG',
     childCount: 1,
-    color: '#ff6b35',
+    color: '#e42a18',
     radius: 9,
   },
   CRYSTAL: {
@@ -86,11 +99,11 @@ export const STATES: Record<State, StateDef> = {
     // profiles out of a single charge.
     breaksInto: 'MOLTEN',
     childCount: 2,
-    color: '#7fd8ff',
+    color: '#b183ff',
     radius: 12,
   },
   VAPOR: {
-    label: 'Vapor',
+    label: 'Gas',
     speed: 2.4,
     leakCost: 3,
     floats: true,
@@ -98,7 +111,7 @@ export const STATES: Record<State, StateDef> = {
     bounty: 3,
     breaksInto: null,
     childCount: 0,
-    color: '#c9b6ff',
+    color: '#f5e07a',
     radius: 13,
   },
 };

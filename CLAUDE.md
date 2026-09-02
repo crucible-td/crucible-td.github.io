@@ -1,14 +1,22 @@
 # Crucible
 
 A tower defense built around **counters and layers**. Enemies ("charges") walk a
-fixed lane wearing a **state** (Ore, Slag, Molten, Crystal, Vapor). Towers throw
-an **element** (Heat, Cold, Kinetic, Solvent) for damage, and how much of it
+fixed lane wearing a **state** (Ore, Ash, Lava, Crystal, Gas). Towers throw
+an **element** (Heat, Cold, Impact, Acid) for damage, and how much of it
 lands depends on the state it hits. Each element also leaves something behind
--- Cold slows, Heat burns, Kinetic shoves, Solvent corrodes -- at a strength
-the same table cell decides, so a Chiller halves a Molten's pace and does
+-- Cold slows, Heat burns, Impact shoves, Acid eats -- at a strength
+the same table cell decides, so a Chiller halves a Lava's pace and does
 nothing at all to a Crystal. Break a layer and what is underneath keeps
-walking: a Crystal shell becomes two Molten cores, each of which becomes a Slag
+walking: a Crystal shell becomes two Lava cores, each of which becomes an Ash
 remnant. You are paid per layer broken.
+
+**Display names and ids are deliberately different.** The interface says
+Burner, Hammer, Acid Tank, Beam, Ash, Lava, Gas, Impact and Acid; the code
+says `forge`, `stamp`, `vat`, `lens`, `SLAG`, `MOLTEN`, `VAPOR`, `KINETIC`
+and `SOLVENT`. The ids key the resistance table and every reference loadout
+in BALANCE.md, so they did not move -- `stamp@5,5` is correct, not a typo.
+Element labels live in `elementLabel()` in `src/render/decisions.ts`; layer
+and tower labels are the `label` and `name` fields in `src/sim/`.
 
 The game is judged on one thing above being balanced: **more than one build has
 to work.** An earlier version was fair, winnable on every seed, and still

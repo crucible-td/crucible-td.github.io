@@ -1,8 +1,9 @@
+import { MONSTER_SCALE } from './art.ts';
 import { RESISTANCE } from '../sim/resistance.ts';
 import { RIDERS } from '../sim/riders.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
-import { STATES } from '../sim/types.ts';
+import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
 import type { Element, State, Status, Stats, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { WAVES } from '../sim/waves.ts';
 
@@ -192,9 +193,190 @@ export function endOverlay(opts: {
   return null;
 }
 
-/** "HEAT" -> "Heat". */
+/**
+ * What an element is called on screen.
+ *
+ * This used to be `e[0] + e.slice(1).toLowerCase()`, which worked only while
+ * every element happened to be named after its own id. Two are not: KINETIC
+ * reads as "Impact" and SOLVENT as "Acid", because the ids are physics and
+ * chemistry vocabulary and the interface has to be readable by someone who has
+ * never met either word.
+ *
+ * The ids themselves are deliberately untouched. They key the resistance
+ * table, so renaming them would edit the one file this project treats as the
+ * game itself, and every reference loadout in BALANCE.md with them.
+ */
+const ELEMENT_LABELS: Record<Element, string> = {
+  HEAT: 'Heat',
+  COLD: 'Cold',
+  KINETIC: 'Impact',
+  SOLVENT: 'Acid',
+};
+
 export function elementLabel(e: Element): string {
-  return e[0]! + e.slice(1).toLowerCase();
+  return ELEMENT_LABELS[e];
+}
+
+/**
+ * How many layers this charge still has, counting the one it is wearing.
+ *
+ * Ore 2, Slag 1, Molten 2, Crystal 3, Vapor 1. Layers are the mechanic the
+ * board could never show: a Crystal and a Vapor of the same size look equally
+ * finished, and only one of them is about to become four more creatures. The
+ * health bar says how close this layer is to breaking and says nothing at all
+ * about what is under it.
+ *
+ * Walked from `breaksInto` rather than written out as five numbers, because a
+ * literal would be a second copy of the chain and would quietly disagree with
+ * it the first time the chain moved. The walk terminates by construction --
+ * `STATES` only ever runs inward and nothing may put a layer back on -- but it
+ * is guarded anyway, since a cycle here would hang the render loop rather than
+ * fail a test.
+ */
+export function layersRemaining(state: State): number {
+  let depth = 0;
+  let at: State | null = state;
+  while (at !== null && depth <= STATE_IDS.length) {
+    depth++;
+    at = STATES[at].breaksInto;
+  }
+  return depth;
+}
+
+/**
+ * How large a charge is drawn, in pixels of radius.
+ *
+ * Lives here rather than inside the drawing code because two callers need to
+ * agree about it: the renderer, which paints the creature, and the picking
+ * that decides which creature the pointer is over. Two copies of this would
+ * mean a charge you could see but not point at, and the discrepancy would grow
+ * with toughness, so it would look fine in testing and break on the bosses.
+ */
+export function chargeRadius(state: State, scale: number): number {
+  // Sub-linear and capped, so a x14 slab is unmistakable without swallowing
+  // the lane.
+  const toughness = Math.min(Math.sqrt(scale), 2.1);
+  return (STATES[state].radius * MONSTER_SCALE * toughness);
+}
+
+export interface PickTarget {
+  id: number;
+  x: number;
+  y: number;
+  r: number;
+}
+
+/**
+ * Which charge the pointer is over, or null.
+ *
+ * Takes resolved positions rather than a `World`, which keeps it a plain
+ * geometry function with nothing to stub in a test. Nearest-centre wins, so
+ * the answer is stable where two charges overlap -- and they overlap
+ * constantly, since a Crystal breaks into two Lava at the same point on the
+ * lane.
+ *
+ * The four pixels of slop are for the small layers: an Ash is ten pixels
+ * across and asking a player to land inside that while it moves is asking too
+ * much.
+ */
+export function pickCharge(targets: PickTarget[], point: { x: number; y: number }): number | null {
+  let best: number | null = null;
+  let bestDist = Infinity;
+  for (const t of targets) {
+    const d = Math.hypot(t.x - point.x, t.y - point.y);
+    if (d > t.r + 4 || d >= bestDist) continue;
+    best = t.id;
+    bestDist = d;
+  }
+  return best;
+}
+
+export interface ChargeReadout {
+  label: string;
+  hp: number;
+  leakCost: number;
+  floats: boolean;
+  /** Everything above x1, strongest first. The table guarantees at least two. */
+  counters: { element: Element; label: string; mult: number }[];
+  immunities: { element: Element; label: string }[];
+  breaksInto: { state: State; label: string; count: number } | null;
+}
+
+/**
+ * Everything worth knowing about a layer, for the tag shown on hover.
+ *
+ * One source for two surfaces: the tag drawn beside the charge on the lane and
+ * the row lit up in the Matter panel are the same facts, and they must not be
+ * able to disagree about them.
+ *
+ * Counters come out strongest first because that is the order the player wants
+ * to read them in -- "what is my best answer, and what else will do". Ties fall
+ * back to `ELEMENT_IDS` order so the tag never reorders itself between frames.
+ */
+export function chargeReadout(state: State): ChargeReadout {
+  const def = STATES[state];
+  const row = RESISTANCE[state];
+
+  const counters = ELEMENT_IDS.filter((e) => row[e] > 1)
+    .sort((a, b) => row[b] - row[a] || ELEMENT_IDS.indexOf(a) - ELEMENT_IDS.indexOf(b))
+    .map((e) => ({ element: e, label: elementLabel(e), mult: row[e] }));
+
+  const immunities = ELEMENT_IDS.filter((e) => row[e] <= 0).map((e) => ({
+    element: e,
+    label: elementLabel(e),
+  }));
+
+  const child = def.breaksInto;
+  return {
+    label: def.label,
+    hp: def.hp,
+    leakCost: def.leakCost,
+    floats: def.floats,
+    counters,
+    immunities,
+    breaksInto: child
+      ? { state: child, label: STATES[child].label, count: def.childCount }
+      : null,
+  };
+}
+
+/**
+ * The order the layers are listed in, deepest stack first.
+ *
+ * The reference panel is trying to teach two things at once -- what beats a
+ * layer, and what the layer becomes -- so reading it top to bottom should walk
+ * the cascade rather than an arbitrary order. Crystal is three deep and heads
+ * the list; the two single layers that are the end of a chain sit at the
+ * bottom, which is where a player looks last.
+ *
+ * Ties fall back to `STATE_IDS` order, so the result is stable and a sixth
+ * layer cannot make the panel reshuffle itself unpredictably.
+ */
+export function matterRows(): State[] {
+  return [...STATE_IDS].sort((a, b) => {
+    const depth = layersRemaining(b) - layersRemaining(a);
+    return depth !== 0 ? depth : STATE_IDS.indexOf(a) - STATE_IDS.indexOf(b);
+  });
+}
+
+/**
+ * A resistance cell as a number of filled bars, 0 to 4.
+ *
+ * The bars are the half of the panel that works without English, so they carry
+ * the coarse reading -- nothing, poor, fair, good, specialist -- and the
+ * numeral beside them carries the exact one. Zero is reserved: it means
+ * immunity and is drawn as a wall rather than as an empty meter, because "does
+ * nothing" is a different kind of fact from "does very little".
+ *
+ * Capped at four, since an upgraded cell can reach 3.5 and a fifth bar would
+ * mean the panel disagreed with itself about what full looks like.
+ */
+export function barsFor(mult: number): number {
+  if (mult <= 0) return 0;
+  if (mult <= 0.75) return 1;
+  if (mult <= 1.25) return 2;
+  if (mult < 2) return 3;
+  return 4;
 }
 
 /**
@@ -270,9 +452,9 @@ export function describeRider(element: Element): string {
     case 'ignite':
       return 'Sets fire to what it hurts';
     case 'corrode':
-      return 'Corrodes, and the corrosion follows what breaks out';
+      return 'Keeps eating, and follows what breaks out';
     case 'shove':
-      return 'Knocks what it hurts back down the lane';
+      return 'Knocks it back down the lane';
   }
 }
 
@@ -285,7 +467,7 @@ function riderVerb(element: Element): string {
     case 'ignite':
       return 'set alight';
     case 'corrode':
-      return 'corroded';
+      return 'eaten away';
     case 'shove':
       return 'knocked back';
   }

@@ -1,6 +1,7 @@
 /** DOM chrome around the canvas: readouts, build menu, table reference, overlay. */
-import { TOWER_ART, svgMarkup } from './art.ts';
+import { ELEMENT_ART, ELEMENT_COLOR, MONSTER_ART, TOWER_ART, svgMarkup } from './art.ts';
 import {
+  barsFor,
   cardState,
   describeMultiplier,
   describeOverrides,
@@ -9,6 +10,7 @@ import {
   describeStats,
   elementLabel,
   endOverlay,
+  matterRows,
   panelKey,
   roundHint,
   waveLabel,
@@ -16,8 +18,8 @@ import {
 import { RESISTANCE } from '../sim/resistance.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
-import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
-import type { Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import { ELEMENT_IDS, STATES } from '../sim/types.ts';
+import type { State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import type { Speed } from './clock.ts';
 import { availableUpgrades, effective } from '../sim/world.ts';
 import type { World } from '../sim/world.ts';
@@ -51,7 +53,7 @@ export class Ui {
 
   constructor(private handlers: UiHandlers) {
     this.buildTowerMenu();
-    this.buildTableReference();
+    this.buildMatterPanel();
     el<HTMLButtonElement>('startWave').addEventListener('click', () => handlers.onStartWave());
     el<HTMLButtonElement>('restart').addEventListener('click', () => handlers.onRestart());
     el<HTMLButtonElement>('freeplay').addEventListener('click', () => handlers.onFreeplay());
@@ -74,10 +76,15 @@ export class Ui {
       // The icon is the same artwork the board draws, so the silhouette
       // learned here is the one recognised in play.
       btn.innerHTML =
-        `<span class="icon">${svgMarkup(TOWER_ART[id], def.color, 30)}</span>` +
+        `<span class="icon">${svgMarkup(TOWER_ART[id], def.color, 24)}</span>` +
         `<span class="body">` +
         `<span class="row"><span class="name">${def.name}</span>` +
-        `<span class="elem">${elementLabel(def.element)}</span>` +
+        // The glyph before the word, because the glyph is the half that works
+        // without English -- and it is the same mark the board stamps beside
+        // the tower once it is down.
+        `<span class="elem">` +
+        `${svgMarkup(ELEMENT_ART[def.element], ELEMENT_COLOR[def.element], 12)}` +
+        `${elementLabel(def.element)}</span>` +
         `<span class="cost">${def.cost}g</span></span>` +
         `<span class="blurb">${def.blurb}</span>` +
         `<span class="blurb rider">${describeRider(def.element)}</span></span>`;
@@ -87,15 +94,68 @@ export class Ui {
     }
   }
 
-  private buildTableReference(): void {
-    const rows = STATE_IDS.map((s) => {
-      const cells = ELEMENT_IDS.map(
-        (e) => `<td data-el="${e}">${describeMultiplier(RESISTANCE[s][e])}</td>`,
-      ).join('');
-      return `<tr><th>${STATES[s].label}</th>${cells}</tr>`;
-    }).join('');
-    const head = ELEMENT_IDS.map((e) => `<th data-el="${e}">${elementLabel(e)}</th>`).join('');
-    el('tableBody').innerHTML = `<table><tr><th></th>${head}</tr>${rows}</table>`;
+  /**
+   * The Matter panel: the resistance table and the layer chain, in one place.
+   *
+   * These were two separate problems with one answer. The table was folded
+   * away in a `<details>` at the bottom of the sidebar, which is a strange
+   * place for the thing the entire game is made of; and the chain -- what a
+   * layer breaks into -- was written down in DESIGN.md and nowhere the player
+   * could see. Both questions get asked about the same layer at the same
+   * moment, so they belong in the same row.
+   *
+   * Bars first, numerals second. The bars are the part that works whatever
+   * language you read, which is the whole reason this pass exists; the numeral
+   * is there for when "good" is not precise enough.
+   */
+  private buildMatterPanel(): void {
+    const head = ELEMENT_IDS.map(
+      (e) =>
+        `<th data-el="${e}" title="${elementLabel(e)}">` +
+        `${svgMarkup(ELEMENT_ART[e], ELEMENT_COLOR[e], 14)}</th>`,
+    ).join('');
+
+    const rows = matterRows()
+      .map((s) => {
+        const def = STATES[s];
+        const cells = ELEMENT_IDS.map((e) => {
+          const mult = RESISTANCE[s][e];
+          const filled = barsFor(mult);
+          if (filled === 0) {
+            return `<td data-el="${e}"><span class="wall" title="immune">&#10005;</span></td>`;
+          }
+          const bars = Array.from(
+            { length: 4 },
+            (_, i) => `<i${i < filled ? ' class="on"' : ''}></i>`,
+          ).join('');
+          return (
+            `<td data-el="${e}" style="--el: ${ELEMENT_COLOR[e]}">` +
+            `<span class="bars">${bars}</span>` +
+            `<span class="mult">${describeMultiplier(mult)}</span></td>`
+          );
+        }).join('');
+
+        // What climbs out when this layer breaks. The trap the game is built
+        // around -- shattering a Crystal is correct and fills the lane with
+        // two Lava, which Heat cannot touch -- was previously discoverable
+        // only by doing it.
+        const child = def.breaksInto;
+        const chain = child
+          ? `<span class="chain">&rarr; ${def.childCount > 1 ? `${def.childCount}&times; ` : ''}` +
+            `${svgMarkup(MONSTER_ART[child], STATES[child].color, 12)}` +
+            `<span>${STATES[child].label}</span></span>`
+          : `<span class="chain last">&rarr; gone</span>`;
+
+        return (
+          `<tr data-state="${s}" style="--layer: ${def.color}">` +
+          `<th>${svgMarkup(MONSTER_ART[s], def.color, 16)}` +
+          `<span class="lname" style="color: ${def.color}">${def.label}</span>${chain}</th>` +
+          `${cells}</tr>`
+        );
+      })
+      .join('');
+
+    el('matterBody').innerHTML = `<table><tr><th></th>${head}</tr>${rows}</table>`;
   }
 
   /**
@@ -107,7 +167,21 @@ export class Ui {
    */
   private shownTower: string | null = null;
 
-  sync(world: World, selected: TowerId | null, inspected: Tower | null, speed: Speed): void {
+  /**
+   * `hoveredState` is the layer the pointer is over on the lane, if any.
+   *
+   * Lighting its row is what turns the Matter panel from a reference the
+   * player has to decide to read into one they learn by accident: point at a
+   * Crystal because you want to know what it is, and the panel answers in the
+   * same place it will be next time you look.
+   */
+  sync(
+    world: World,
+    selected: TowerId | null,
+    inspected: Tower | null,
+    speed: Speed,
+    hoveredState: State | null = null,
+  ): void {
     this.syncInspect(world, inspected);
     el('gold').textContent = String(world.gold);
     el('lives').textContent = String(world.lives);
@@ -127,8 +201,11 @@ export class Ui {
       : inspected
         ? TOWERS[inspected.def].element
         : null;
-    for (const cell of Array.from(el('tableBody').querySelectorAll<HTMLElement>('[data-el]'))) {
+    for (const cell of Array.from(el('matterBody').querySelectorAll<HTMLElement>('[data-el]'))) {
       cell.classList.toggle('active', cell.dataset.el === active);
+    }
+    for (const row of Array.from(el('matterBody').querySelectorAll<HTMLElement>('[data-state]'))) {
+      row.classList.toggle('active', row.dataset.state === hoveredState);
     }
 
     const pause = el<HTMLButtonElement>('pause');

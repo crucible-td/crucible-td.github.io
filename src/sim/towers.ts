@@ -27,7 +27,7 @@ import type { TowerDef, TowerId } from './types.ts';
 export const TOWERS: Record<TowerId, TowerDef> = {
   forge: {
     id: 'forge',
-    name: 'Forge',
+    name: 'Burner',
     element: 'HEAT',
     cost: 46,
     damage: 4,
@@ -36,7 +36,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 0,
     color: '#ff8c42',
-    blurb: 'Cheap and constant, and what it hits keeps burning. Nothing to Molten.',
+    blurb: 'Cheap, constant fire. Nothing at all to Lava.',
   },
   chiller: {
     id: 'chiller',
@@ -49,11 +49,11 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 0,
     color: '#5bc8f5',
-    blurb: 'Molten crawls at half pace under it. Crystal does not feel it at all.',
+    blurb: 'Lava crawls at half pace. Crystal never feels it.',
   },
   stamp: {
     id: 'stamp',
-    name: 'Stamp',
+    name: 'Hammer',
     element: 'KINETIC',
     cost: 45,
     damage: 9,
@@ -61,12 +61,12 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     cooldown: 42,
     groundOnly: true,
     splash: 0,
-    color: '#d8d8d8',
-    blurb: 'Heavy hits that shove a charge back. Shatters Crystal; Vapor floats over.',
+    color: '#dfe3e8',
+    blurb: 'Shatters Crystal and shoves it back. Gas floats over.',
   },
   vat: {
     id: 'vat',
-    name: 'Vat',
+    name: 'Acid Tank',
     element: 'SOLVENT',
     cost: 52,
     damage: 5,
@@ -75,11 +75,11 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 36,
     color: '#9ae66e',
-    blurb: 'Splashes a crowd, and the corrosion follows whatever breaks out of it.',
+    blurb: 'Splashes a crowd. The acid follows what breaks out.',
   },
   lens: {
     id: 'lens',
-    name: 'Lens',
+    name: 'Beam',
     element: 'HEAT',
     cost: 64,
     damage: 14,
@@ -87,8 +87,8 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     cooldown: 74,
     groundOnly: false,
     splash: 0,
-    color: '#ffd166',
-    blurb: 'Reaches most of the lane and leaves it alight, but fires rarely.',
+    color: '#ffb45c',
+    blurb: 'Reaches most of the lane. Hits hard, fires rarely.',
   },
 };
 

@@ -40,10 +40,13 @@
           <button id="pause" title="Pause or resume (P)">Pause</button>
           <button id="speed" title="Cycle 1x / 2x / 3x (F)">1&times;</button>
         </div>
-        <details id="tableRef">
-          <summary>Resistance table</summary>
-          <div id="tableBody"></div>
-        </details>
+        <!-- The resistance table used to live folded up in a <details> at the
+             bottom of this panel. It is the entire game, so it is now open,
+             and it carries the layer chain alongside it. -->
+        <section id="matter">
+          <h2>Matter</h2>
+          <div id="matterBody"></div>
+        </section>
       </aside>
     </div>
 

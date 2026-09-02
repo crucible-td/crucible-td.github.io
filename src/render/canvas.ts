@@ -2,12 +2,13 @@
  * Draws a World. Strictly read-only: rendering never mutates simulation state,
  * which is what lets the same World run identically with no canvas at all.
  */
-import { BOARD, PATH_POINTS, cellCentre, isBuildableCell, pointAt } from '../sim/path.ts';
-import { MONSTER_ART, MONSTER_SCALE, TOWER_ART, paintArt } from './art.ts';
+import { BOARD, PATH_LENGTH, PATH_POINTS, cellCentre, isBuildableCell, pointAt } from '../sim/path.ts';
+import { ELEMENT_ART, ELEMENT_COLOR, MONSTER_ART, TOWER_ART, paintArt } from './art.ts';
 import { TOWERS } from '../sim/towers.ts';
+import { chargeRadius, chargeReadout, layersRemaining } from './decisions.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
-import type { Charge, SimEvent, Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import type { Charge, Element, SimEvent, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { towerAt } from '../sim/world.ts';
 import type { World } from '../sim/world.ts';
 
@@ -55,10 +56,226 @@ export class Renderer {
   private lastCooldown = new Map<number, number>();
   private recoil = new Map<number, number>();
 
+  /**
+   * The floor and the lane, painted once and blitted every frame.
+   *
+   * Neither of them ever changes: the plate, its rivets, the channel cut
+   * through it and the heat coming out of that channel are all functions of
+   * `BOARD` and `PATH_POINTS`, which are constants. Redrawing a hundred rivets
+   * and four blurred glow passes sixty times a second -- a hundred and eighty
+   * at 3x -- is the same waste the `Path2D` cache in `art.ts` exists to avoid,
+   * and it is worse here because the glows go through `ctx.filter`.
+   *
+   * So it is one `drawImage` per frame instead, and the expensive part happens
+   * once in the constructor.
+   */
+  private floor: HTMLCanvasElement;
+
   constructor(private canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('canvas 2d context unavailable');
     this.ctx = ctx;
+    this.floor = this.paintFloor();
+  }
+
+  /**
+   * The board as a foundry floor: steel plate with a channel cut into it.
+   *
+   * The old board was a flat fill with a brown line on it and a scatter of
+   * dots for buildable ground, which is what "programmer art" meant here. Two
+   * things fix most of it. The floor becomes a *material* -- riveted plate,
+   * laid only on ground you can actually build on, so "where can this go" is
+   * answered by the surface rather than by a legend. And the lane becomes a
+   * channel of open metal with a broken crust over it, throwing light onto the
+   * plate either side, so the board has a light source and the lane is
+   * unmistakably the hot, dangerous part.
+   */
+  private paintFloor(): HTMLCanvasElement {
+    const c = document.createElement('canvas');
+    c.width = BOARD.width;
+    c.height = BOARD.height;
+    const g = c.getContext('2d');
+    if (!g) throw new Error('canvas 2d context unavailable');
+
+    g.fillStyle = '#14110f';
+    g.fillRect(0, 0, BOARD.width, BOARD.height);
+
+    // Grime, so the floor is not evenly lit. Fixed positions: this is
+    // scenery, and `Math.random` has no business anywhere near this project.
+    g.save();
+    g.filter = 'blur(38px)';
+    g.fillStyle = 'rgba(8, 6, 5, 0.75)';
+    g.beginPath();
+    g.ellipse(80, 540, 150, 70, 0, 0, Math.PI * 2);
+    g.ellipse(760, 70, 170, 80, 0, 0, Math.PI * 2);
+    g.ellipse(430, 350, 120, 60, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+
+    this.paintPlate(g);
+    this.paintChannel(g);
+    return c;
+  }
+
+  /**
+   * Steel plate, laid on exactly the cells a tower can stand on.
+   *
+   * This replaces the scatter of faint dots, and it is a better answer than
+   * the dots were: buildable ground is not marked, it is *made of something
+   * else*. A player reads "I can bolt a machine to that" without being told.
+   */
+  private paintPlate(g: CanvasRenderingContext2D): void {
+    for (let col = 0; col < BOARD.cols; col++) {
+      for (let row = 0; row < BOARD.rows; row++) {
+        if (!isBuildableCell(col, row)) continue;
+        const x = col * BOARD.cell;
+        const y = row * BOARD.cell;
+
+        g.fillStyle = 'rgba(239, 230, 220, 0.045)';
+        g.fillRect(x + 1, y + 1, BOARD.cell - 2, BOARD.cell - 2);
+
+        // A lit top-left edge and a dark bottom-right one: the cheapest way to
+        // make a flat rectangle read as a raised plate.
+        g.strokeStyle = 'rgba(255, 236, 214, 0.05)';
+        g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(x + 1, y + BOARD.cell - 1);
+        g.lineTo(x + 1, y + 1);
+        g.lineTo(x + BOARD.cell - 1, y + 1);
+        g.stroke();
+        g.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+        g.beginPath();
+        g.moveTo(x + BOARD.cell - 1, y + 1);
+        g.lineTo(x + BOARD.cell - 1, y + BOARD.cell - 1);
+        g.lineTo(x + 1, y + BOARD.cell - 1);
+        g.stroke();
+
+        // Rivets every fourth cell, not every cell -- at 40px a rivet in each
+        // corner of each tile is a texture of noise rather than of metal.
+        if (col % 4 === 0 && row % 4 === 0) {
+          for (const [dx, dy] of [
+            [6, 6],
+            [BOARD.cell - 6, 6],
+            [6, BOARD.cell - 6],
+            [BOARD.cell - 6, BOARD.cell - 6],
+          ] as const) {
+            g.fillStyle = 'rgba(255, 232, 204, 0.13)';
+            g.beginPath();
+            g.arc(x + dx, y + dy, 1.7, 0, Math.PI * 2);
+            g.fill();
+            g.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            g.beginPath();
+            g.arc(x + dx, y + dy + 1, 1.4, 0, Math.PI * 2);
+            g.fill();
+          }
+        }
+      }
+    }
+  }
+
+  /** The lane: open metal in a cut channel, with a crust breaking over it. */
+  private paintChannel(g: CanvasRenderingContext2D): void {
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+
+    // Light thrown onto the plate either side. Restrained on purpose -- the
+    // full version of this swallowed the buildable plate, and the plate is
+    // carrying real information now.
+    g.save();
+    g.filter = 'blur(26px)';
+    g.strokeStyle = 'rgba(255, 122, 46, 0.20)';
+    g.lineWidth = 120;
+    this.tracePathOn(g);
+    g.stroke();
+    g.restore();
+
+    const layers: [string, number][] = [
+      ['#0c0908', 56], // the cut edge, dropping into shadow
+      ['#2a1d15', 46], // channel wall
+      ['#7d2f10', 34], // cooling metal
+      ['#c2481a', 24], // the pour
+    ];
+    for (const [color, width] of layers) {
+      g.strokeStyle = color;
+      g.lineWidth = width;
+      this.tracePathOn(g);
+      g.stroke();
+    }
+
+    g.save();
+    g.filter = 'blur(5px)';
+    g.strokeStyle = 'rgba(255, 200, 130, 0.55)';
+    g.lineWidth = 5;
+    this.tracePathOn(g);
+    g.stroke();
+    g.restore();
+
+    this.paintCrust(g);
+
+    // Direction of travel. The channel says where the danger is; this says
+    // which way it is walking, which the glow alone cannot.
+    g.strokeStyle = 'rgba(20, 14, 10, 0.5)';
+    g.lineWidth = 2;
+    g.setLineDash([10, 24]);
+    this.tracePathOn(g);
+    g.stroke();
+    g.setLineDash([]);
+
+    // The leak point: the only thing on the board hotter than the lane.
+    const end = PATH_POINTS[PATH_POINTS.length - 1]!;
+    g.save();
+    g.filter = 'blur(14px)';
+    g.fillStyle = 'rgba(255, 90, 90, 0.75)';
+    g.fillRect(end.x - 34, end.y - 30, 34, 60);
+    g.restore();
+    g.fillStyle = 'rgba(255, 122, 74, 0.85)';
+    g.fillRect(end.x - 24, end.y - 23, 24, 46);
+  }
+
+  /**
+   * Cooled crust floating on the channel.
+   *
+   * Without it the lane is a smooth glowing tube, which reads as neon rather
+   * than as metal. Plates are stepped along the path at a fixed interval and
+   * turned to face the direction of travel, so corners get shorter pieces and
+   * the whole thing follows the lane rather than sitting on top of it.
+   */
+  private paintCrust(g: CanvasRenderingContext2D): void {
+    const step = 26;
+    for (let d = 14, i = 0; d < PATH_LENGTH - 8; d += step, i++) {
+      const a = pointAt(d);
+      const b = pointAt(Math.min(d + 1, PATH_LENGTH));
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+      // Deterministic variety from the index, never Math.random: two runs of
+      // the same seed must paint the same board.
+      // Wide enough to cover most of the 46px channel. The first version left
+      // narrow plates on a broad glowing band, which read as a neon tube and
+      // buried every charge walking on it -- a Lava on an open channel was
+      // very nearly camouflage. Crust is now the lane's default state and the
+      // heat shows through the cracks between plates, which is both more like
+      // metal and far easier to read a charge against.
+      const len = 22 + ((i * 7) % 10);
+      const wide = 30 + ((i * 5) % 9);
+      const off = ((i * 11) % 7) - 3;
+
+      g.save();
+      g.translate(a.x, a.y);
+      g.rotate(angle);
+      g.fillStyle = 'rgba(30, 18, 12, 0.93)';
+      g.beginPath();
+      g.roundRect(-len / 2, off - wide / 2, len, wide, 3);
+      g.fill();
+      g.strokeStyle = 'rgba(255, 150, 80, 0.30)';
+      g.lineWidth = 1;
+      g.stroke();
+      g.restore();
+    }
+  }
+
+  private tracePathOn(g: CanvasRenderingContext2D): void {
+    g.beginPath();
+    g.moveTo(PATH_POINTS[0]!.x, PATH_POINTS[0]!.y);
+    for (let i = 1; i < PATH_POINTS.length; i++) g.lineTo(PATH_POINTS[i]!.x, PATH_POINTS[i]!.y);
   }
 
   /** Turn this tick's simulation events into visual feedback. */
@@ -80,14 +297,12 @@ export class Renderer {
     selected: TowerId | null,
     inspected: Tower | null = null,
     previewUpgrade: UpgradeId | null = null,
+    hoveredCharge: Charge | null = null,
   ): void {
     const { ctx } = this;
+    // One blit for the floor, the channel and everything baked into them.
     ctx.clearRect(0, 0, BOARD.width, BOARD.height);
-    ctx.fillStyle = '#14110f';
-    ctx.fillRect(0, 0, BOARD.width, BOARD.height);
-
-    this.drawBuildableCells();
-    this.drawLane();
+    ctx.drawImage(this.floor, 0, 0);
     if (hover && selected) this.drawPlacementPreview(world, hover, selected);
 
     // Show the reach of a tower that is already down: the one being inspected,
@@ -97,6 +312,19 @@ export class Renderer {
     const hovered = hover && !selected ? (towerAt(world, hover.col, hover.row) ?? null) : null;
     const showRange = inspected ?? hovered;
     if (showRange) this.drawRange(showRange, showRange === inspected ? previewUpgrade : null);
+
+    // Cast shadows first, all of them, so no tower's shadow lands on top of a
+    // neighbouring tower. A floor with a light source is most of the
+    // difference between this and a diagram.
+    ctx.save();
+    ctx.filter = 'blur(3px)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    for (const t of world.towers) {
+      ctx.beginPath();
+      ctx.ellipse(t.x + 2, t.y + 15, 17, 5.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
 
     for (const t of world.towers) {
       const was = this.lastCooldown.get(t.id) ?? 0;
@@ -110,54 +338,12 @@ export class Renderer {
     for (const c of world.charges) this.drawCharge(c);
     this.drawProjectiles(world);
     this.drawEffects();
+    // Last, so the tag is never drawn under a creature it is describing.
+    if (hoveredCharge) this.drawChargeTag(hoveredCharge);
   }
 
-  private drawBuildableCells(): void {
-    const { ctx } = this;
-    ctx.fillStyle = 'rgba(239, 230, 220, 0.05)';
-    for (let col = 0; col < BOARD.cols; col++) {
-      for (let row = 0; row < BOARD.rows; row++) {
-        if (!isBuildableCell(col, row)) continue;
-        const c = cellCentre(col, row);
-        ctx.fillRect(c.x - 1.5, c.y - 1.5, 3, 3);
-      }
-    }
-  }
 
-  private drawLane(): void {
-    const { ctx } = this;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
 
-    ctx.strokeStyle = '#2b2420';
-    ctx.lineWidth = 46;
-    this.tracePath();
-    ctx.stroke();
-
-    ctx.strokeStyle = '#221d19';
-    ctx.lineWidth = 38;
-    this.tracePath();
-    ctx.stroke();
-
-    // Direction of travel, so the ordering of towers reads at a glance.
-    ctx.strokeStyle = 'rgba(255, 140, 66, 0.16)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([9, 16]);
-    this.tracePath();
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    const end = PATH_POINTS[PATH_POINTS.length - 1]!;
-    ctx.fillStyle = 'rgba(255, 90, 90, 0.5)';
-    ctx.fillRect(end.x - 26, end.y - 23, 26, 46);
-  }
-
-  private tracePath(): void {
-    const { ctx } = this;
-    ctx.beginPath();
-    ctx.moveTo(PATH_POINTS[0]!.x, PATH_POINTS[0]!.y);
-    for (let i = 1; i < PATH_POINTS.length; i++) ctx.lineTo(PATH_POINTS[i]!.x, PATH_POINTS[i]!.y);
-  }
 
   /** The reach of a tower already on the board, in its own colour. */
   /**
@@ -261,13 +447,24 @@ export class Renderer {
     paintArt(ctx, TOWER_ART[id], x, y - recoil * 1.5, size, def.color);
     ctx.restore();
 
-    // One pip per tier climbed, along the top edge. Paths are permanent and
-    // three deep, so the board has to show how far each tower has committed --
-    // not merely that it has.
+    // The element this tower throws, stamped at its shoulder. Five towers
+    // share four elements, so "which column of the table does this one read"
+    // is not answerable from the silhouette alone -- and it is the single most
+    // important fact about a tower once it is on the board rather than in the
+    // menu. Skipped on the placement ghost, which has the build card open
+    // right next to it already saying the same thing.
+    if (alpha === 1) {
+      paintArt(ctx, ELEMENT_ART[def.element], x + r - 2, y - r + 2, 11, ELEMENT_COLOR[def.element]);
+    }
+
+    // One pip per tier climbed, along the *bottom* edge. Paths are permanent
+    // and three deep, so the board has to show how far each tower has
+    // committed -- not merely that it has. These used to run along the top,
+    // which is where the element glyph now sits.
     for (let i = 0; i < tiers; i++) {
       ctx.fillStyle = def.color;
       ctx.beginPath();
-      ctx.arc(x + r - 3.5 - i * 7, y - r + 3.5, 2.6, 0, Math.PI * 2);
+      ctx.arc(x + r - 3.5 - i * 7, y + r - 3.5, 2.6, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -280,11 +477,10 @@ export class Renderer {
 
     // Size by toughness. A slab used to be drawn exactly like an ordinary
     // charge of the same layer, so the hardest thing in the game looked like
-    // the easiest. Sub-linear and capped: a x14 slab must be unmistakable
-    // without swallowing the lane.
-    const toughness = Math.min(Math.sqrt(c.scale), 2.1);
-    const size = s.radius * 2 * MONSTER_SCALE * toughness;
-    const r = size / 2;
+    // the easiest. The formula lives in `decisions.ts` because the picking
+    // that decides what the pointer is over has to agree with it exactly.
+    const r = chargeRadius(c.state, c.scale);
+    const size = r * 2;
 
     if (c.state === 'MOLTEN') {
       const glow = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, r * 1.8);
@@ -323,7 +519,51 @@ export class Renderer {
       ctx.stroke();
     }
 
+    this.drawLayerPips(c, p.x, p.y, r, s.color);
     this.drawRiders(c, p.x, p.y, r);
+  }
+
+  /**
+   * How many layers are still to come, as one diamond each.
+   *
+   * The single mechanic the board could never show. A Crystal and a Gas of the
+   * same size look equally finished, and only one of them is about to become
+   * four more creatures; the health bar reports this layer's progress and says
+   * nothing whatever about the depth behind it. So the pips are permanent
+   * rather than shown on hover -- everything else about a charge can be asked
+   * for, and this had no tell at all.
+   *
+   * Drawn below the charge, because the health bar owns the space above it.
+   * They count *down* as the stack is broken open, so a Crystal worked through
+   * to its last Ash is visibly nearly finished.
+   */
+  private drawLayerPips(c: Charge, x: number, y: number, r: number, color: string): void {
+    const { ctx } = this;
+    const n = layersRemaining(c.state);
+    // One layer left is the common case and needs no pip: an Ash showing a
+    // single mark would be noise on most of the charges on the lane.
+    if (n < 2) return;
+
+    // Sized for a canvas that is usually drawn smaller than its 960px: at 4.8px
+    // wide these vanished on a laptop, and three of them still fit inside a
+    // 40px lane at this size.
+    const gap = 8;
+    const startX = x - ((n - 1) * gap) / 2;
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.strokeStyle = 'rgba(20, 17, 15, 0.85)';
+    ctx.lineWidth = 0.8;
+    for (let i = 0; i < n; i++) {
+      ctx.beginPath();
+      ctx.moveTo(startX + i * gap, y + r + 2.6);
+      ctx.lineTo(startX + i * gap + 3.2, y + r + 5.8);
+      ctx.lineTo(startX + i * gap, y + r + 9);
+      ctx.lineTo(startX + i * gap - 3.2, y + r + 5.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   /**
@@ -370,7 +610,7 @@ export class Renderer {
       // health bar above it.
       ctx.fillStyle = 'rgba(154, 230, 110, 0.75)';
       ctx.beginPath();
-      ctx.ellipse(x, y + r - 1, r * 0.5, r * 0.28, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y + r - 3, r * 0.5, r * 0.28, 0, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -413,6 +653,99 @@ export class Renderer {
     }
     ctx.globalAlpha = 1;
     this.floaters = this.floaters.filter((f) => f.life > 0);
+  }
+
+
+  /**
+   * What the pointer is on, spelled out beside it.
+   *
+   * The complaint this answers is the plainest one in the whole pass: a charge
+   * walks past and there is no way to ask what it is or what to hit it with
+   * short of reading a table and matching a colour. Now you point at it.
+   *
+   * It says the three things the lane cannot: what beats this layer and by how
+   * much, what does nothing at all to it, and -- the one that decides whether
+   * breaking it is a good idea -- what climbs out when it does break. Hovering
+   * also lights the matching row in the Matter panel, so a player who does this
+   * a few times has learned to read the table without ever being asked to.
+   */
+  private drawChargeTag(c: Charge): void {
+    const { ctx } = this;
+    const p = pointAt(c.dist);
+    const r = chargeRadius(c.state, c.scale);
+    const info = chargeReadout(c.state);
+    const color = STATES[c.state].color;
+
+    const w = 168;
+    // Title line, the "beaten by" eyebrow, then one line per fact.
+    const rows = info.counters.length + (info.immunities.length > 0 ? 1 : 0) + 1;
+    const h = 42 + rows * 15;
+
+    // Flip to the other side rather than run off the board, and hug the
+    // vertical edges the same way.
+    let x = p.x + r + 12;
+    if (x + w > BOARD.width - 6) x = p.x - r - 12 - w;
+    const y = Math.max(6, Math.min(p.y - h / 2, BOARD.height - h - 6));
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(9, 7, 6, 0.94)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 3);
+    ctx.fill();
+    ctx.stroke();
+    // A stripe in the layer's colour, so the tag is visibly about the thing it
+    // is pointing at and not about the board in general.
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, 2);
+
+    ctx.textAlign = 'left';
+    ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillStyle = color;
+    ctx.fillText(info.label.toUpperCase(), x + 9, y + 17);
+
+    ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillStyle = '#9b8d80';
+    ctx.textAlign = 'right';
+    const lives = `${info.hp} hp \u00b7 ${info.leakCost} ${info.leakCost === 1 ? 'life' : 'lives'}`;
+    ctx.fillText(lives, x + w - 9, y + 17);
+    ctx.textAlign = 'left';
+
+    let ty = y + 46;
+    const line = (label: string, value: string, tone: string, glyph?: Element): void => {
+      if (glyph) paintArt(ctx, ELEMENT_ART[glyph], x + 15, ty - 3.5, 11, ELEMENT_COLOR[glyph]);
+      ctx.fillStyle = tone;
+      ctx.font = glyph ? '600 11px ui-sans-serif, system-ui, sans-serif' : '9px ui-sans-serif, system-ui, sans-serif';
+      ctx.fillText(label, x + (glyph ? 24 : 9), ty);
+      if (value) {
+        ctx.textAlign = 'right';
+        ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillText(value, x + w - 9, ty);
+        ctx.textAlign = 'left';
+      }
+      ty += 15;
+    };
+
+    ctx.fillStyle = '#6d6259';
+    ctx.font = '9px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillText('BEATEN BY', x + 9, y + 33);
+    for (const cn of info.counters) {
+      line(cn.label, `\u00d7${cn.mult}`, ELEMENT_COLOR[cn.element], cn.element);
+    }
+
+    if (info.immunities.length > 0) {
+      const names = info.immunities.map((i) => i.label).join(', ');
+      line(`Nothing at all: ${names}`, '', '#ff5a5a');
+    }
+
+    const b = info.breaksInto;
+    line(
+      b ? `Breaks into ${b.count > 1 ? `${b.count} \u00d7 ` : ''}${b.label}` : 'Last layer',
+      '',
+      b ? STATES[b.state].color : '#6d6259',
+    );
+    ctx.restore();
   }
 
   /** Canvas pixel coords from a mouse event, accounting for CSS scaling. */

@@ -9,7 +9,13 @@ import {
   describeRiderGains,
   describeStats,
   elementLabel,
+  barsFor,
+  chargeRadius,
+  chargeReadout,
   endOverlay,
+  layersRemaining,
+  matterRows,
+  pickCharge,
   towerForKey,
   panelKey,
   rate,
@@ -18,7 +24,7 @@ import {
 } from '../src/render/decisions.ts';
 import { TOWERS, TOWER_IDS } from '../src/sim/towers.ts';
 import { UPGRADES } from '../src/sim/upgrades.ts';
-import { ELEMENT_IDS } from '../src/sim/types.ts';
+import { ELEMENT_IDS, STATES, STATE_IDS } from '../src/sim/types.ts';
 import type { Stats } from '../src/sim/types.ts';
 import { WAVES } from '../src/sim/waves.ts';
 
@@ -149,20 +155,139 @@ describe('describing the table to the player', () => {
     expect(describeMultiplier(0)).toBe('immune');
   });
 
+  it('counts every layer still under a charge, so the board can show depth', () => {
+    // The number the board draws as pips. A Crystal is three creatures deep
+    // and a Gas is one, and nothing else on the lane distinguishes them --
+    // that is the whole reason this exists.
+    expect(layersRemaining('CRYSTAL')).toBe(3);
+    expect(layersRemaining('ORE')).toBe(2);
+    expect(layersRemaining('MOLTEN')).toBe(2);
+    expect(layersRemaining('SLAG')).toBe(1);
+    expect(layersRemaining('VAPOR')).toBe(1);
+  });
+
+  it('reads the depth off the chain rather than off a list of its own', () => {
+    // The failure this guards is a silent one: five numbers written out by
+    // hand would keep passing the test above while disagreeing with STATES
+    // the moment anyone changed what a layer breaks into.
+    for (const state of STATE_IDS) {
+      const under = STATES[state].breaksInto;
+      const expected = under === null ? 1 : layersRemaining(under) + 1;
+      expect(layersRemaining(state), state).toBe(expected);
+    }
+  });
+
+  it('lists the layers deepest first, so the panel reads as the cascade', () => {
+    // Crystal is three creatures deep and heads the list; the two layers that
+    // are the end of a chain sink to the bottom, which is where a player looks
+    // last. Ties keep STATE_IDS order so a sixth layer cannot make the panel
+    // reshuffle itself unpredictably.
+    expect(matterRows()).toEqual(['CRYSTAL', 'ORE', 'MOLTEN', 'SLAG', 'VAPOR']);
+  });
+
+  it('never puts a shallower layer above a deeper one', () => {
+    const depths = matterRows().map(layersRemaining);
+    expect([...depths].sort((a, b) => b - a)).toEqual(depths);
+  });
+
+  it('draws a cell as bars, and reserves none of them for immunity', () => {
+    // Zero is a wall, not an empty meter: "does nothing" is a different kind
+    // of fact from "does very little", and the panel draws them differently.
+    expect(barsFor(0)).toBe(0);
+    expect(barsFor(0.5)).toBe(1);
+    expect(barsFor(0.75)).toBe(1);
+    expect(barsFor(1)).toBe(2);
+    expect(barsFor(1.25)).toBe(2);
+    expect(barsFor(1.5)).toBe(3);
+    expect(barsFor(1.6)).toBe(3);
+    expect(barsFor(2)).toBe(4);
+  });
+
+  it('caps an upgraded cell at four bars', () => {
+    // die3 takes Crystal + Impact to 3.5. A fifth bar would mean the panel
+    // disagreed with itself about what a full meter is.
+    expect(barsFor(3.5)).toBe(4);
+    expect(barsFor(99)).toBe(4);
+  });
+
+  it('picks the charge nearest the pointer, not merely one that contains it', () => {
+    // Overlap is the normal case, not an edge case: a Crystal breaks into two
+    // Lava at the same point on the lane, so something has to break the tie
+    // and it has to break it the same way every frame.
+    const targets = [
+      { id: 1, x: 100, y: 100, r: 20 },
+      { id: 2, x: 108, y: 100, r: 20 },
+    ];
+    expect(pickCharge(targets, { x: 107, y: 100 })).toBe(2);
+    expect(pickCharge(targets, { x: 99, y: 100 })).toBe(1);
+  });
+
+  it('picks nothing when the pointer is off every charge', () => {
+    const targets = [{ id: 1, x: 100, y: 100, r: 10 }];
+    expect(pickCharge(targets, { x: 100, y: 140 })).toBeNull();
+    expect(pickCharge([], { x: 100, y: 100 })).toBeNull();
+  });
+
+  it('forgives a few pixels, because the small layers are tiny and moving', () => {
+    // An Ash is about ten pixels across. Demanding a hit inside that while it
+    // walks is asking more of a player than the information is worth.
+    const targets = [{ id: 1, x: 100, y: 100, r: 6 }];
+    expect(pickCharge(targets, { x: 109, y: 100 })).toBe(1);
+    expect(pickCharge(targets, { x: 116, y: 100 })).toBeNull();
+  });
+
+  it('sizes a charge the same way the board draws it', () => {
+    // The bug this prevents is a charge you can see but cannot point at, and
+    // it would grow with toughness -- fine in testing, broken on the bosses.
+    expect(chargeRadius('CRYSTAL', 1)).toBeCloseTo(12 * 1.35);
+    expect(chargeRadius('CRYSTAL', 4)).toBeCloseTo(12 * 1.35 * 2);
+    // Capped, so a x14 slab is unmistakable without swallowing the lane.
+    expect(chargeRadius('CRYSTAL', 100)).toBeCloseTo(12 * 1.35 * 2.1);
+  });
+
+  it('tells a player what beats a layer, strongest answer first', () => {
+    const crystal = chargeReadout('CRYSTAL');
+    expect(crystal.label).toBe('Crystal');
+    expect(crystal.counters.map((c) => c.label)).toEqual(['Impact', 'Heat']);
+    expect(crystal.counters[0]!.mult).toBe(2);
+    expect(crystal.immunities.map((i) => i.label)).toEqual(['Cold', 'Acid']);
+    expect(crystal.breaksInto).toEqual({ state: 'MOLTEN', label: 'Lava', count: 2 });
+  });
+
+  it('offers every layer at least two answers, because the table promises it', () => {
+    // Not a property of the readout so much as of the resistance table, but
+    // this is where a player would notice it breaking: a layer with one
+    // counter is a mandatory tower, which is the failure this game is most
+    // afraid of.
+    for (const state of STATE_IDS) {
+      expect(chargeReadout(state).counters.length, state).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('says a terminal layer is the last one rather than inventing a child', () => {
+    expect(chargeReadout('SLAG').breaksInto).toBeNull();
+    expect(chargeReadout('VAPOR').breaksInto).toBeNull();
+    expect(chargeReadout('VAPOR').floats).toBe(true);
+  });
+
   it('prints multipliers plainly', () => {
     expect(describeMultiplier(1)).toBe('×1');
     expect(describeMultiplier(2)).toBe('×2');
     expect(describeMultiplier(1.6)).toBe('×1.6');
   });
 
-  it('names elements in prose case', () => {
+  it('names elements as the player reads them, not as the ids spell them', () => {
+    // Two of the four no longer derive from their id, which is the whole
+    // reason `elementLabel` stopped being a lowercase of `e`. A regression
+    // here shows up as physics vocabulary leaking back into the interface.
     expect(elementLabel('HEAT')).toBe('Heat');
-    expect(elementLabel('SOLVENT')).toBe('Solvent');
+    expect(elementLabel('KINETIC')).toBe('Impact');
+    expect(elementLabel('SOLVENT')).toBe('Acid');
   });
 
   it('leads with the new behaviour and puts the old one in brackets', () => {
     const [line] = describeOverrides('kiln1');
-    expect(line).toContain('Molten + Heat');
+    expect(line).toContain('Lava + Heat');
     expect(line).toContain('was immune');
   });
 
@@ -238,7 +363,7 @@ describe('describeRiderGains', () => {
   it('ignores cells rewritten for an element the tower does not throw', () => {
     // recl3 lifts Crystal + Solvent, which is the Vat's own element -- but it
     // also has to not claim anything about the columns it leaves alone.
-    expect(describeRiderGains('recl3')).toEqual(['Crystal can now be corroded too']);
+    expect(describeRiderGains('recl3')).toEqual(['Crystal can now be eaten away too']);
     expect(describeRiderGains('bellows1')).toEqual([]);
   });
 });

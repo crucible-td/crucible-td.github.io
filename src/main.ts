@@ -7,10 +7,10 @@
 import { Renderer } from './render/canvas.ts';
 import { createClock, nextSpeed, ticksFor } from './render/clock.ts';
 import type { Speed } from './render/clock.ts';
-import { armTower, boardAction, towerForKey } from './render/decisions.ts';
+import { armTower, boardAction, chargeRadius, pickCharge, towerForKey } from './render/decisions.ts';
 import { Ui } from './render/ui.ts';
-import { BOARD, isBuildableCell } from './sim/path.ts';
-import type { Tower, TowerId, UpgradeId } from './sim/types.ts';
+import { BOARD, isBuildableCell, pointAt } from './sim/path.ts';
+import type { Charge, Tower, TowerId, UpgradeId } from './sim/types.ts';
 import { createWorld, enterFreeplay, placeTower, startWave, step, towerAt, upgradeTower } from './sim/world.ts';
 
 const canvas = document.getElementById('board') as HTMLCanvasElement | null;
@@ -20,6 +20,13 @@ const renderer = new Renderer(canvas);
 let world = createWorld(Math.floor(Math.random() * 1e9));
 let selected: TowerId | null = null;
 let hover: { col: number; row: number } | null = null;
+/**
+ * Where the pointer is in board pixels, as opposed to which cell it is in.
+ *
+ * The cell is what placement needs; this is what asking about a charge needs,
+ * because charges walk a continuous lane and are not on the grid at all.
+ */
+let hoverPoint: { x: number; y: number } | null = null;
 /** The placed tower whose upgrade panel is open, if any. */
 let inspected: Tower | null = null;
 /** An upgrade being hovered in the panel, previewed on the board. */
@@ -117,11 +124,34 @@ function cellUnder(ev: MouseEvent): { col: number; row: number } {
 
 canvas.addEventListener('mousemove', (ev) => {
   hover = cellUnder(ev);
+  hoverPoint = renderer.toBoard(ev);
 });
 
 canvas.addEventListener('mouseleave', () => {
   hover = null;
+  hoverPoint = null;
 });
+
+/**
+ * Which charge the pointer is over, recomputed every frame.
+ *
+ * Every frame rather than on mousemove, because the charge moves under a
+ * stationary cursor -- caching the answer at move time would leave the tag
+ * describing whatever used to be there.
+ *
+ * Nothing is picked while a tower is armed: the cursor then belongs to
+ * placement, and a tag over the ghost would cover the very ring the player is
+ * lining up.
+ */
+function chargeUnderPointer(): Charge | null {
+  if (!hoverPoint || selected !== null) return null;
+  const targets = world.charges.map((c) => {
+    const p = pointAt(c.dist);
+    return { id: c.id, x: p.x, y: p.y, r: chargeRadius(c.state, c.scale) };
+  });
+  const id = pickCharge(targets, hoverPoint);
+  return id === null ? null : (world.charges.find((c) => c.id === id) ?? null);
+}
 
 canvas.addEventListener('click', (ev) => {
   // Read the cell from the click itself rather than from the last mousemove.
@@ -196,6 +226,13 @@ if (import.meta.env.DEV) {
   // being able to drive the simulation directly is the difference between
   // debugging the game and debugging the browser.
   //   crucible.place('forge', 5, 4); crucible.startWave(); crucible.advance(1200);
+  //
+  // `redraw` and `pointAt` are there because the same throttling that stops
+  // the simulation also stops the *painting*: in a hidden tab `document.hidden`
+  // is true, no animation frame ever runs, and the canvas holds whichever frame
+  // it had when the tab went away. Without a way to force one repaint, checking
+  // what the board actually looks like from a script is impossible, and so is
+  // checking anything that only exists for the length of a hover.
   Object.defineProperty(window, 'crucible', {
     value: {
       get world() {
@@ -207,6 +244,20 @@ if (import.meta.env.DEV) {
       },
       place: (def: TowerId, col: number, row: number) => placeTower(world, def, col, row),
       startWave: () => startWave(world),
+      /** Paint one frame, and sync the chrome, without an animation frame. */
+      redraw() {
+        const hovered = chargeUnderPointer();
+        renderer.draw(world, hover, selected, inspected, previewUpgrade, hovered);
+        ui.sync(world, selected, inspected, speed, hovered?.state ?? null);
+        return hovered ? { hovering: hovered.state, id: hovered.id } : { hovering: null };
+      },
+      /** Board pixels for a distance along the lane, for aiming a synthetic hover. */
+      pointAt: (dist: number) => pointAt(dist),
+      /** Move the pointer to a board pixel, as a real mousemove would. */
+      hoverAt(x: number, y: number) {
+        hover = { col: Math.floor(x / BOARD.cell), row: Math.floor(y / BOARD.cell) };
+        hoverPoint = { x, y };
+      },
     },
   });
 }
@@ -227,8 +278,9 @@ function frame(now: number): void {
 
   // Rendering continues while paused, so the board stays readable and towers
   // can still be placed and upgraded -- which is most of the point of a pause.
-  renderer.draw(world, hover, selected, inspected, previewUpgrade);
-  ui.sync(world, selected, inspected, speed);
+  const hoveredCharge = chargeUnderPointer();
+  renderer.draw(world, hover, selected, inspected, previewUpgrade, hoveredCharge);
+  ui.sync(world, selected, inspected, speed, hoveredCharge?.state ?? null);
   requestAnimationFrame(frame);
 }
 

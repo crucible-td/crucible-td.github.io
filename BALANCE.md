@@ -1,5 +1,14 @@
 # Balance: the measurement record
 
+> **Naming note.** The interface was relabelled after these measurements were
+> taken: Kinetic reads as Impact, Solvent as Acid, Slag as Ash, Molten as Lava,
+> Vapor as Gas, and Forge/Stamp/Vat/Lens as Burner/Hammer/Acid Tank/Beam. **No
+> id changed and no number moved** -- `npm run sim -- --all-waves` was verified
+> byte-identical across the whole change -- so every loadout and every figure
+> below is still exactly correct. Entries are left in the vocabulary they were
+> written in rather than rewritten, because this file is a record of what was
+> measured and when, and editing it after the fact would make it a worse one.
+
 What the current tuning actually measures, and what past tunings taught. This
 is the evidence behind the numbers in `src/sim/`, kept out of
 [CLAUDE.md](CLAUDE.md) because it is a record to consult when tuning rather

@@ -61,19 +61,19 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
   kiln1: {
     id: 'kiln1', towerId: 'forge', path: 'kiln', tier: 1,
     name: 'Kiln Lining', cost: 55,
-    blurb: 'Heat stops doing nothing to Molten. Barely, but it is a start.',
+    blurb: 'Heat stops doing nothing to Lava. Barely, but it is a start.',
     overrides: { MOLTEN: { HEAT: 0.5 } },
   },
   kiln2: {
     id: 'kiln2', towerId: 'forge', path: 'kiln', tier: 2,
     name: 'Reverberatory Kiln', cost: 110,
-    blurb: 'A real bite on Molten now, and a hotter throw.',
+    blurb: 'A real bite on Lava now, and a hotter throw.',
     overrides: { MOLTEN: { HEAT: 0.9 } }, stats: { damage: 21 },
   },
   kiln3: {
     id: 'kiln3', towerId: 'forge', path: 'kiln', tier: 3,
     name: 'Blast Furnace', cost: 230,
-    blurb: 'Molten is no longer a wall to Heat at all. It is a target.',
+    blurb: 'Lava is no longer a wall to Heat at all. It is a target.',
     overrides: { MOLTEN: { HEAT: 1.4 } }, stats: { damage: 68, cooldown: 26 },
   },
   bellows1: {
@@ -137,26 +137,26 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
   damp1: {
     id: 'damp1', towerId: 'stamp', path: 'damp', tier: 1,
     name: 'Dampened Press', cost: 60,
-    blurb: 'Heavy enough to stop glancing off Molten.',
+    blurb: 'Heavy enough to stop glancing off Lava.',
     overrides: { MOLTEN: { KINETIC: 1.25 } },
   },
   damp2: {
     id: 'damp2', towerId: 'stamp', path: 'damp', tier: 2,
     name: 'Drop Hammer', cost: 120,
-    blurb: 'Molten is now a good target rather than a poor one.',
+    blurb: 'Lava is now a good target rather than a poor one.',
     overrides: { MOLTEN: { KINETIC: 1.75 } }, stats: { damage: 46 },
   },
   damp3: {
     id: 'damp3', towerId: 'stamp', path: 'damp', tier: 3,
     name: 'Pile Driver', cost: 235,
-    blurb: 'Crushes anything it can reach. Vapor still floats over it.',
+    blurb: 'Crushes anything it can reach. Gas still floats over it.',
     overrides: { MOLTEN: { KINETIC: 2.25 }, ORE: { KINETIC: 1.75 } },
     stats: { damage: 119 },
   },
   die1: {
     id: 'die1', towerId: 'stamp', path: 'die', tier: 1,
     name: 'Wide Die', cost: 50,
-    blurb: 'Wider reach. Still ground-only, so Vapor still floats past.',
+    blurb: 'Wider reach. Still ground-only, so Gas still floats past.',
     stats: { range: 104 },
   },
   die2: {
@@ -176,7 +176,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
   recl1: {
     id: 'recl1', towerId: 'vat', path: 'recl', tier: 1,
     name: 'Reclaimer', cost: 60,
-    blurb: 'Solvent tears through Vapor faster.',
+    blurb: 'Acid tears through Gas faster.',
     overrides: { VAPOR: { SOLVENT: 2.5 } },
   },
   recl2: {
@@ -187,7 +187,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
   },
   recl3: {
     id: 'recl3', towerId: 'vat', path: 'recl', tier: 3,
-    name: 'Universal Solvent', cost: 250,
+    name: 'Universal Acid', cost: 250,
     blurb: 'Even Crystal dissolves now. Slowly, but it dissolves.',
     // Lifts Solvent's own wall -- the Vat's whole limitation, undone at a
     // price, and only at the very top of the path.
@@ -197,7 +197,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
   cat1: {
     id: 'cat1', towerId: 'vat', path: 'cat', tier: 1,
     name: 'Catalyst Bath', cost: 55,
-    blurb: 'Eats Slag remnants before they scatter.',
+    blurb: 'Eats Ash remnants before they scatter.',
     overrides: { SLAG: { SOLVENT: 1.75 } },
   },
   cat2: {
@@ -250,7 +250,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
   prism3: {
     id: 'prism3', towerId: 'lens', path: 'prism', tier: 3,
     name: 'Full Spectrum', cost: 240,
-    blurb: 'Every layer has a wavelength that hurts it, including Vapor.',
+    blurb: 'Every layer has a wavelength that hurts it, including Gas.',
     overrides: { ORE: { HEAT: 3.0 }, CRYSTAL: { HEAT: 2.5 }, VAPOR: { HEAT: 1.5 } },
     stats: { damage: 187 },
   },
