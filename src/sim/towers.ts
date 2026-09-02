@@ -36,7 +36,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 0,
     color: '#ff8c42',
-    blurb: 'Cheap and constant, and what it hits keeps burning. Nothing at all to Lava.',
+    blurb: 'Cheap, constant fire. Nothing at all to Lava.',
   },
   chiller: {
     id: 'chiller',
@@ -49,7 +49,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 0,
     color: '#5bc8f5',
-    blurb: 'Lava crawls at half pace under it. Crystal does not feel it at all.',
+    blurb: 'Lava crawls at half pace. Crystal never feels it.',
   },
   stamp: {
     id: 'stamp',
@@ -62,7 +62,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: true,
     splash: 0,
     color: '#dfe3e8',
-    blurb: 'Heavy hits that shove a charge back. Shatters Crystal; Gas floats over.',
+    blurb: 'Shatters Crystal and shoves it back. Gas floats over.',
   },
   vat: {
     id: 'vat',
@@ -75,7 +75,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 36,
     color: '#9ae66e',
-    blurb: 'Splashes a crowd, and the acid follows whatever breaks out of it.',
+    blurb: 'Splashes a crowd. The acid follows what breaks out.',
   },
   lens: {
     id: 'lens',
@@ -88,7 +88,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     groundOnly: false,
     splash: 0,
     color: '#ffb45c',
-    blurb: 'Reaches most of the lane and leaves it alight, but fires rarely.',
+    blurb: 'Reaches most of the lane. Hits hard, fires rarely.',
   },
 };
 

@@ -452,9 +452,9 @@ export function describeRider(element: Element): string {
     case 'ignite':
       return 'Sets fire to what it hurts';
     case 'corrode':
-      return 'Keeps eating it, and follows whatever breaks out';
+      return 'Keeps eating, and follows what breaks out';
     case 'shove':
-      return 'Knocks what it hurts back down the lane';
+      return 'Knocks it back down the lane';
   }
 }
 

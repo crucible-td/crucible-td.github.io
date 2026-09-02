@@ -76,7 +76,7 @@ export class Ui {
       // The icon is the same artwork the board draws, so the silhouette
       // learned here is the one recognised in play.
       btn.innerHTML =
-        `<span class="icon">${svgMarkup(TOWER_ART[id], def.color, 30)}</span>` +
+        `<span class="icon">${svgMarkup(TOWER_ART[id], def.color, 24)}</span>` +
         `<span class="body">` +
         `<span class="row"><span class="name">${def.name}</span>` +
         // The glyph before the word, because the glyph is the half that works
@@ -142,13 +142,13 @@ export class Ui {
         const child = def.breaksInto;
         const chain = child
           ? `<span class="chain">&rarr; ${def.childCount > 1 ? `${def.childCount}&times; ` : ''}` +
-            `${svgMarkup(MONSTER_ART[child], STATES[child].color, 13)}` +
+            `${svgMarkup(MONSTER_ART[child], STATES[child].color, 12)}` +
             `<span>${STATES[child].label}</span></span>`
           : `<span class="chain last">&rarr; gone</span>`;
 
         return (
           `<tr data-state="${s}">` +
-          `<th>${svgMarkup(MONSTER_ART[s], def.color, 18)}` +
+          `<th>${svgMarkup(MONSTER_ART[s], def.color, 16)}` +
           `<span class="lname" style="color: ${def.color}">${def.label}</span>${chain}</th>` +
           `${cells}</tr>`
         );
