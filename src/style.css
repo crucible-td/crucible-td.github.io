@@ -258,9 +258,18 @@ canvas {
    is one glance away -- the same behaviour the folded table had. */
 #matter [data-el].active { background: rgba(255, 255, 255, 0.07); }
 /* And lit by row for whatever the pointer is on out on the lane, which is how
-   a player ends up learning this table without deciding to read it. */
+   a player ends up learning this table without deciding to read it.
+ *
+   Lit in the layer's own colour rather than in plain white: the tag out on the
+   board wears that colour too, so the two halves of one answer are visibly the
+   same answer. A flat 6% white was too quiet for something whose whole job is
+   to catch the eye of someone who was looking somewhere else. */
 #matter tr[data-state].active th,
-#matter tr[data-state].active td { background: rgba(255, 255, 255, 0.06); }
+#matter tr[data-state].active td {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 var(--layer), inset 0 -1px 0 var(--layer);
+}
+#matter tr[data-state].active th { box-shadow: inset 0 1px 0 var(--layer), inset 0 -1px 0 var(--layer), inset 2px 0 0 var(--layer); }
 #matter tr[data-state].active .mult { color: var(--ink); }
 #matter [data-el].active .mult { color: var(--ink); }
 

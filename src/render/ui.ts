@@ -147,7 +147,7 @@ export class Ui {
           : `<span class="chain last">&rarr; gone</span>`;
 
         return (
-          `<tr data-state="${s}">` +
+          `<tr data-state="${s}" style="--layer: ${def.color}">` +
           `<th>${svgMarkup(MONSTER_ART[s], def.color, 16)}` +
           `<span class="lname" style="color: ${def.color}">${def.label}</span>${chain}</th>` +
           `${cells}</tr>`
