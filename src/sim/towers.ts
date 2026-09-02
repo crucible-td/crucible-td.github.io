@@ -61,7 +61,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     cooldown: 42,
     groundOnly: true,
     splash: 0,
-    color: '#d8d8d8',
+    color: '#dfe3e8',
     blurb: 'Heavy hits that shove a charge back. Shatters Crystal; Gas floats over.',
   },
   vat: {
@@ -87,7 +87,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     cooldown: 74,
     groundOnly: false,
     splash: 0,
-    color: '#ffd166',
+    color: '#ffb45c',
     blurb: 'Reaches most of the lane and leaves it alight, but fires rarely.',
   },
 };

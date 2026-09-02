@@ -130,6 +130,13 @@ canvas {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--slot, var(--dim));
+  /* Glyph then word. The glyph is the part that survives not knowing the
+     word, so it leads; `align-items: center` keeps it on the word's midline
+     rather than its baseline, which is where an inline SVG would otherwise
+     sit. */
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 #tableRef [data-el].active { color: var(--ink); background: rgba(255, 255, 255, 0.07); }
 .tower .blurb { display: block; color: var(--dim); font-size: 12px; margin-top: 3px; }

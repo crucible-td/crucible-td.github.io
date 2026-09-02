@@ -1,4 +1,4 @@
-import type { State, TowerId } from '../sim/types.ts';
+import type { Element, State, TowerId } from '../sim/types.ts';
 
 /**
  * Artwork for towers and monsters, as SVG path data.
@@ -69,6 +69,61 @@ export const TOWER_ART: Record<TowerId, Art> = {
     body: 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zM12 7.4a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2z',
     accent: 'M12 8.8a3.2 3.2 0 1 1 0 6.4 3.2 3.2 0 0 1 0-6.4z',
     accentColor: '#fff6d6',
+  },
+};
+
+/**
+ * The colour that means "this element", wherever the element appears.
+ *
+ * Not the same thing as a tower's colour, and that is the point. Two towers
+ * throw Heat, so `TOWERS.forge.color` and `TOWERS.lens.color` are two shades of
+ * one hue rather than one value -- same hue means *same column of the
+ * resistance table*, and lightness is what separates the Burner from the Beam.
+ * The glyph, the table heading and the counter mark all want the column's
+ * colour rather than either tower's, so it lives here.
+ */
+export const ELEMENT_COLOR: Record<Element, string> = {
+  HEAT: '#ff8c42',
+  COLD: '#5bc8f5',
+  KINETIC: '#dfe3e8',
+  SOLVENT: '#9ae66e',
+};
+
+/**
+ * One glyph per element: what a tower throws, as a mark rather than a word.
+ *
+ * A word only works if you know it, which is the whole reason Kinetic and
+ * Solvent were renamed. A glyph works the second time you see it whatever
+ * language you read, so this is the half of the fix that does not depend on
+ * the rename landing well.
+ *
+ * The same four marks appear on the build card, beside the tower on the board
+ * and at the head of the resistance table's columns, so learning one in the
+ * menu is learning it everywhere. They are drawn to be told apart at 12px --
+ * flame, frost star, impact burst, droplet -- and the flame and the droplet
+ * are the risky pair, which is why the droplet carries an eaten-away line
+ * under it and they sit at opposite ends of the hue circle.
+ */
+export const ELEMENT_ART: Record<Element, Art> = {
+  HEAT: {
+    body:
+      'M12.6 1.6c.5 3.4 3 4.6 4.6 7.2 2.4 3.9 1 9.6-3.9 11.4 1.4-2.6.3-4.6-1-6.1' +
+      '-.6 2-2 2.7-3.2 4-1.3-1.1-1.5-2.6-1.4-3.9-1 1-1.6 2.4-1.6 4.1' +
+      '-2.2-2.4-2.5-6.6-.6-9.7C7.7 5 11.3 4.6 12.6 1.6z',
+  },
+  COLD: {
+    body:
+      'M11 1.6h2v20.8h-2zM2.4 6.4 3.4 4.7l18 10.4-1 1.7zM21.4 4.7l1 1.7-18 10.4-1-1.7z' +
+      'M8.6 5.3 12 7.2l3.4-1.9 1 1.7-4.4 2.6-4.4-2.6zM8.6 18.7l-1-1.7 4.4-2.6 4.4 2.6-1 1.7L12 16.8z',
+  },
+  KINETIC: {
+    body: 'M12 1.2l2.9 6.4 6.1-2.6-3.6 5.9 4.4 3.3-6.6.7 1.3 6.5-4.5-4.9-4.5 4.9 1.3-6.5-6.6-.7 4.4-3.3L3 5l6.1 2.6z',
+  },
+  SOLVENT: {
+    body:
+      'M12 1.8c4.3 5.6 6.6 8.7 6.6 11.4a6.6 6.6 0 1 1-13.2 0C5.4 10.5 7.7 7.4 12 1.8z' +
+      'M2.4 20.2c1.6-1.5 3.1-1.5 4.7 0s3.1 1.5 4.7 0 3.1-1.5 4.7 0 3.1 1.5 4.7 0v2.4' +
+      'c-1.6 1.5-3.1 1.5-4.7 0s-3.1-1.5-4.7 0-3.1 1.5-4.7 0-3.1-1.5-4.7 0z',
   },
 };
 

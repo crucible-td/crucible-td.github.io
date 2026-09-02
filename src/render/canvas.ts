@@ -3,7 +3,7 @@
  * which is what lets the same World run identically with no canvas at all.
  */
 import { BOARD, PATH_POINTS, cellCentre, isBuildableCell, pointAt } from '../sim/path.ts';
-import { MONSTER_ART, MONSTER_SCALE, TOWER_ART, paintArt } from './art.ts';
+import { ELEMENT_ART, ELEMENT_COLOR, MONSTER_ART, MONSTER_SCALE, TOWER_ART, paintArt } from './art.ts';
 import { TOWERS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
@@ -261,13 +261,24 @@ export class Renderer {
     paintArt(ctx, TOWER_ART[id], x, y - recoil * 1.5, size, def.color);
     ctx.restore();
 
-    // One pip per tier climbed, along the top edge. Paths are permanent and
-    // three deep, so the board has to show how far each tower has committed --
-    // not merely that it has.
+    // The element this tower throws, stamped at its shoulder. Five towers
+    // share four elements, so "which column of the table does this one read"
+    // is not answerable from the silhouette alone -- and it is the single most
+    // important fact about a tower once it is on the board rather than in the
+    // menu. Skipped on the placement ghost, which has the build card open
+    // right next to it already saying the same thing.
+    if (alpha === 1) {
+      paintArt(ctx, ELEMENT_ART[def.element], x + r - 2, y - r + 2, 11, ELEMENT_COLOR[def.element]);
+    }
+
+    // One pip per tier climbed, along the *bottom* edge. Paths are permanent
+    // and three deep, so the board has to show how far each tower has
+    // committed -- not merely that it has. These used to run along the top,
+    // which is where the element glyph now sits.
     for (let i = 0; i < tiers; i++) {
       ctx.fillStyle = def.color;
       ctx.beginPath();
-      ctx.arc(x + r - 3.5 - i * 7, y - r + 3.5, 2.6, 0, Math.PI * 2);
+      ctx.arc(x + r - 3.5 - i * 7, y + r - 3.5, 2.6, 0, Math.PI * 2);
       ctx.fill();
     }
   }

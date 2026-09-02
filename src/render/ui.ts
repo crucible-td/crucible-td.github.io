@@ -1,5 +1,5 @@
 /** DOM chrome around the canvas: readouts, build menu, table reference, overlay. */
-import { TOWER_ART, svgMarkup } from './art.ts';
+import { ELEMENT_ART, ELEMENT_COLOR, TOWER_ART, svgMarkup } from './art.ts';
 import {
   cardState,
   describeMultiplier,
@@ -77,7 +77,12 @@ export class Ui {
         `<span class="icon">${svgMarkup(TOWER_ART[id], def.color, 30)}</span>` +
         `<span class="body">` +
         `<span class="row"><span class="name">${def.name}</span>` +
-        `<span class="elem">${elementLabel(def.element)}</span>` +
+        // The glyph before the word, because the glyph is the half that works
+        // without English -- and it is the same mark the board stamps beside
+        // the tower once it is down.
+        `<span class="elem">` +
+        `${svgMarkup(ELEMENT_ART[def.element], ELEMENT_COLOR[def.element], 12)}` +
+        `${elementLabel(def.element)}</span>` +
         `<span class="cost">${def.cost}g</span></span>` +
         `<span class="blurb">${def.blurb}</span>` +
         `<span class="blurb rider">${describeRider(def.element)}</span></span>`;
