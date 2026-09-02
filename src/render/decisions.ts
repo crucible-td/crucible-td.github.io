@@ -192,9 +192,28 @@ export function endOverlay(opts: {
   return null;
 }
 
-/** "HEAT" -> "Heat". */
+/**
+ * What an element is called on screen.
+ *
+ * This used to be `e[0] + e.slice(1).toLowerCase()`, which worked only while
+ * every element happened to be named after its own id. Two are not: KINETIC
+ * reads as "Impact" and SOLVENT as "Acid", because the ids are physics and
+ * chemistry vocabulary and the interface has to be readable by someone who has
+ * never met either word.
+ *
+ * The ids themselves are deliberately untouched. They key the resistance
+ * table, so renaming them would edit the one file this project treats as the
+ * game itself, and every reference loadout in BALANCE.md with them.
+ */
+const ELEMENT_LABELS: Record<Element, string> = {
+  HEAT: 'Heat',
+  COLD: 'Cold',
+  KINETIC: 'Impact',
+  SOLVENT: 'Acid',
+};
+
 export function elementLabel(e: Element): string {
-  return e[0]! + e.slice(1).toLowerCase();
+  return ELEMENT_LABELS[e];
 }
 
 /**
@@ -270,7 +289,7 @@ export function describeRider(element: Element): string {
     case 'ignite':
       return 'Sets fire to what it hurts';
     case 'corrode':
-      return 'Corrodes, and the corrosion follows what breaks out';
+      return 'Keeps eating it, and follows whatever breaks out';
     case 'shove':
       return 'Knocks what it hurts back down the lane';
   }
@@ -285,7 +304,7 @@ function riderVerb(element: Element): string {
     case 'ignite':
       return 'set alight';
     case 'corrode':
-      return 'corroded';
+      return 'eaten away';
     case 'shove':
       return 'knocked back';
   }

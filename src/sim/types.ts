@@ -51,7 +51,7 @@ export const STATES: Record<State, StateDef> = {
     radius: 11,
   },
   SLAG: {
-    label: 'Slag',
+    label: 'Ash',
     speed: 1.4,
     leakCost: 1,
     floats: false,
@@ -63,7 +63,7 @@ export const STATES: Record<State, StateDef> = {
     radius: 10,
   },
   MOLTEN: {
-    label: 'Molten',
+    label: 'Lava',
     speed: 1.8,
     leakCost: 2,
     floats: false,
@@ -90,7 +90,7 @@ export const STATES: Record<State, StateDef> = {
     radius: 12,
   },
   VAPOR: {
-    label: 'Vapor',
+    label: 'Gas',
     speed: 2.4,
     leakCost: 3,
     floats: true,

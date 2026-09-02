@@ -56,25 +56,25 @@ export const WAVES: Wave[] = [
     groups: [{ state: 'ORE', count: 11, gap: 48, delay: 0 }],
   },
   {
-    hint: 'Ore breaks into Slag, and Slag is quick. Watch what you leave behind.',
+    hint: 'Ore breaks into Ash, and Ash is quick. Watch what you leave behind.',
     groups: [
       { state: 'ORE', count: 14, gap: 34, delay: 0 },
       { state: 'SLAG', count: 6, gap: 50, delay: 260 },
     ],
   },
   {
-    hint: 'Molten. Heat does nothing to it at all -- bring Cold or Solvent.',
+    hint: 'Lava. Heat does nothing to it at all -- bring Cold or Acid.',
     groups: [{ state: 'MOLTEN', count: 14, gap: 62, delay: 0 }],
   },
   {
-    hint: 'Mixed feed. Heat still clears the ore; something else must take the molten.',
+    hint: 'Mixed feed. Heat still clears the ore; something else must take the lava.',
     groups: [
       { state: 'ORE', count: 27, gap: 32, delay: 0, hpScale: 1.08 },
       { state: 'MOLTEN', count: 10, gap: 70, delay: 180, hpScale: 1.08 },
     ],
   },
   {
-    hint: 'Vapor floats over Stamps and ignores Kinetic. Dissolve it or chill it.',
+    hint: 'Gas floats over Hammers and ignores Impact. Dissolve it or chill it.',
     groups: [{ state: 'VAPOR', count: 12, gap: 72, delay: 0, hpScale: 1.08 }],
   },
   {
@@ -149,7 +149,7 @@ export const WAVES: Wave[] = [
     ],
   },
   {
-    hint: 'A molten flood. Heat is dead weight here unless you have paid to fix it.',
+    hint: 'A lava flood. Heat is dead weight here unless you have paid to fix it.',
     groups: [
       { state: 'MOLTEN', count: 19, gap: 32, delay: 0, hpScale: 4.0 },
       { state: 'ORE', count: 11, gap: 40, delay: 240, hpScale: 3.0 },
@@ -163,7 +163,7 @@ export const WAVES: Wave[] = [
     ],
   },
   {
-    hint: 'A gas cloud. Kinetic is worthless and the ground towers cannot see it.',
+    hint: 'A gas cloud. Impact is worthless and the ground towers cannot see it.',
     groups: [
       { state: 'VAPOR', count: 19, gap: 40, delay: 0, hpScale: 6.5 },
       { state: 'MOLTEN', count: 10, gap: 54, delay: 320, hpScale: 4.0 },
@@ -186,7 +186,7 @@ export const WAVES: Wave[] = [
     ],
   },
   {
-    hint: 'Slabs and gas together. Something must cover what the Stamps cannot.',
+    hint: 'Slabs and gas together. Something must cover what the Hammers cannot.',
     groups: [
       { state: 'CRYSTAL', count: 4, gap: 140, delay: 0, hpScale: 45 },
       { state: 'VAPOR', count: 14, gap: 44, delay: 200, hpScale: 13 },

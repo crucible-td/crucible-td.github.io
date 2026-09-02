@@ -155,14 +155,18 @@ describe('describing the table to the player', () => {
     expect(describeMultiplier(1.6)).toBe('×1.6');
   });
 
-  it('names elements in prose case', () => {
+  it('names elements as the player reads them, not as the ids spell them', () => {
+    // Two of the four no longer derive from their id, which is the whole
+    // reason `elementLabel` stopped being a lowercase of `e`. A regression
+    // here shows up as physics vocabulary leaking back into the interface.
     expect(elementLabel('HEAT')).toBe('Heat');
-    expect(elementLabel('SOLVENT')).toBe('Solvent');
+    expect(elementLabel('KINETIC')).toBe('Impact');
+    expect(elementLabel('SOLVENT')).toBe('Acid');
   });
 
   it('leads with the new behaviour and puts the old one in brackets', () => {
     const [line] = describeOverrides('kiln1');
-    expect(line).toContain('Molten + Heat');
+    expect(line).toContain('Lava + Heat');
     expect(line).toContain('was immune');
   });
 
@@ -238,7 +242,7 @@ describe('describeRiderGains', () => {
   it('ignores cells rewritten for an element the tower does not throw', () => {
     // recl3 lifts Crystal + Solvent, which is the Vat's own element -- but it
     // also has to not claim anything about the columns it leaves alone.
-    expect(describeRiderGains('recl3')).toEqual(['Crystal can now be corroded too']);
+    expect(describeRiderGains('recl3')).toEqual(['Crystal can now be eaten away too']);
     expect(describeRiderGains('bellows1')).toEqual([]);
   });
 });
