@@ -3,7 +3,7 @@
 > **On this document.** Everything below describes v2, the current game. The
 > original version — towers that dealt no damage and instead *transmuted*
 > enemies between states — is retired and tagged `v1-transmutation`. If you find
-> prose here claiming there is no healthbar, or that Ore resists Kinetic, it is
+> prose here claiming there is no healthbar, or that Ore resists Impact, it is
 > v1 text that outlived the pivot and should be deleted rather than believed.
 
 ## One line
@@ -28,33 +28,33 @@ before the round's toughness multiplier. Bounty is paid when it breaks.
 
 | Layer | Speed | HP | Leak | Bounty | Breaks into | Character |
 |---|---|---|---|---|---|---|
-| **ORE** | 1.0 | 12 | 1 | 2 | 1 × Slag | The default spawn. Heat's specialty; Cold slides off it. |
-| **SLAG** | 1.4 | 6 | 1 | 1 | — | What is left when anything else is stripped. Quick, thin, and the last of it. |
-| **MOLTEN** | 1.8 | 14 | 2 | 3 | 1 × Slag | Already melted, so Heat does nothing at all. Chill it or dissolve it. |
-| **CRYSTAL** | 0.9 | 22 | 2 | 4 | **2 × Molten** | Slow and tough, and inert to both Cold and Solvent. Shatter it — and then deal with what comes out. |
-| **VAPOR** | 2.4 | 10 | 3 | 3 | — | Floats over ground-only towers and Kinetic passes straight through. Fast, and the most expensive thing to let past. |
+| **ORE** | 1.0 | 12 | 1 | 2 | 1 × Ash | The default spawn. Heat's specialty; Cold slides off it. |
+| **ASH** | 1.4 | 6 | 1 | 1 | — | What is left when anything else is stripped. Quick, thin, and the last of it. |
+| **LAVA** | 1.8 | 14 | 2 | 3 | 1 × Ash | Already melted, so Heat does nothing at all. Chill it or dissolve it. |
+| **CRYSTAL** | 0.9 | 22 | 2 | 4 | **2 × Lava** | Slow and tough, and inert to both Cold and Acid. Shatter it — and then deal with what comes out. |
+| **GAS** | 2.4 | 10 | 3 | 3 | — | Floats over ground-only towers and Impact passes straight through. Fast, and the most expensive thing to let past. |
 
-Anything reaching the end leaks, costing the lives in the Leak column: Vapor is
-worth three, Molten and Crystal two, Ore and Slag one each.
+Anything reaching the end leaks, costing the lives in the Leak column: Gas is
+worth three, Lava and Crystal two, Ore and Ash one each.
 
 ## The resistance table
 
 This is the whole game. Four elements × five states, each cell a damage
 multiplier.
 
-| | **HEAT** | **COLD** | **KINETIC** | **SOLVENT** |
+| | **HEAT** | **COLD** | **IMPACT** | **ACID** |
 |---|---|---|---|---|
 | **ORE** | **×2.0** | ×0.5 | ×1.5 | ×1.0 |
-| **SLAG** | ×1.0 | ×1.0 | **×1.5** | ×1.25 |
-| **MOLTEN** | **immune** | **×2.0** | ×0.75 | ×1.6 |
+| **ASH** | ×1.0 | ×1.0 | **×1.5** | ×1.25 |
+| **LAVA** | **immune** | **×2.0** | ×0.75 | ×1.6 |
 | **CRYSTAL** | ×1.6 | **immune** | **×2.0** | **immune** |
-| **VAPOR** | ×0.5 | ×1.6 | **immune** | **×2.0** |
+| **GAS** | ×0.5 | ×1.6 | **immune** | **×2.0** |
 
 Two rules generate these numbers, and both are asserted in tests:
 
 **Every element is useless against exactly one layer.** Immunities are what
 force the player to have a strategy at all. An element without a wall becomes
-the answer to everything — Solvent briefly had none, and the Vat immediately
+the answer to everything — Acid briefly had none, and the Acid Tank immediately
 appeared in every single winning build.
 
 **Every layer has at least two counters** — a specialist in bold at ×2.0, and a
@@ -79,32 +79,32 @@ and its magnitude is scaled by the same resistance cell that scales the damage.
 |---|---|---|---|
 | **HEAT** | Ignite | burns, hot and brief | no |
 | **COLD** | Chill | slows the charge down | no |
-| **KINETIC** | Shove | knocks it back down the lane | n/a, instant |
-| **SOLVENT** | Corrode | eats slowly | **yes — onto the children** |
+| **IMPACT** | Shove | knocks it back down the lane | n/a, instant |
+| **ACID** | Corrode | eats slowly | **yes — onto the children** |
 
 One rule generates all of the behaviour worth having, and none of it is a
 special case in tower code:
 
 **An immune cell means no damage and no rider.** Crystal is never chilled,
-Vapor is never shoved, and nothing anywhere says so — the table already did.
-This is also the answer to "which monsters walk slow": Cold slows Molten to
-little over half pace (×2.0), Vapor by a third (×1.6), Ore barely at all
+Gas is never shoved, and nothing anywhere says so — the table already did.
+This is also the answer to "which monsters walk slow": Cold slows Lava to
+little over half pace (×2.0), Gas by a third (×1.6), Ore barely at all
 (×0.5), and Crystal not at all. The Cold column, read back as speed.
 
 **An upgrade that rewrites a cell moves the rider with it.** An Absolute Zero
 Chiller does not merely start hurting Crystal, it starts *slowing* Crystal. A
-Blast Furnace starts igniting Molten. That interaction cost nothing to build
+Blast Furnace starts igniting Lava. That interaction cost nothing to build
 and is the best reason in the game to climb a path.
 
 Two riders exist to stay out of each other's way. Cold owns throughput, so
-Kinetic owns position instead: a shove is capped per *charge* rather than per
-tower, so a bank of Stamps cannot chain one into a stall-lock, and it is
+Impact owns position instead: a shove is capped per *charge* rather than per
+tower, so a bank of Hammers cannot chain one into a stall-lock, and it is
 divided by the square root of toughness, because a boss that can be pushed
 around is a boss that never arrives. None of the three timed riders stack —
 a second application takes the stronger value and refreshes the clock.
 
-Corrode is the only one that knows the layer system exists, and it is the Vat's
-whole identity: a wash over a Crystal keeps eating the two Molten cores that
+Corrode is the only one that knows the layer system exists, and it is the Acid Tank's
+whole identity: a wash over a Crystal keeps eating the two Lava cores that
 climb out of it. Its damage is small and its duration is long, because almost
 all of its value is being still alive when the layer breaks.
 
@@ -121,15 +121,15 @@ Enemies are stacks. Breaking the outer layer does not kill the charge — it
 reveals what is underneath, at the same point on the lane.
 
 ```
-CRYSTAL ──breaks into──> 2 × MOLTEN ──each into──> SLAG ──> gone
-ORE ──> SLAG ──> gone
-VAPOR ──> gone
+CRYSTAL ──breaks into──> 2 × LAVA ──each into──> ASH ──> gone
+ORE ──> ASH ──> gone
+GAS ──> gone
 ```
 
 One Crystal is therefore five payouts and three different resistance profiles.
-It also sets the game's best trap: shattering Crystal with a Stamp is the
-correct play, and it fills the lane with Molten, which Heat cannot touch at all.
-A Forge-and-Stamp board handles the shell and then watches the cores walk past.
+It also sets the game's best trap: shattering Crystal with a Hammer is the
+correct play, and it fills the lane with Lava, which Heat cannot touch at all.
+A Burner-and-Hammer board handles the shell and then watches the cores walk past.
 
 The chain only ever runs inward. Nothing anywhere puts a layer back on, which
 is what bounds a cascade however it is triggered.
@@ -143,9 +143,9 @@ therefore dead content.
 The arithmetic is what made it so. A tower is a linear unit of power at a flat
 45-64 gold, and it brings coverage as well as damage -- it watches its own patch
 of lane. A tier multiplies one tower whose base is capped, for 50-255. Measured
-at the worst point, the Stamp's `die` chain cost 380 gold and added 49 dps
+at the worst point, the Hammer's `die` chain cost 380 gold and added 49 dps
 against Crystal, its own best target, while the same 380 gold bought 8.4 more
-Stamps for 217 dps. Breadth was 4.4x better value, and a board of forty towers
+Hammers for 217 dps. Breadth was 4.4x better value, and a board of forty towers
 that never upgraded cleared all twenty rounds with 19 of 20 lives.
 
 Difficulty cannot fix this. Raising toughness scales the requirement for both
@@ -173,10 +173,10 @@ lucrative.
 This single rule does a lot of work:
 - Deep enemies out-earn shallow ones, so the game teaches its own strategy
   through the wallet: one Crystal pays five times on the way down (shell, two
-  cores, two remnants) where a bare Slag pays once.
+  cores, two remnants) where a bare Ash pays once.
 - Shattering a Crystal is *profitable but dangerous* — the payout is immediate
-  and so are the two Molten cores, which Heat cannot touch at all. A
-  Forge-and-Stamp board takes the shell apart and then watches the cores walk
+  and so are the two Lava cores, which Heat cannot touch at all. A
+  Burner-and-Hammer board takes the shell apart and then watches the cores walk
   past. That is the game's best trap and it is paid for in gold.
 - Thematically exact: you run a foundry. You're paid for refining ore.
 
@@ -192,11 +192,11 @@ carries it. Stats live in `src/sim/towers.ts`; what follows is the shape.
 
 | Tower | Element | Cost | Damage | Range | Cooldown | Shape |
 |---|---|---|---|---|---|---|
-| **Forge** | Heat | 46 | 4 | 92 | 30 | Cheap, short and constant. The line's entry point. |
+| **Burner** | Heat | 46 | 4 | 92 | 30 | Cheap, short and constant. The line's entry point. |
 | **Chiller** | Cold | 58 | 6 | 110 | 48 | Medium reach, slow rate, expensive early. Its chill is the largest rider in the game. |
-| **Stamp** | Kinetic | 45 | 9 | 90 | 42 | Ground-only, tight range, heavy hits. Useless out of position, and Vapor floats straight over it. |
-| **Vat** | Solvent | 52 | 5 | 100 | 60 | The only tower with splash (36px), and the slowest. Its corrosion follows whatever breaks out. |
-| **Lens** | Heat | 64 | 14 | 260 | 74 | Reaches most of the lane and hits hard, but rarely. The Forge's opposite on the same table column. |
+| **Hammer** | Impact | 45 | 9 | 90 | 42 | Ground-only, tight range, heavy hits. Useless out of position, and Gas floats straight over it. |
+| **Acid Tank** | Acid | 52 | 5 | 100 | 60 | The only tower with splash (36px), and the slowest. Its corrosion follows whatever breaks out. |
+| **Beam** | Heat | 64 | 14 | 260 | 74 | Reaches most of the lane and hits hard, but rarely. The Burner's opposite on the same table column. |
 
 Growing this to eight is still open; see BACKLOG.md, which notes that support
 towers are the change most likely to reintroduce a mandatory tower and therefore
@@ -214,22 +214,22 @@ of a path, reached by commitment rather than handed out at tier 1.
 
 | Tower | Path | What the top of it does |
 |---|---|---|
-| Forge | **Kiln** | Molten stops being immune to Heat and ends up taking ×1.4. |
-| Forge | Bellows | Fires roughly three times as often as stock. |
+| Burner | **Kiln** | Lava stops being immune to Heat and ends up taking ×1.4. |
+| Burner | Bellows | Fires roughly three times as often as stock. |
 | Chiller | **Deposition** | Crystal stops being immune to Cold and ends at ×1.75. |
 | Chiller | Supercooled | Covers a quarter of the lane on its own. |
-| Stamp | **Dampened** | Crushes Molten and Ore; trades away the Crystal specialism. |
-| Stamp | **Die** | Doubles down on Crystal — ×3.5, the hardest hit in the game. |
-| Vat | **Reclaimer** | Tears through Vapor, and dissolves Crystal slightly — its own wall, undone. |
-| Vat | **Catalyst** | Floods a stretch of lane; eats Slag and Ore in bulk. |
-| Lens | Focus | One shot removes most things, from anywhere on the map. |
-| Lens | **Prism** | Finds a wavelength for every layer, including Vapor. |
+| Hammer | **Dampened** | Crushes Lava and Ore; trades away the Crystal specialism. |
+| Hammer | **Die** | Doubles down on Crystal — ×3.5, the hardest hit in the game. |
+| Acid Tank | **Reclaimer** | Tears through Gas, and dissolves Crystal slightly — its own wall, undone. |
+| Acid Tank | **Catalyst** | Floods a stretch of lane; eats Ash and Ore in bulk. |
+| Beam | Focus | One shot removes most things, from anywhere on the map. |
+| Beam | **Prism** | Finds a wavelength for every layer, including Gas. |
 
 Six of the ten paths rewrite table cells; the rest are numeric, which
 DESIGN.md's older self correctly called the boring half.
 
 A tower that resolves a cell to *nothing* also stops firing at it — towers hold
-fire where the table says nothing happens — so a bare Forge facing a Molten
+fire where the table says nothing happens — so a bare Burner facing a Lava
 round shows up as restraint rather than as wasted shots, and buying the Kiln
 path is what turns those held shots into breaks.
 
@@ -251,7 +251,7 @@ what makes upgrades worth buying, and the reasoning is under "Breadth versus
 depth" above.
 
 One mechanism covers both bosses and freeplay. A **slab** is a deep stack at
-high `hpScale` — a Crystal shell whose Molten cores inherit its toughness — and
+high `hpScale` — a Crystal shell whose Lava cores inherit its toughness — and
 freeplay is the same dial turned by a formula, compounding without end.
 
 **Known gap:** freeplay's formula was calibrated when round 20 finished near
