@@ -181,6 +181,49 @@ multiplier on the slowest part of the feedback loop. None of it can change a
 balance number, which makes it unusually safe work — and one of the few tasks
 here that is a good candidate for delegation, in a way balance work never is.
 
+## The simulation carries the interface's data
+
+To be clear about what this is not: the one architectural rule is not broken.
+That rule is directional — `src/sim/` never imports from `src/render/` and never
+touches the DOM — and it holds, with `tests/architecture.test.ts` proving it on
+every run. The observation is narrower. It is that "`src/sim` is the simulation"
+is a little less true than the documents around it imply.
+
+`src/sim/types.ts` declares `label`, `color` and `radius` on `StateDef`, and
+`name`, `color` and `blurb` on `TowerDef`; `src/sim/towers.ts` fills them in. So
+the pure layer owns five hex colours, five drawn radii, five display names and
+five sentences of marketing copy. None of it is reachable by the rule's test,
+because a rule about the direction of imports cannot see data sitting on the
+correct side of the arrow.
+
+There is a runtime cost as well as an aesthetic one, and it lands on the hot path
+the performance item above is about. `effective()` returns `color`, and
+`fireTowers` copies that string onto every projectile it creates. The simulation
+therefore allocates and copies a hex string it never reads, once per shot, in the
+function the profiler puts second.
+
+The test that appears to justify keeping the colours here does not actually
+require it. `tests/palette.test.ts` — which enforces the genuinely good rule that
+a layer is never painted in the hue of an element it is immune to — imports from
+`src/render/art.ts` and `src/sim/` together. It needs both importable, not
+co-located.
+
+Two ways to go, and the choice is not obvious:
+
+- **Leave it, and say so on purpose.** It is cheap, nothing is broken, and the
+  alternative adds a directory for five colours. If this is the answer, the
+  reason belongs in a comment on `StateDef`, because the current silence reads as
+  an oversight rather than a decision.
+- **Move the presentational fields to a `src/shared/` both layers may import.**
+  This is the only option that lets the simulation be lifted out as a library —
+  for a different front end, or a server-side harness — without carrying the
+  artwork with it. It also lets `Projectile` stop holding a colour.
+
+Not urgent either way. Recorded because the project defends its architecture
+carefully and this is the one place the defence does not quite reach, and because
+whoever eventually asks "why does a projectile have a colour" should find the
+answer here rather than working it out again.
+
 ## Checks that do not run where the policy says they do
 
 Two small gaps, both between a rule this project states and the thing meant to
@@ -241,6 +284,14 @@ decision rather than a button.
   reported as covered, for as long as nobody checked. A pass over the "so that X
   cannot happen" comments — there are perhaps a dozen — asking which of them a
   test actually holds, would be cheap, and would have caught that one.
+- **A projectile is deleted by setting its speed to -1.** `advanceProjectiles`
+  marks a spent or orphaned projectile for removal by assigning `-1` to
+  `p.speed`, then filters the array on `p.speed > 0`. It works, and it is the
+  one place in the simulation where the code is cleverer than it needs to be: a
+  physics field doubles as a deletion flag, so `Projectile.speed`'s type stops
+  describing its domain and removal becomes coupled to a magnitude. A `dead`
+  flag, or collecting the survivors directly, says the same thing plainly. Pure
+  readability — this is not a bug and should not be filed as one.
 - **No linter or formatter.** Arguable at seven thousand lines, and the
   architecture test already covers the rule that matters most. Noted only
   because this codebase leans unusually hard on hand-written invariants, and a
