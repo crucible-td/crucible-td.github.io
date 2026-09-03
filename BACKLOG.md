@@ -4,9 +4,303 @@ Things known to be worth doing, in no strict order. Items move out of here when
 they ship; the reasoning behind each is kept so that picking one up later does
 not mean rediscovering why it mattered.
 
+## Verified defects from a review pass
+
+Three findings, each reproduced before being written down, and the first of them
+is two bugs with one cause.
+
+They are grouped because the simulation ones share a lesson worth keeping: both
+sit on lines `npm run coverage` already reports as covered. `src/sim/world.ts`
+is at 100% statements and 96.75% branches, and neither was caught. Statement
+coverage measures which lines ran, not which properties hold. (The third lives
+in `src/main.ts`, which coverage excludes on purpose as an entry point — a
+reasonable exclusion that happens to mean nothing watches the dev console
+handle at all.)
+
+### A splash clears the cascade it is documented not to clear
+
+**Status: verified, and fixing it moves measured balance.**
+
+`advanceProjectiles` walks `w.charges` with `for...of` while `breakLayer` pushes
+children onto that same array, so a child born mid-loop is hit by the very
+splash that created it. Reproduced directly: one splash landing beside a Crystal
+produced seven breaks and three kills — the entire stack, out of a single shot.
+
+That contradicts the comment in `breakLayer` which exists to deny it: "Children
+are nudged apart so a splash cannot clear a whole cascade with one hit." The
+nudge is ±12px against a splash radius of 36 to 64, so it was never going to
+hold on its own, and the re-entrant loop makes it moot regardless.
+
+`advanceEffects` has the same shape and the same cause: a damage-over-time tick
+that breaks a layer appends children to the array being iterated, and those
+children take their own inherited corrode tick within the same tick. Five breaks
+in a single `step()`.
+
+The fix is to snapshot the array, or iterate against a captured length, in both
+places. It is a few lines and it is **not** a drive-by change — it makes the Vat
+meaningfully weaker against deep stacks, and the Vat is precisely the tower the
+resistance table has already had to be careful about, having once been mandatory
+in every winning build. It goes through the `balance-pass` skill with
+`npm run diversity` on the far side.
+
+There is a second reason to want it beyond the balance question. Which charges a
+splash hits currently depends on array insertion order, and that is a
+determinism hazard `tests/architecture.test.ts` has no way to see.
+
+### The hover tag reports a charge's base HP and never its real one
+
+`chargeReadout()` takes a `State` and nothing else, so the tag drawn beside a
+charge reads HP straight out of `STATES` and cannot know about `scale`. A round
+20 Crystal slab carrying 1139 hp displays "22 hp". The health bar drawn a few
+lines earlier in the same function is correct, because it multiplies by `scale`
+— so two surfaces on the same screen disagree by a factor of fifty-two.
+
+Passing the charge rather than the state fixes it. Worth doing alongside the
+toughness item below, since they are one complaint approached from two sides.
+
+### `crucible.advance()` returns aliased statistics
+
+The dev console handle spreads `world.stats` shallowly, so `leaksByState` in
+every snapshot it returns is the *same live object*. Take three readings across
+a session and all three report the final values. Small, but a debugging tool
+that lies is the worst kind, and this one cost time during the review that found
+it. Copying the counter rather than aliasing it is the whole fix.
+
+## The player cannot see how tough anything is
+
+Toughness — `hpScale` — is the entire late-game difficulty curve. Rounds 16 to
+20 run at scales of 12 to 55, and freeplay turns no other dial. It is also the
+one variable the board does not show.
+
+`chargeRadius` caps its toughness term at `Math.min(Math.sqrt(scale), 2.1)`, so
+everything at scale 4.4 and above draws at exactly the same size. Every charge
+in the back half of the campaign is above that line. On round 20 the ×55 Crystal
+slab and the ×17 Ore walking beside it differ only by their base radii — 12px
+against 11px — and read as the same creature.
+
+So both channels that could carry toughness fail together: size is capped flat,
+and the hover tag quotes base HP. A player has no way at all to tell a round's
+slab from its trash, which is a strange thing to be true of a game whose bosses
+are defined by nothing except toughness.
+
+Two directions, not exclusive. Raise the cap and let a slab be genuinely
+enormous — it was capped so it would not swallow the lane, which is a layout
+problem rather than a reason. Or add a channel that is not size: a heavier rim,
+a repeated mark, or simply the real number in the tag.
+
+The tag is the cheap half and should ship first, because there it is a bug fix
+rather than a design change.
+
+## The Matter panel never learns what the player bought
+
+`buildMatterPanel()` runs once, in the `Ui` constructor, and reads the base
+`RESISTANCE` table. `sync()` only toggles highlight classes on the rows built at
+startup. The panel is therefore a static picture of the game as it shipped, and
+it becomes wrong the moment a player buys the most interesting thing in it.
+
+Absolute Zero costs 445 gold across three tiers and lifts Crystal/Cold from
+immune to ×1.75. The panel goes on showing that cell as an immunity wall. So do
+Blast Furnace, Universal Acid and Full Spectrum — every tier-3 that lifts a
+wall, which `upgrades.ts` calls the strongest thing a player can buy and the
+clearest way a build covers a gap it was not designed for. The player pays for
+it and the interface denies it happened.
+
+The fix is to rebuild the panel from the best cell the player actually owns for
+each element across their placed towers, rather than from `RESISTANCE`. That
+also answers a question the panel cannot currently answer at all — "given what I
+have built, what am I still blind to" — which is close to the question the whole
+game is about.
+
+A second and separate problem with the same panel: at 1280×720 the sidebar runs
+to 789px against a 720px viewport, so three of its five rows sit below the fold.
+An earlier pass compacted the sidebar to get the panel on screen, and it is on
+screen — but only two rows of it are. This is the reference the interface treats
+as the entire game, and most players see 40% of it without scrolling.
+
+## Selling towers
+
+Nothing in this game can be undone. There is no sell, no move, no refund and no
+respec: a tower placed is placed for the rest of the run, and a path climbed is
+climbed.
+
+That is a defensible rule in a game about commitment and an odd one in a game
+about counters. The premise is "read the layer, bring the answer", and round 4
+is the round that teaches Heat does nothing to Lava. A player who learns that
+the intended way — by having already built two Burners — has exactly one
+recovery available, which is to out-build the mistake with gold they do not have
+yet.
+
+The cost is paid in the property this project is judged on. A player who cannot
+undo a composition is a player who stops trying compositions and starts looking
+up the right one, and "there is a right one" is the failure state the diversity
+meter exists to catch. The meter cannot see this: it samples compositions fixed
+up front and never revised, so the entire cost of irreversibility is invisible
+to every harness in the repo.
+
+A sell at some fraction of outlay — 60% is the genre default — is a small change
+with a real balance surface, because it is also a gold sink and therefore a
+partial answer to the surplus recorded below. It wants `npm run campaign` and
+`npm run diversity` on the far side, and the refund fraction should be treated
+as the dial to measure rather than a number to guess once.
+
+## The simulation spends three-quarters of its time deciding what to shoot
+
+Measured with `node --cpu-prof` over round 20 against a 40-tower board: 1629
+ticks, 44 charges on the lane on average, 85ms of work.
+
+| Self time | Function |
+|---|---|
+| 19.1% | `findTarget` |
+| 13.5% | `fireTowers` |
+| 10.3% | `pointAt` |
+| 6.2% | garbage collector |
+| 3.5% | `resolveResistance` |
+
+The mechanism matters more than the totals. A tower only takes a cooldown when
+it actually *fires*, so a tower that finds no legal target rescans every charge
+on the lane every tick, indefinitely. That is the O(towers × charges) worst
+case, and it arrives precisely when a build is badly matched to the round in
+front of it — which is most of what `npm run diversity` does, since most of its
+720 sampled builds lose.
+
+Three fixes, none of which touches behaviour, in value order:
+
+1. **Compare squared distances instead of calling `Math.hypot`.** The range
+   check in `findTarget` and the splash check in `advanceProjectiles` are both
+   pure thresholds, so the square root is discarded either way. Benchmarked at
+   **7.8×** — 101ms against 13ms over five million iterations.
+2. **Resolve each charge's lane position once per tick** in `advanceCharges` and
+   cache it. `pointAt` currently runs per charge per tower, then again per
+   projectile, per splash candidate, and per emitted event.
+3. **Build an id-to-charge map once per tick** for `advanceProjectiles`, which
+   currently does a linear `find` for every projectile in flight.
+
+Worth doing for one reason above tidiness. `npm test` takes about fifty seconds
+and almost all of it is the diversity sweep, so all of the above is a straight
+multiplier on the slowest part of the feedback loop. None of it can change a
+balance number, which makes it unusually safe work — and one of the few tasks
+here that is a good candidate for delegation, in a way balance work never is.
+
+## The simulation carries the interface's data
+
+To be clear about what this is not: the one architectural rule is not broken.
+That rule is directional — `src/sim/` never imports from `src/render/` and never
+touches the DOM — and it holds, with `tests/architecture.test.ts` proving it on
+every run. The observation is narrower. It is that "`src/sim` is the simulation"
+is a little less true than the documents around it imply.
+
+`src/sim/types.ts` declares `label`, `color` and `radius` on `StateDef`, and
+`name`, `color` and `blurb` on `TowerDef`; `src/sim/towers.ts` fills them in. So
+the pure layer owns five hex colours, five drawn radii, five display names and
+five sentences of marketing copy. None of it is reachable by the rule's test,
+because a rule about the direction of imports cannot see data sitting on the
+correct side of the arrow.
+
+There is a runtime cost as well as an aesthetic one, and it lands on the hot path
+the performance item above is about. `effective()` returns `color`, and
+`fireTowers` copies that string onto every projectile it creates. The simulation
+therefore allocates and copies a hex string it never reads, once per shot, in the
+function the profiler puts second.
+
+The test that appears to justify keeping the colours here does not actually
+require it. `tests/palette.test.ts` — which enforces the genuinely good rule that
+a layer is never painted in the hue of an element it is immune to — imports from
+`src/render/art.ts` and `src/sim/` together. It needs both importable, not
+co-located.
+
+Two ways to go, and the choice is not obvious:
+
+- **Leave it, and say so on purpose.** It is cheap, nothing is broken, and the
+  alternative adds a directory for five colours. If this is the answer, the
+  reason belongs in a comment on `StateDef`, because the current silence reads as
+  an oversight rather than a decision.
+- **Move the presentational fields to a `src/shared/` both layers may import.**
+  This is the only option that lets the simulation be lifted out as a library —
+  for a different front end, or a server-side harness — without carrying the
+  artwork with it. It also lets `Projectile` stop holding a colour.
+
+Not urgent either way. Recorded because the project defends its architecture
+carefully and this is the one place the defence does not quite reach, and because
+whoever eventually asks "why does a projectile have a colour" should find the
+answer here rather than working it out again.
+
+## Checks that do not run where the policy says they do
+
+Two small gaps, both between a rule this project states and the thing meant to
+enforce it.
+
+**CI never sees a pull request.** The workflow triggers on `push` to `main` and
+on manual dispatch. The git policy is that nothing lands on `main` directly and
+substantial work gets a branch and a PR — so the first time CI runs against a
+change is *after* it has been merged. Adding `pull_request` to the trigger list
+is a two-line change and makes the pipeline agree with the policy it serves.
+
+**The purity rule is enforced for two of its three clauses.** CLAUDE.md
+describes the simulation as "a pure function of (state, input, seed): fixed 60Hz
+timestep, one seeded RNG, no wall-clock time", and `tests/architecture.test.ts`
+asserts the render-import ban, the DOM ban and the `Math.random` ban. It does
+not assert the third clause. A `Date.now()` or `performance.now()` in `src/sim`
+would pass every check in this repo and silently desynchronise the browser from
+`npm run sim`, which is the exact failure that file exists to prevent. One more
+assertion, in the style of the three already there.
+
+While in that file: the `Math.random` check strips comments before matching and
+the DOM check does not, so a `src/sim` file that merely *mentions* `window.` in
+a doc comment fails it. Harmless today; confusing on the day it fires.
+
+## A round preview the player can plan against
+
+`roundHint` puts a sentence under the board before a round starts — "Slabs and
+gas together. Something must cover what the Hammers cannot." It is good prose
+and it is the wrong shape of information.
+
+In a game about bringing the right counter, the planning inputs are what is
+coming, how many of them, and how tough. None of the three is visible. The
+player is handed an adjective where they need a composition, and the only way to
+learn what round 17 actually contains is to lose to it once.
+
+A strip above Start Wave carrying each layer's glyph, its count and some mark of
+toughness would do it. The artwork exists — `MONSTER_ART` already draws all five
+in the Matter panel — and the data is a plain read of the wave, with one
+constraint: a freeplay round must not be *built* in order to display it, because
+`freeplayWave` draws from the seeded RNG and spending a roll on a preview would
+desynchronise the browser from `npm run sim`. That constraint is already
+documented on `roundHint` for exactly the same reason, so the shape of the
+answer is known.
+
+Probably the cheapest change on this list that turns the pre-round moment into a
+decision rather than a button.
+
+## Small, verified, low-risk
+
+- **`MAX_CHILL` is currently unreachable.** The strongest Cold cell available
+  anywhere, upgrades included, is `depo3`'s ×1.75 on Crystal, which yields
+  1.75 × 0.22 = 0.385 against a cap of 0.6. The cap is documented as a guard
+  against a future upgrade rather than a number the base tower sits on, which is
+  fair — but nothing in the game comes within a third of it, so it is guarding a
+  hypothetical. Worth knowing before tuning Cold.
+- **Where a comment asserts an invariant, consider a test.** The splash defect
+  above lived under a comment stating the exact property it broke, on a line
+  reported as covered, for as long as nobody checked. A pass over the "so that X
+  cannot happen" comments — there are perhaps a dozen — asking which of them a
+  test actually holds, would be cheap, and would have caught that one.
+- **A projectile is deleted by setting its speed to -1.** `advanceProjectiles`
+  marks a spent or orphaned projectile for removal by assigning `-1` to
+  `p.speed`, then filters the array on `p.speed > 0`. It works, and it is the
+  one place in the simulation where the code is cleverer than it needs to be: a
+  physics field doubles as a deletion flag, so `Projectile.speed`'s type stops
+  describing its domain and removal becomes coupled to a magnitude. A `dead`
+  flag, or collecting the survivors directly, says the same thing plainly. Pure
+  readability — this is not a bug and should not be filed as one.
+- **No linter or formatter.** Arguable at seven thousand lines, and the
+  architecture test already covers the rule that matters most. Noted only
+  because this codebase leans unusually hard on hand-written invariants, and a
+  lint rule is cheaper to maintain than a paragraph of prose.
+
 ## Verify on a real phone
 
-**Status: unverified, and the one item with a known risk attached.**
+**Status: unverified, and the item whose risk is hardest to retire, because
+it needs a device this project cannot drive.**
 
 The game is now published at a public URL, so people will open it on phones.
 Touch placement was broken until recently — the board read its target cell from
@@ -31,6 +325,22 @@ What to check on an actual device:
 - Pause and the speed control are reachable without zooming.
 
 Failure here is likely to be about precision rather than about events firing.
+
+Measured since this was written: on a 375px-wide viewport the board renders at
+355px, which puts a grid cell at **14.8 CSS pixels** against the roughly 44px
+both platform guidelines ask for. A cell is about a third of a comfortable
+touch target, so precision is not a worry to confirm — it is arithmetic already
+done.
+
+The sharper version of the risk turns out not to be placement at all. Hovering
+a charge to ask what it is — the tag naming the layer, its counters and its
+immunities — is the best teaching surface in the game, and it is bound to
+`mousemove`, an event a touch device never sends. On a phone that tag **does
+not exist**. The layer system is what the game is about, and the phone build
+currently teaches it only through the Matter panel and the round hints. A
+tap-to-inspect reusing `pickCharge` with a more generous radius would answer
+this and the cell-size problem together, since both want the same thing: a
+larger effective hit area.
 
 ## Cut the token cost of how sessions are run
 
@@ -117,6 +427,15 @@ The real fixes are still more rounds, or shifting income earlier.
 ## Larger scope, not started
 
 More towers (5 → 8), synergy and support towers, more maps, audio, save/load.
+
+A note on the roster's shape, for when it grows from five towers to eight. Heat
+is carried by two towers with deliberately different shapes — the Forge cheap,
+short and constant, the Lens expensive, distant and slow — while Cold, Impact
+and Acid have exactly one delivery shape each. So a player can vary *which*
+elements they bring, but only for Heat can they vary *how*. If the point of new
+towers is more builds that work, a second Cold or Impact shape is likely to buy
+more than a fifth element would, and unlike a new element it cannot disturb the
+resistance table's twenty cells at all.
 
 A note on synergy towers specifically: measurement says placement already
 matters more than it appears. Shuffling the reference build's coordinates,
