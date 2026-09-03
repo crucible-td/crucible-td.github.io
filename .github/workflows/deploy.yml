@@ -4,9 +4,18 @@ name: Deploy
 # own measurements. This project's whole premise is that balance is measured
 # rather than asserted, so shipping a build whose tests fail would undercut the
 # thing it is trying to demonstrate.
+#
+# Pull requests run the same typecheck/test/build gate, so a change is verified
+# before it merges rather than after -- but only a push to main deploys. A PR
+# publishing over the live site would be a worse bug than the one this workflow
+# exists to catch, so `configure-pages` and both Pages steps are gated to
+# `push` explicitly rather than left to run wherever the artifact happens to be
+# harmless.
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -46,16 +55,19 @@ jobs:
         run: npm run build
 
       - uses: actions/configure-pages@v5
+        if: github.event_name == 'push'
         with:
           # Switch Pages on without needing a visit to repository settings.
           enablement: true
 
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name == 'push'
         with:
           path: dist
 
   deploy:
     needs: build
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
