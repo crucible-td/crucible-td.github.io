@@ -99,8 +99,14 @@ export function effective(t: Tower): { element: Element; damage: number; range: 
   };
 }
 
-/** The table cells this tower rewrites, folded across its whole path. */
-function overridesOf(t: Tower): ResistanceOverrides | undefined {
+/**
+ * The table cells this tower rewrites, folded across its whole path.
+ *
+ * Exported because the Matter panel has to answer the same question the
+ * simulation does -- what does this tower actually do to that cell -- and two
+ * folds of the same upgrade list would be two chances to disagree.
+ */
+export function overridesOf(t: Pick<Tower, 'upgrades'>): ResistanceOverrides | undefined {
   if (t.upgrades.length === 0) return undefined;
   const out: ResistanceOverrides = {};
   for (const id of t.upgrades) {

@@ -1,11 +1,12 @@
 import { MONSTER_SCALE } from './art.ts';
-import { RESISTANCE } from '../sim/resistance.ts';
+import { RESISTANCE, resolveResistance } from '../sim/resistance.ts';
 import { RIDERS } from '../sim/riders.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
 import type { Element, State, Status, Stats, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { WAVES } from '../sim/waves.ts';
+import { overridesOf } from '../sim/world.ts';
 
 /**
  * The decisions the interface makes, without the interface.
@@ -338,6 +339,61 @@ export function chargeReadout(state: State): ChargeReadout {
       ? { state: child, label: STATES[child].label, count: def.childCount }
       : null,
   };
+}
+
+/**
+ * The resistance table as the player's own board actually resolves it.
+ *
+ * The Matter panel used to render `RESISTANCE` once, at startup, and so it went
+ * on describing the game as it shipped rather than the game being played. That
+ * made it wrong about the most expensive thing anyone can buy: Absolute Zero
+ * costs 445 gold across three tiers and lifts Crystal/Cold from immune to
+ * x1.75, and the panel kept drawing that cell as a wall. Blast Furnace,
+ * Universal Acid and Full Spectrum all lift a wall the same way. The player
+ * paid, and the interface denied it happened.
+ *
+ * Each cell is the best the player owns for that element -- the maximum over
+ * every placed tower that throws it -- falling back to the base table where
+ * they own nothing that throws it, because an element nobody has brought is
+ * still worth teaching. Only a tower's own element is folded in: a tower throws
+ * one element and one only, so an override sitting on another element's cell is
+ * unreachable and must not be counted as owned.
+ *
+ * It also answers the question the panel could not answer at all -- given what
+ * I have built, what am I still blind to -- which is close to the question the
+ * whole game is about.
+ */
+export function ownedResistance(
+  towers: Pick<Tower, 'def' | 'upgrades'>[],
+): Record<State, Record<Element, number>> {
+  const table = Object.fromEntries(
+    STATE_IDS.map((s) => [s, { ...RESISTANCE[s] }]),
+  ) as Record<State, Record<Element, number>>;
+
+  for (const t of towers) {
+    const element = TOWERS[t.def].element;
+    const overrides = overridesOf(t);
+    if (!overrides) continue;
+    for (const state of STATE_IDS) {
+      const owned = resolveResistance(state, element, overrides);
+      if (owned > table[state][element]) table[state][element] = owned;
+    }
+  }
+  return table;
+}
+
+/**
+ * The identity of the table above, so the panel is rebuilt only on change.
+ *
+ * Sorted, so that placing two towers in the other order is not a change: the
+ * panel is about what is owned, never about where it stands. Coordinates are
+ * left out for the same reason.
+ */
+export function matterKey(towers: Pick<Tower, 'def' | 'upgrades'>[]): string {
+  return towers
+    .map((t) => `${t.def}:${t.upgrades.join('>')}`)
+    .sort()
+    .join('|');
 }
 
 /**

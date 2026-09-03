@@ -253,6 +253,11 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 #matter .wall { color: var(--bad); opacity: 0.7; font-size: 12px; }
+/* A cell the player's own upgrades have moved off the base table. Underlined
+   in the element's colour rather than recoloured, so it reads as "you did
+   this" without competing with the two highlights above it. */
+#matter td.lifted { box-shadow: inset 0 -2px 0 var(--el); }
+#matter td.lifted .mult { color: var(--el); }
 
 /* Lit for whichever tower is armed or inspected, so "what does this one do"
    is one glance away -- the same behaviour the folded table had. */

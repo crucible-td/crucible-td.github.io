@@ -10,7 +10,9 @@ import {
   describeStats,
   elementLabel,
   endOverlay,
+  matterKey,
   matterRows,
+  ownedResistance,
   panelKey,
   roundHint,
   waveLabel,
@@ -19,7 +21,7 @@ import { RESISTANCE } from '../sim/resistance.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { ELEMENT_IDS, STATES } from '../sim/types.ts';
-import type { State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import type { Element, State, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import type { Speed } from './clock.ts';
 import { availableUpgrades, effective } from '../sim/world.ts';
 import type { World } from '../sim/world.ts';
@@ -53,7 +55,7 @@ export class Ui {
 
   constructor(private handlers: UiHandlers) {
     this.buildTowerMenu();
-    this.buildMatterPanel();
+    this.buildMatterPanel(ownedResistance([]));
     el<HTMLButtonElement>('startWave').addEventListener('click', () => handlers.onStartWave());
     el<HTMLButtonElement>('restart').addEventListener('click', () => handlers.onRestart());
     el<HTMLButtonElement>('freeplay').addEventListener('click', () => handlers.onFreeplay());
@@ -108,7 +110,7 @@ export class Ui {
    * language you read, which is the whole reason this pass exists; the numeral
    * is there for when "good" is not precise enough.
    */
-  private buildMatterPanel(): void {
+  private buildMatterPanel(owned: Record<State, Record<Element, number>>): void {
     const head = ELEMENT_IDS.map(
       (e) =>
         `<th data-el="${e}" title="${elementLabel(e)}">` +
@@ -119,7 +121,11 @@ export class Ui {
       .map((s) => {
         const def = STATES[s];
         const cells = ELEMENT_IDS.map((e) => {
-          const mult = RESISTANCE[s][e];
+          const mult = owned[s][e];
+          // Marked where the player's own towers have moved the cell off the
+          // base table, so the 445 gold that lifts a wall is visible in the
+          // one place the player looks to find out what lifted it.
+          const lifted = mult !== RESISTANCE[s][e] ? ' class="lifted"' : '';
           const filled = barsFor(mult);
           if (filled === 0) {
             return `<td data-el="${e}"><span class="wall" title="immune">&#10005;</span></td>`;
@@ -129,7 +135,7 @@ export class Ui {
             (_, i) => `<i${i < filled ? ' class="on"' : ''}></i>`,
           ).join('');
           return (
-            `<td data-el="${e}" style="--el: ${ELEMENT_COLOR[e]}">` +
+            `<td data-el="${e}"${lifted} style="--el: ${ELEMENT_COLOR[e]}">` +
             `<span class="bars">${bars}</span>` +
             `<span class="mult">${describeMultiplier(mult)}</span></td>`
           );
@@ -167,6 +173,9 @@ export class Ui {
    */
   private shownTower: string | null = null;
 
+  /** What the Matter panel currently describes, same idea, for the board. */
+  private shownMatter: string | null = null;
+
   /**
    * `hoveredState` is the layer the pointer is over on the lane, if any.
    *
@@ -192,6 +201,15 @@ export class Ui {
       btn.setAttribute('aria-pressed', String(state.pressed));
       btn.disabled = state.disabled;
       btn.classList.toggle('unaffordable', state.unaffordable);
+    }
+
+    // Rebuild the reference table when the board changes what it says. It was
+    // built once in the constructor, which made it a picture of the game as it
+    // shipped rather than of the game being played.
+    const matter = matterKey(world.towers);
+    if (matter !== this.shownMatter) {
+      this.shownMatter = matter;
+      this.buildMatterPanel(ownedResistance(world.towers));
     }
 
     // Light up the column for whatever tower the player is holding or
