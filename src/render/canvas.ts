@@ -673,7 +673,7 @@ export class Renderer {
     const { ctx } = this;
     const p = pointAt(c.dist);
     const r = chargeRadius(c.state, c.scale);
-    const info = chargeReadout(c.state);
+    const info = chargeReadout(c);
     const color = STATES[c.state].color;
 
     const w = 168;

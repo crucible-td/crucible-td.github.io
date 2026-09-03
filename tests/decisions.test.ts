@@ -246,7 +246,7 @@ describe('describing the table to the player', () => {
   });
 
   it('tells a player what beats a layer, strongest answer first', () => {
-    const crystal = chargeReadout('CRYSTAL');
+    const crystal = chargeReadout({ state: 'CRYSTAL', scale: 1 });
     expect(crystal.label).toBe('Crystal');
     expect(crystal.counters.map((c) => c.label)).toEqual(['Impact', 'Heat']);
     expect(crystal.counters[0]!.mult).toBe(2);
@@ -260,14 +260,23 @@ describe('describing the table to the player', () => {
     // counter is a mandatory tower, which is the failure this game is most
     // afraid of.
     for (const state of STATE_IDS) {
-      expect(chargeReadout(state).counters.length, state).toBeGreaterThanOrEqual(2);
+      expect(chargeReadout({ state, scale: 1 }).counters.length, state).toBeGreaterThanOrEqual(2);
     }
   });
 
+  it('quotes the charge\'s real hp, not the layer\'s base, so the tag and the health bar agree', () => {
+    // The health bar drawn beside the tag multiplies by scale. The tag used to
+    // read straight out of STATES, so on the rounds where toughness is the
+    // entire difficulty curve the two disagreed by a factor of fifty-two.
+    const base = STATES.CRYSTAL.hp;
+    expect(chargeReadout({ state: 'CRYSTAL', scale: 1 }).hp).toBe(base);
+    expect(chargeReadout({ state: 'CRYSTAL', scale: 55 }).hp).toBe(Math.round(base * 55));
+  });
+
   it('says a terminal layer is the last one rather than inventing a child', () => {
-    expect(chargeReadout('SLAG').breaksInto).toBeNull();
-    expect(chargeReadout('VAPOR').breaksInto).toBeNull();
-    expect(chargeReadout('VAPOR').floats).toBe(true);
+    expect(chargeReadout({ state: 'SLAG', scale: 1 }).breaksInto).toBeNull();
+    expect(chargeReadout({ state: 'VAPOR', scale: 1 }).breaksInto).toBeNull();
+    expect(chargeReadout({ state: 'VAPOR', scale: 1 }).floats).toBe(true);
   });
 
   it('prints multipliers plainly', () => {
