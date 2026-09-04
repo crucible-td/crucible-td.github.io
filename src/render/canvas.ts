@@ -793,8 +793,17 @@ export class Renderer {
     }
 
     const b = info.breaksInto;
+    // "Breaks into 2 lava beasts", not "2 x Lava". Every creature name plurals
+    // with a plain s, which is a property of the five words chosen rather than
+    // of English -- see MONSTER_NAME. The article is picked off the first
+    // letter so a single Ash is "an ash crawler" and not "a ash crawler".
+    const spawn = b
+      ? b.count > 1
+        ? `${b.count} ${b.label}s`
+        : `${/^[aeiou]/.test(b.label) ? 'an' : 'a'} ${b.label}`
+      : '';
     line(
-      b ? `Breaks into ${b.count > 1 ? `${b.count} \u00d7 ` : ''}${b.label}` : 'Last layer',
+      b ? `Breaks into ${spawn}` : 'Last layer',
       '',
       b ? STATES[b.state].color : '#6d6259',
     );

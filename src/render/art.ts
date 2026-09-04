@@ -181,6 +181,38 @@ export const MONSTER_ART: Record<State, Art> = {
 };
 
 /**
+ * What each creature is called, in a sentence.
+ *
+ * The artwork above has always had these identities and they lived only in its
+ * comment, where no player could read them -- "CRYSTAL breaks into 2 MOLTEN" is
+ * a specification, and "a crystal giant cracks and two lava beasts climb out"
+ * is something you can picture.
+ *
+ * **Each name contains its layer's own label**, which is the point rather than
+ * a coincidence: "Lava" is the word that makes "Heat does nothing to it" land,
+ * and this game is read by people for whom English is a second language, so a
+ * creature name that replaced the material word would cost more than it bought.
+ * `tests/art.test.ts` holds that property so a later edit cannot quietly drop
+ * it.
+ *
+ * Singular and lowercase, so it drops into a line of prose. Every plural here
+ * is a plain "s" -- true of these five words, not of English, so a name added
+ * later should be chosen to keep it true.
+ *
+ * It lives in the render layer rather than on `StateDef` on purpose. The
+ * simulation already carries five labels, five colours and five radii that
+ * belong to the interface; a name for a drawing is not the field that should
+ * make that worse.
+ */
+export const MONSTER_NAME: Record<State, string> = {
+  ORE: 'ore golem',
+  SLAG: 'ash crawler',
+  MOLTEN: 'lava beast',
+  CRYSTAL: 'crystal giant',
+  VAPOR: 'gas ghost',
+};
+
+/**
  * How much larger a creature is drawn than the old bare shape.
  *
  * A body with limbs needs more room than a hexagon did. The lane is 40px wide

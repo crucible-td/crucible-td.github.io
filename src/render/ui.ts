@@ -147,6 +147,11 @@ export class Ui {
         // two Lava, which Heat cannot touch -- was previously discoverable
         // only by doing it.
         const child = def.breaksInto;
+        // The child's short label rather than its creature name: "2x lava
+        // beast" wraps the Crystal row in a 285px sidebar, which costs 21px
+        // and puts this panel's last row back under the fold -- measured, at
+        // 735px against a 720px viewport. The hover tag has the room to say
+        // it in full and does.
         const chain = child
           ? `<span class="chain">&rarr; ${def.childCount > 1 ? `${def.childCount}&times; ` : ''}` +
             `${svgMarkup(MONSTER_ART[child], STATES[child].color, 12)}` +

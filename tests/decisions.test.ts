@@ -261,7 +261,9 @@ describe('describing the table to the player', () => {
     expect(crystal.counters.map((c) => c.label)).toEqual(['Impact', 'Heat']);
     expect(crystal.counters[0]!.mult).toBe(2);
     expect(crystal.immunities.map((i) => i.label)).toEqual(['Cold', 'Acid']);
-    expect(crystal.breaksInto).toEqual({ state: 'MOLTEN', label: 'Lava', count: 2 });
+    // Named as the creature: the tag's job here is "a crystal giant cracks
+    // and two lava beasts climb out", which a player can picture.
+    expect(crystal.breaksInto).toEqual({ state: 'MOLTEN', label: 'lava beast', count: 2 });
   });
 
   it('offers every layer at least two answers, because the table promises it', () => {
