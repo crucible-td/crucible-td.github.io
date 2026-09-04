@@ -23,6 +23,7 @@ import {
   rate,
   roundHint,
   roundPreview,
+  statsSnapshot,
   toughnessTier,
   waveLabel,
 } from '../src/render/decisions.ts';
@@ -549,6 +550,32 @@ describe('toughnessTier', () => {
     // freeplayWave compounds hpScale without bound; the ladder must not.
     expect(toughnessTier(500)).toBe(4);
     expect(toughnessTier(50000)).toBe(4);
+  });
+});
+
+describe('statsSnapshot', () => {
+  it('keeps reading what it read after the counters move on', () => {
+    // The defect: the dev console handle spread world.stats shallowly, so
+    // leaksByState in every reading was the same live object and three
+    // readings taken across a session all reported the final numbers.
+    const live = zeroStats();
+    const early = statsSnapshot(live);
+
+    live.leaks += 2;
+    live.leaksByState.CRYSTAL += 2;
+
+    expect(early.leaks).toBe(0);
+    expect(early.leaksByState.CRYSTAL).toBe(0);
+    expect(statsSnapshot(live).leaksByState.CRYSTAL).toBe(2);
+  });
+
+  it('copies the map rather than sharing it, in both directions', () => {
+    const live = zeroStats();
+    const snap = statsSnapshot(live);
+    expect(snap.leaksByState).not.toBe(live.leaksByState);
+    // A snapshot is a reading, so scribbling on one must not reach the world.
+    snap.leaksByState.ORE = 9;
+    expect(live.leaksByState.ORE).toBe(0);
   });
 });
 
