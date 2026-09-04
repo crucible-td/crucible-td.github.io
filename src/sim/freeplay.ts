@@ -2,7 +2,7 @@ import type { Rng } from './rng.ts';
 import { median } from './stats.ts';
 import type { State } from './types.ts';
 import { WAVES } from './waves.ts';
-import type { Wave } from './waves.ts';
+import type { SpawnGroup, Wave } from './waves.ts';
 
 /** Rounds beyond this are generated rather than authored. */
 export const AUTHORED_ROUNDS = WAVES.length;
@@ -40,34 +40,69 @@ export const AUTHORED_FLOOR = median(LAST_WAVE_SCALES);
 /** How far above the bulk floor the authored slab sits, kept the same ratio in freeplay. */
 export const SLAB_RATIO = Math.max(...LAST_WAVE_SCALES) / AUTHORED_FLOOR;
 
-export function freeplayWave(round: number, rng: Rng): Wave {
+/** A generated group always states its toughness -- that is the dial freeplay turns. */
+type FreeplayGroup = SpawnGroup & { hpScale: number };
+
+/**
+ * A freeplay round's composition, with no randomness in it at all.
+ *
+ * Split out from `freeplayWave` so the interface can say what a freeplay round
+ * contains without building one. `freeplayWave` draws from the seeded RNG, and
+ * a preview that spent a roll would desynchronise the browser from
+ * `npm run sim` -- the same constraint documented on `roundHint`. Everything
+ * here is a pure function of `round`; the only randomness in a freeplay wave is
+ * the per-group toughness jitter, which `freeplayWave` applies on top.
+ *
+ * The slab is returned separately rather than already unshifted because it is
+ * the one group that takes no roll, so `freeplayWave` must jitter the bulk
+ * groups and leave it alone. Keeping them apart makes that impossible to get
+ * wrong, and lets a preview mark the bulk toughness as approximate and the
+ * slab's as exact.
+ */
+export function freeplayShape(round: number): { slab: FreeplayGroup | null; bulk: FreeplayGroup[] } {
   const past = round - AUTHORED_ROUNDS;
 
   // Compounding toughness, continuing the authored curve rather than
   // restarting it: round 21 is a touch harder than round 20, not a coast.
   const scale = AUTHORED_FLOOR * Math.pow(1.11, past);
   // Counts grow slowly and level off, so the lane stays readable.
-  const bulk = Math.min(30, 18 + Math.floor(past * 0.8));
+  const bulkCount = Math.min(30, 18 + Math.floor(past * 0.8));
 
-  const groups = POOL.map((state, i) => ({
+  const bulk = POOL.map((state, i) => ({
     state,
-    count: Math.max(6, Math.round(bulk * (state === 'CRYSTAL' ? 0.55 : 0.85))),
+    count: Math.max(6, Math.round(bulkCount * (state === 'CRYSTAL' ? 0.55 : 0.85))),
     gap: Math.max(16, 34 - Math.floor(past / 3)),
     delay: i * 160,
-    hpScale: Number((scale * (0.9 + rng.range(0, 0.3))).toFixed(2)),
+    hpScale: scale,
   }));
 
   // Every fifth freeplay round leads with a slab: one very deep stack, which
   // is a different question from a crowd and needs a different answer.
-  if (past % 5 === 0) {
-    groups.unshift({
-      state: 'CRYSTAL',
-      count: 4 + Math.floor(past / 5),
-      gap: 110,
-      delay: 0,
-      hpScale: Number((scale * SLAB_RATIO).toFixed(2)),
-    });
-  }
+  const slab =
+    past % 5 === 0
+      ? {
+          state: 'CRYSTAL' as State,
+          count: 4 + Math.floor(past / 5),
+          gap: 110,
+          delay: 0,
+          hpScale: Number((scale * SLAB_RATIO).toFixed(2)),
+        }
+      : null;
+
+  return { slab, bulk };
+}
+
+export function freeplayWave(round: number, rng: Rng): Wave {
+  const { slab, bulk } = freeplayShape(round);
+
+  // Jittered in POOL order, one roll per bulk group and none for the slab.
+  // The order and count of these draws is load-bearing: change either and
+  // every freeplay round in `npm run sim` becomes a different round.
+  const groups = bulk.map((g) => ({
+    ...g,
+    hpScale: Number((g.hpScale * (0.9 + rng.range(0, 0.3))).toFixed(2)),
+  }));
+  if (slab) groups.unshift(slab);
 
   return { hint: `Freeplay round ${round}. It does not stop.`, groups };
 }

@@ -22,6 +22,7 @@ import {
   panelKey,
   rate,
   roundHint,
+  roundPreview,
   waveLabel,
 } from '../src/render/decisions.ts';
 import { TOWERS, TOWER_IDS } from '../src/sim/towers.ts';
@@ -463,6 +464,54 @@ describe('roundHint', () => {
     // happen in play, but it must fail safe rather than printing "Wave N: "
     // with nothing after the colon.
     expect(roundHint({ waveIndex: WAVES.length, freeplay: false })).toBe('');
+  });
+});
+
+describe('roundPreview', () => {
+  it('reads an authored round straight off the wave', () => {
+    // Round 4 is the one that teaches Heat does nothing to Lava, and it is a
+    // single group, so it is the clearest case to pin.
+    expect(roundPreview({ waveIndex: 3, freeplay: false })).toEqual([
+      { state: 'MOLTEN', count: 14, hpScale: 1, approx: false },
+    ]);
+  });
+
+  it('sums groups of the same layer at the same toughness', () => {
+    for (let i = 0; i < WAVES.length; i++) {
+      const rows = roundPreview({ waveIndex: i, freeplay: false });
+      const seen = rows.map((r) => `${r.state}@${Math.round(r.hpScale)}`);
+      expect(new Set(seen).size).toBe(seen.length);
+      expect(rows.reduce((n, r) => n + r.count, 0)).toBe(
+        WAVES[i]!.groups.reduce((n, g) => n + g.count, 0),
+      );
+    }
+  });
+
+  it('keeps a slab apart from the trash walking beside it', () => {
+    // The point of showing toughness at all: on the board a x55 Crystal and a
+    // x17 Ore are drawn at the same size, so one row for each is the only
+    // place a player can see the difference.
+    const last = WAVES.length - 1;
+    const rows = roundPreview({ waveIndex: last, freeplay: false });
+    const scales = rows.map((r) => Math.round(r.hpScale));
+    expect(Math.max(...scales)).toBeGreaterThan(Math.min(...scales) * 2);
+  });
+
+  it('previews a freeplay round without building one', () => {
+    // freeplayWave draws from the seeded RNG; this must not, so it is stable
+    // across calls and takes no rng at all.
+    const opts = { waveIndex: WAVES.length + 4, freeplay: true };
+    const rows = roundPreview(opts);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(roundPreview(opts)).toEqual(rows);
+    // Bulk toughness is jittered at spawn, so it is flagged approximate; the
+    // leading slab takes no roll and is exact.
+    expect(rows.some((r) => r.approx)).toBe(true);
+    expect(rows[0]!.approx).toBe(false);
+  });
+
+  it('is empty past the authored rounds when freeplay was never entered', () => {
+    expect(roundPreview({ waveIndex: WAVES.length, freeplay: false })).toEqual([]);
   });
 });
 
