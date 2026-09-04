@@ -454,9 +454,22 @@ function advanceCharges(w: World): void {
   }
 }
 
-function findTarget(w: World, t: Tower): Charge | undefined {
-  const def = effective(t);
-  const overrides = overridesOf(t);
+/**
+ * The charge this tower should shoot, or none.
+ *
+ * Takes the resolved stats rather than resolving them, because `fireTowers`
+ * needs the same two values for the same tower on the same tick and both
+ * allocate -- `effective` a fresh object every call, `overridesOf` another
+ * whenever the tower has upgrades. Resolving twice per tower per tick was most
+ * of why `fireTowers` and the collector between them cost a fifth of the
+ * simulation's time.
+ */
+function findTarget(
+  w: World,
+  t: Tower,
+  def: ReturnType<typeof effective>,
+  overrides: ResistanceOverrides | undefined,
+): Charge | undefined {
   let best: Charge | undefined;
   for (const c of w.charges) {
     if (!c.alive) continue;
@@ -490,10 +503,10 @@ function fireTowers(w: World): void {
       t.cooldown--;
       continue;
     }
-    const target = findTarget(w, t);
-    if (!target) continue;
     const def = effective(t);
     const overrides = overridesOf(t);
+    const target = findTarget(w, t, def, overrides);
+    if (!target) continue;
     t.cooldown = def.cooldown;
     w.projectiles.push({
       id: w.nextId++,
