@@ -405,3 +405,252 @@ isolate composition, so it currently understates the strategy space by ignoring
 that axis entirely. Support towers would make placement a first-class decision
 — and would be the change most likely to reintroduce a mandatory tower, so they
 lean hardest on `npm run diversity`.
+
+## Findings from a play session (2026-09-04)
+
+Recorded as they were reported while playing, in the reporter's own framing.
+Independent of each other, none of them fixed.
+
+- **Every tower's shot looks the same; only the colour differs.** Reported as
+  "every tower shoots the same shot (in a different color though)", with the
+  suggestion that more animation would make the game more fun, and the code
+  agrees exactly. `drawProjectiles` (`src/render/canvas.ts`) draws every
+  projectile in the world as the same 3.5px filled circle, varying nothing but
+  `p.color`. The impact end is the same story from the other side: `ingest`
+  turns every event that is not a plain `hit` into one expanding ring of
+  `BURST_LIFE` frames, radius `6 + t * 22`, coloured from `EVENT_STYLE`, plus
+  an optional floating number. So Heat, Cold, Kinetic and Solvent are told
+  apart by hue and by nothing else -- which is no distinction at all for a
+  colour-blind player, and reads as sameness to everyone else.
+
+  The firing end is *not* part of this: towers already recoil when they shoot
+  (`recoil`, driven off the cooldown-went-up test at the top of the file). It
+  is the flight and the landing that are uniform.
+
+  Two things make this cheaper than it looks. The riders have already shipped
+  -- Heat ignites, Cold chills, Kinetic shoves, Solvent corrodes -- so there
+  are four genuinely different behaviours the visuals are currently not
+  showing, which means the animation work has something true to depict rather
+  than needing decoration invented for it. And it lives entirely in the render
+  layer, where `bursts` and `floaters` already are, so it neither touches the
+  simulation nor risks the purity rule `tests/architecture.test.ts` holds.
+
+  Distinct from the open half of "Towers that are more fun to use" above, and
+  worth doing even if that never happens: that item is about *targeting*
+  shapes -- a beam that pierces, a chain that jumps -- which changes what a
+  tower does. This changes only what a shot looks like on its way there.
+
+  Two constraints to respect. Firing is detected in the renderer by watching
+  cooldowns rather than announced by the simulation, deliberately, because a
+  sim event per shot is thousands of throwaway objects per headless campaign
+  and `npm run diversity` runs hundreds of them -- so a per-tower fire
+  animation must keep reading `lastCooldown`, not ask for a new event. And
+  whatever replaces the single circle is drawn per projectile per frame, which
+  is the hot path the performance pass already went over; a per-shot trail or
+  sprite wants measuring, not assuming.
+
+- **The upgrade panel is not accessible enough.** Reported with a suggestion
+  attached: when a tower is selected, have the upgrade section take the place
+  of the Build section rather than appearing underneath it. Today `#inspect`
+  is a sibling that sits *below* `#towerList` in the `#build` aside and is
+  merely unhidden, so opening it does not replace anything -- it grows the
+  sidebar by its own height and pushes the controls and the Matter panel
+  further down a column that was already the taller one.
+
+  This item and "The Matter panel is fully on screen" are the same measurement
+  seen from two sides. That item ends by accepting exactly this overflow --
+  "opening a tower's upgrade panel adds its own height to the sidebar... that
+  panel is transient and the player opened it deliberately" -- and the swap
+  proposed here would retire the exception rather than live with it: if the
+  upgrade list stands in for the tower list instead of stacking under it, the
+  sidebar does not grow at all. Whether it ends up shorter or taller than the
+  Build list it replaces is a measurement, not a guess, and wants taking at
+  1280x720 in the state that matters (a tier-3 path with both branches still
+  offered) before the change is called done.
+
+  A vocabulary trap worth naming, because the codebase is careful about it and
+  the report is not: `selected` in `src/render/ui.ts` means a tower *type*
+  armed from the Build list for placement, while `inspected` means a *placed*
+  tower being examined -- and it is the second one the player means by
+  "selected a tower". The swap keys on `inspected`, and the element strip that
+  already reads from `selected ?? inspected` is a good check on the reasoning.
+
+  The real cost to weigh: today both lists are on screen at once, so a player
+  who opens a tower's upgrades can still arm a new tower without a step in
+  between. Swapping puts `#inspectClose` in that path. That is probably the
+  right trade -- the upgrade panel is the one being reported as hard to reach
+  -- but it is a trade and not a free win, and it is worth asking whether
+  arming any tower card should simply close the inspect panel by itself, which
+  would cost the player nothing at all.
+
+  Per this project's conventions the decision belongs in
+  `src/render/decisions.ts` with a test named after what it protects, not in
+  the click handler -- that module exists because every interface bug this
+  project has had came from logic tangled with the DOM, including a panel that
+  showed the previously clicked tower, which is the same family as this.
+
+- **A tower's base damage is nowhere on screen.** Reported as "would be nice
+  to see a tower's base damage", and it is not a matter of it being buried:
+  the only damage number the interface renders anywhere is the
+  `Damage 4 → 6` line inside an *upgrade* button, from `describeStats` in
+  `src/render/decisions.ts`. A Build card carries the tower's name, element
+  glyph, cost, blurb and rider sentence and no numbers at all
+  (`buildTowerMenu`, `src/render/ui.ts`), and the inspect panel adds only a
+  title and the branches still on offer. So a player can see what a tier will
+  do to a stat they have never been shown, and cannot compare two towers they
+  have not bought.
+
+  The pieces are already there and pure: `describeStats` reads exactly the
+  four fields worth showing, and `rate()` already turns a cooldown into shots
+  per second because that reads better than ticks. What is missing is the
+  same formatter without an upgrade to diff against -- a current-stats
+  version, wanted by both surfaces, the Build card before the purchase and the
+  inspect panel after it, where `effective()` already resolves what the bought
+  tiers have changed it to.
+
+  **Damage on its own would mislead, and the roster is built so that it
+  does.** The Burner hits for 4 and the Beam for 14, which reads as three and
+  a half times the tower; per second it is 8 against 11.4, because the Burner
+  fires at 2.0/s and the Beam at 0.81/s. Those two carry the same element on
+  purpose -- CLAUDE.md and `towers.ts` both say the interesting axis is the
+  *shape* of the tower rather than its column -- and a bare damage figure
+  hides precisely that axis. Rate belongs beside it, and so does range for the
+  Beam's 260 against everyone else's ~90-110, and splash for the Acid Tank,
+  which is the only tower whose 36 explains its low damage. The blurbs already
+  say all of this in words; the numbers should agree with them rather than
+  replace them.
+
+  And whatever is shown must not read as a promise. Damage in this game is an
+  input to the resistance table, not an outcome -- the Burner's 4 is 0 against
+  Lava -- so a stats line has to sit alongside the Matter panel's reading of
+  the same tower rather than compete with it. The element strip already lights
+  the column for the held or inspected tower, which is the existing answer to
+  "what does this actually do", and a raw number placed carelessly would
+  undercut it.
+
+  The cost, as always in this sidebar, is height: the Build list is permanent,
+  so a stats line on five cards is height the column pays all the time, and
+  that column was measured to exactly 720 to get the Matter panel fully on
+  screen. Putting the numbers only in the inspect panel costs nothing there
+  but does not answer the comparison-before-buying half. Worth measuring both
+  before choosing, at 1280x720, and worth noting that the swap proposed in the
+  previous item frees the room the first option needs.
+
+- **The upgrade paths need rework -- they are doing too many different things
+  at once.** Reported as: lifting a tower's weakness is fine, but the system
+  is somehow too complicated, and a simpler shape would be most upgrades
+  giving damage, or range, or both, or cover against a weakness. Reading the
+  ten paths against the table, the complaint is precise, and it is not that
+  any one path is complicated. It is that no two towers offer the *same kind
+  of pair*, and nothing on screen says which kind you are looking at.
+
+  Sorted by what a path actually does to the game:
+
+  - **Pure stats, no table edit at all:** `bellows` (rate, damage), `super`
+    (range, damage, rate), `focus` (damage, rate).
+  - **Lifts this tower's own wall:** `kiln` (Heat on Lava, 0 → 1.4), `depo`
+    (Cold on Crystal, 0 → 1.75), `damp` (Impact on Lava, 0.75 → 2.25).
+  - **Amplifies a cell the tower was already good at:** `die` (Impact on
+    Crystal, 2.0 → 3.5), `cat` (Acid on Ash, 1.25 → 3.0), most of `prism`
+    (Heat on Ore, 2.0 → 3.0).
+  - **Mixes two of the above inside one path:** `recl` amplifies Gas 2.0 → 4.0
+    for two tiers and then lifts Crystal's immunity at tier 3; `prism3` adds
+    Gas 0.5 → 1.5 on top of two amplifications; `die` opens with a range tier
+    and then turns into a table path.
+
+  So the Burner pairs a wall-lift against a rate path, the Chiller a wall-lift
+  against a range path, the Hammer a wall-lift against a mixed range-and-
+  amplify path, the Beam a pure damage path against a three-cell amplify path,
+  and the Acid Tank pairs *two* table paths and offers no stat path at all.
+  Five towers, five different shapes of choice. That is the complexity, and it
+  compounds with the two findings above: judging `kiln1` requires knowing that
+  Heat on Lava is 0, which lives in the Matter panel, and judging `bellows1`
+  requires knowing the Burner's fire rate, which finding 3 established is not
+  displayed anywhere at all.
+
+  **The thing not to do, even though it is what "just make it damage and
+  range" would produce.** The table rewrites are the mechanism the whole game
+  is judged on. `upgrades.ts` says it directly -- lifting an immunity is "the
+  clearest way a build covers a gap it was not designed for. More ways to
+  answer a layer is more builds that work" -- and `resistance.ts` puts the
+  other half plainly: "a tower that fires 8% faster is not a decision". If
+  every path became a stat path, the best build stops depending on what a
+  board can *answer* and becomes whichever towers have the best base cells,
+  upgraded. That is the one right answer the project exists to avoid, and
+  `npm run diversity` is the thing that would catch it -- after the work, not
+  before.
+
+  **A shape that keeps the mechanic and removes the complaint.** Give every
+  tower the same two paths, and say so on the button: a **Power** path that
+  only ever touches damage, rate and range, and a **Counter** path that only
+  ever lifts that tower's own worst cell, one step per tier. One rule, ten
+  paths, and the player learns it once instead of five times. Most of the
+  roster is already there -- `bellows`, `super` and `focus` are Power paths
+  today, and `kiln`, `depo` and `damp` are Counter paths today. Four paths
+  need work: `die` becomes the Hammer's Power path (it already opens with two
+  range tiers), `cat` becomes the Acid Tank's Power path (splash is a stat and
+  the Vat currently has no Power path at all), `recl` becomes its Counter path
+  built around the Crystal immunity that `recl3` already lifts rather than
+  reaching it only at the top, and `prism` becomes the Beam's Counter path
+  around Gas, which `prism3` already touches.
+
+  Two things that do not fall out of the rule cleanly, and want deciding
+  rather than discovering. The Burner and the Beam share Heat, so a Counter
+  path defined as "lift your own wall" gives them the same wall (Lava) and
+  makes the pair redundant -- the Beam's second-worst cell, Gas at 0.5, is
+  probably the honest answer and is where `prism` already points. And the
+  Hammer is `groundOnly`, so its true worst cell, Gas at 0, is one it cannot
+  shoot at anyway; its wall is Lava at 0.75, which is what `damp` already
+  does.
+
+  **What this costs, before anyone starts.** Path ids are load-bearing beyond
+  `upgrades.ts`: the loadout grammar in CLAUDE.md documents `stamp@11,9+damp3`,
+  BALANCE.md's reference builds name tiers, and `tests/upgrades.test.ts`,
+  `tests/decisions.test.ts` and `tests/riders.test.ts` assert specific
+  overrides on `die3`, `prism3`, `recl3` and `depo3` by id. Renaming or
+  repurposing a path is therefore a rename across four documents and three
+  test files, not a data edit. And it is a balance change by definition, so it
+  goes through the `balance-pass` skill in the main session with both `npm run
+  sim -- --all-waves` and `npm run diversity` -- never one without the other
+  -- plus `tests/breadth.test.ts`, which currently asserts that a board that
+  never upgrades loses at every tower count it can afford. That assertion is
+  the tripwire for the failure mode above: a roster of pure stat paths could
+  keep it passing while the game quietly acquired a right answer again.
+
+  **The cheap alternative, worth pricing first.** It may be that the paths are
+  fine and only their reading is bad. Labelling each path with two words on
+  the panel -- what kind of path it is -- plus the stats line from finding 3,
+  would test whether "too complicated" is really "unexplained" at a small
+  fraction of the cost and none of the balance risk. Worth trying before a
+  reshape that touches every reference build in the project.
+
+- **Pause is live between rounds, where there is nothing to pause.** Reported
+  as a small thing, and the reading is right: `#startWave` is the only control
+  in that row that consults the world -- `start.disabled = world.status !==
+  'idle'` in `sync`, `src/render/ui.ts` -- while the Pause button and the
+  speed cycle are wired unconditionally and never look at `status` at all. So
+  between rounds the row offers Start wave beside a Pause that pauses an idle
+  simulation, and the `P` key does the same.
+
+  There is a real consequence hiding behind the oddity, not just a dead
+  button. Speed lives in the render layer and nothing resets it: `togglePause`
+  sets `speed = 0`, `onStartWave` calls `startWave(world)` and touches speed
+  not at all, and `startWave` in `src/sim/world.ts` only moves `status` from
+  `idle` to `running`. So a pause taken between rounds survives into the next
+  one -- the wave starts frozen, and the only thing on screen saying why is
+  the button reading "Resume". Cheap to reproduce: press Pause while idle,
+  then Start wave.
+
+  Two candidate fixes, and they are not the same. Disabling Pause while
+  `status === 'idle'` matches Start wave's existing treatment and makes the
+  row honest, but leaves open what happens to a pause held across the end of a
+  round, since a round ending sets `status` back to `idle` on its own
+  (`world.ts`, where a cleared board becomes `won` or `idle`). Clearing the
+  pause when a wave starts fixes the trapped-frozen-round case directly and
+  leaves the button harmlessly pressable. Doing both is probably right, and
+  the second is the half that matters.
+
+  Per this project's conventions the enabled-state decision belongs in
+  `src/render/decisions.ts` beside `cardState`, which already does exactly
+  this job for the tower cards, rather than as another line of imperative
+  fiddling inside `sync`.
