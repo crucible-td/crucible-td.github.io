@@ -5,7 +5,7 @@
 import { BOARD, PATH_LENGTH, PATH_POINTS, cellCentre, isBuildableCell, pointAt } from '../sim/path.ts';
 import { ELEMENT_ART, ELEMENT_COLOR, MONSTER_ART, TOWER_ART, paintArt } from './art.ts';
 import { TOWERS } from '../sim/towers.ts';
-import { chargeRadius, chargeReadout, layersRemaining } from './decisions.ts';
+import { chargeRadius, chargeReadout, layersRemaining, toughnessTier } from './decisions.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { STATES } from '../sim/types.ts';
 import type { Charge, Element, SimEvent, Tower, TowerId, UpgradeId } from '../sim/types.ts';
@@ -38,6 +38,24 @@ const EVENT_STYLE: Record<SimEvent['type'], string> = {
   leak: '#ff5a5a',
   immune: '#ff9d5c',
 };
+
+/** Where the i-th shell ring sits, outside a body of radius `r`. */
+function ringRadius(r: number, i: number): number {
+  return r + 3 + i * 3.5;
+}
+
+/**
+ * How far a charge's drawing actually reaches, armour included.
+ *
+ * The rings are decoration and picking deliberately ignores them -- a charge
+ * you can see is a charge you can point at, keyed to `chargeRadius` alone --
+ * but anything positioned *beside* a charge has to clear them.
+ */
+function shellRadius(c: Charge): number {
+  const r = chargeRadius(c.state, c.scale);
+  const tier = toughnessTier(c.scale);
+  return tier === 0 ? r : ringRadius(r, tier - 1) + 2;
+}
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -500,6 +518,38 @@ export class Renderer {
     });
     ctx.restore();
 
+    // Shell rings: how tough this one is, counted rather than measured.
+    // Size stopped saying it several rounds ago -- everything past x4.4 draws
+    // at the same capped radius -- so the slab wears its weight instead, one
+    // ring per tier. Drawn outside the body and never read back by picking,
+    // which stays keyed to `chargeRadius` alone.
+    const tier = toughnessTier(c.scale);
+    for (let i = 0; i < tier; i++) {
+      const ring = ringRadius(r, i);
+      // Backed in the board's own dark before the colour goes on: Ore's tan
+      // and Ash's grey sit close to the lane's own glow, so an unbacked ring
+      // vanished on exactly the charges a crowd makes hardest to read.
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, ring, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(20, 17, 15, 0.75)';
+      ctx.lineWidth = 3.4 + i * 0.6;
+      ctx.stroke();
+      ctx.strokeStyle = s.color;
+      ctx.globalAlpha = 0.95 - i * 0.12;
+      ctx.lineWidth = 1.6 + i * 0.6;
+      ctx.stroke();
+      // A slab's outermost ring is fired pale, so the thing that has to be
+      // spotted in a crowd of forty differs in kind and not only in count --
+      // three rings against two is not a difference anyone reads at a glance
+      // while the lane is full.
+      if (tier >= 3 && i === tier - 1) {
+        ctx.strokeStyle = 'rgba(255, 246, 232, 0.7)';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
     // Health bar, so wearing a layer down is visible progress -- and so a
     // tower plinking uselessly at something is visibly achieving nothing.
     const max = STATES[c.state].hp * c.scale;
@@ -672,7 +722,10 @@ export class Renderer {
   private drawChargeTag(c: Charge): void {
     const { ctx } = this;
     const p = pointAt(c.dist);
-    const r = chargeRadius(c.state, c.scale);
+    // Cleared of the shell rings rather than of the body, or a slab -- the one
+    // charge a player most wants to interrogate -- has the tag sitting on top
+    // of its own armour.
+    const r = shellRadius(c);
     const info = chargeReadout(c);
     const color = STATES[c.state].color;
 

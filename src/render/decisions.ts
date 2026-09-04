@@ -315,9 +315,36 @@ export function layersRemaining(state: State): number {
  */
 export function chargeRadius(state: State, scale: number): number {
   // Sub-linear and capped, so a x14 slab is unmistakable without swallowing
-  // the lane.
+  // the lane. Raising the cap was tried and rejected by looking at it: at 2.4
+  // a Crystal is 39px of radius on a lane 40px wide, and round 20 draws as a
+  // solid column of overlapping bodies. Toughness past this point is carried
+  // by `toughnessTier` instead, because size has run out of board.
   const toughness = Math.min(Math.sqrt(scale), 2.1);
-  return (STATES[state].radius * MONSTER_SCALE * toughness);
+  return STATES[state].radius * MONSTER_SCALE * toughness;
+}
+
+/**
+ * How heavily armoured a charge is drawn, 0 to 4.
+ *
+ * `hpScale` is the whole late-game difficulty curve -- rounds 16 to 20 run at
+ * 12 to 55, and freeplay turns no other dial -- and until this existed the
+ * board was the one place it could not be seen. Size cannot say it: everything
+ * from x4.4 upward is drawn at the same capped radius, so a x55 slab and the
+ * x17 Ore walking beside it were the same creature at a glance.
+ *
+ * A ladder rather than a curve, because the question a player asks is "is that
+ * one worse than these" and not "by how much". The thresholds sit where the
+ * game's own numbers sit: rounds 1-4 carry no `hpScale` at all and stay bare,
+ * round 20's x17 bulk lands a tier below its x55 slab, and tier 4 exists
+ * because freeplay compounds without bound and the ladder has to stop
+ * somewhere.
+ */
+export function toughnessTier(scale: number): number {
+  if (scale >= 100) return 4;
+  if (scale >= 32) return 3;
+  if (scale >= 10) return 2;
+  if (scale >= 3) return 1;
+  return 0;
 }
 
 export interface PickTarget {
