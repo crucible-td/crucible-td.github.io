@@ -28,32 +28,30 @@ a session and all three report the final values. Small, but a debugging tool
 that lies is the worst kind, and this one cost time during the review that found
 it. Copying the counter rather than aliasing it is the whole fix.
 
-## The player cannot see how tough anything is
+## The player cannot see how tough anything is -- shipped
 
-Toughness — `hpScale` — is the entire late-game difficulty curve. Rounds 16 to
-20 run at scales of 12 to 55, and freeplay turns no other dial. It is also the
-one variable the board does not show.
+Toughness -- `hpScale` -- is the entire late-game difficulty curve. Rounds 16 to
+20 run at scales of 12 to 55, freeplay turns no other dial, and it used to be
+the one variable the board did not show.
 
-`chargeRadius` caps its toughness term at `Math.min(Math.sqrt(scale), 2.1)`, so
-everything at scale 4.4 and above draws at exactly the same size. Every charge
-in the back half of the campaign is above that line. On round 20 the ×55 Crystal
-slab and the ×17 Ore walking beside it differ only by their base radii — 12px
-against 11px — and read as the same creature.
+Three channels now carry it. The hover tag quotes the charge's real HP; the
+round preview strip names each layer's toughness before the round starts; and
+the board draws **shell rings** -- one concentric ring per tier of
+`toughnessTier()`, at x3, x10, x32 and x100, with a slab's outermost ring fired
+pale so it differs in kind and not only in count. Rings are decoration:
+`chargeRadius` remains the single source of truth for picking, so a charge you
+can see is still a charge you can point at. Rounds 1 to 4 carry no `hpScale` at
+all and stay bare, which keeps the rounds that teach an immunity from also
+introducing armour.
 
-So both channels that could carry toughness fail together: size is capped flat,
-and the hover tag quotes base HP. A player has no way at all to tell a round's
-slab from its trash, which is a strange thing to be true of a game whose bosses
-are defined by nothing except toughness.
-
-Two directions, not exclusive. Raise the cap and let a slab be genuinely
-enormous — it was capped so it would not swallow the lane, which is a layout
-problem rather than a reason. Or add a channel that is not size: a heavier rim,
-a repeated mark, or simply the real number in the tag.
-
-The tag half has shipped -- it quotes the charge's real HP now, so a slab at
-least announces its own number when asked. What is left is the harder half: a
-player reading the board rather than hovering it still has nothing to read,
-because size is capped flat well below where the late rounds live.
+**The "raise the cap" half was tried and rejected by looking at it.** This item
+used to argue the `Math.min(Math.sqrt(scale), 2.1)` cap was a layout problem
+rather than a real constraint. It is a real constraint: at the cap a Crystal is
+already 34px of radius on a lane 40px wide, and a screenshot of round 20 in play
+shows the lane as a solid column of overlapping bodies. Raising it to 2.4 -- 39px
+against a 40px lane -- made the crowd measurably harder to read, so it went back
+to 2.1 and the ring channel carries the range instead. Do not re-propose the cap
+without looking at round 20 first.
 
 ## Three of the Matter panel's five rows are below the fold
 

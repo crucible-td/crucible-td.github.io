@@ -23,6 +23,7 @@ import {
   rate,
   roundHint,
   roundPreview,
+  toughnessTier,
   waveLabel,
 } from '../src/render/decisions.ts';
 import { TOWERS, TOWER_IDS } from '../src/sim/towers.ts';
@@ -245,8 +246,12 @@ describe('describing the table to the player', () => {
     // it would grow with toughness -- fine in testing, broken on the bosses.
     expect(chargeRadius('CRYSTAL', 1)).toBeCloseTo(12 * 1.35);
     expect(chargeRadius('CRYSTAL', 4)).toBeCloseTo(12 * 1.35 * 2);
-    // Capped, so a x14 slab is unmistakable without swallowing the lane.
+    // Capped at 2.1, and the cap is real rather than cautious: raising it to
+    // 2.4 puts a Crystal at 39px of radius on a lane 40px wide, and round 20
+    // draws as a solid column. Everything above x4.41 is the same size, which
+    // is why toughnessTier exists.
     expect(chargeRadius('CRYSTAL', 100)).toBeCloseTo(12 * 1.35 * 2.1);
+    expect(chargeRadius('CRYSTAL', 55)).toBe(chargeRadius('CRYSTAL', 17));
   });
 
   it('tells a player what beats a layer, strongest answer first', () => {
@@ -512,6 +517,38 @@ describe('roundPreview', () => {
 
   it('is empty past the authored rounds when freeplay was never entered', () => {
     expect(roundPreview({ waveIndex: WAVES.length, freeplay: false })).toEqual([]);
+  });
+});
+
+describe('toughnessTier', () => {
+  it('leaves the teaching rounds bare', () => {
+    // Rounds 1-4 carry no hpScale at all, and a round that is teaching an
+    // immunity should not also be introducing armour.
+    expect(toughnessTier(1)).toBe(0);
+    expect(toughnessTier(1.08)).toBe(0);
+    for (const g of WAVES.slice(0, 4).flatMap((w) => w.groups)) {
+      expect(toughnessTier(g.hpScale ?? 1)).toBe(0);
+    }
+  });
+
+  it('separates round 20 slab from the trash walking beside it', () => {
+    // The assertion this whole channel exists for. Both are drawn at the same
+    // capped radius, so if these tiers ever match, the board is back to
+    // showing the hardest thing in the game as the easiest.
+    expect(toughnessTier(55)).toBeGreaterThan(toughnessTier(17));
+  });
+
+  it('climbs the campaign in steps rather than all at once', () => {
+    expect(toughnessTier(3)).toBe(1);
+    expect(toughnessTier(10)).toBe(2);
+    expect(toughnessTier(32)).toBe(3);
+    expect(toughnessTier(100)).toBe(4);
+  });
+
+  it('saturates, because freeplay toughness has no ceiling', () => {
+    // freeplayWave compounds hpScale without bound; the ladder must not.
+    expect(toughnessTier(500)).toBe(4);
+    expect(toughnessTier(50000)).toBe(4);
   });
 });
 
