@@ -4,7 +4,7 @@ import { RIDERS } from '../sim/riders.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
-import type { Element, State, Status, Stats, Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import type { Charge, Element, State, Status, Stats, Tower, TowerId, UpgradeId } from '../sim/types.ts';
 import { WAVES } from '../sim/waves.ts';
 
 /**
@@ -293,6 +293,7 @@ export function pickCharge(targets: PickTarget[], point: { x: number; y: number 
 
 export interface ChargeReadout {
   label: string;
+  /** This charge's real HP, toughness included -- not the layer's base. */
   hp: number;
   leakCost: number;
   floats: boolean;
@@ -309,13 +310,20 @@ export interface ChargeReadout {
  * the row lit up in the Matter panel are the same facts, and they must not be
  * able to disagree about them.
  *
+ * Takes the charge rather than its state, because toughness is not a property
+ * of the layer. Reading `hp` straight out of `STATES` made the tag quote the
+ * base number while the health bar drawn beside it multiplied by `scale`, so a
+ * round 20 slab carrying 1139 hp announced itself as 22 -- two surfaces on the
+ * same screen disagreeing by a factor of fifty-two about the one variable that
+ * is the entire late-game difficulty curve.
+ *
  * Counters come out strongest first because that is the order the player wants
  * to read them in -- "what is my best answer, and what else will do". Ties fall
  * back to `ELEMENT_IDS` order so the tag never reorders itself between frames.
  */
-export function chargeReadout(state: State): ChargeReadout {
-  const def = STATES[state];
-  const row = RESISTANCE[state];
+export function chargeReadout(c: Pick<Charge, 'state' | 'scale'>): ChargeReadout {
+  const def = STATES[c.state];
+  const row = RESISTANCE[c.state];
 
   const counters = ELEMENT_IDS.filter((e) => row[e] > 1)
     .sort((a, b) => row[b] - row[a] || ELEMENT_IDS.indexOf(a) - ELEMENT_IDS.indexOf(b))
@@ -329,7 +337,7 @@ export function chargeReadout(state: State): ChargeReadout {
   const child = def.breaksInto;
   return {
     label: def.label,
-    hp: def.hp,
+    hp: Math.round(def.hp * c.scale),
     leakCost: def.leakCost,
     floats: def.floats,
     counters,
