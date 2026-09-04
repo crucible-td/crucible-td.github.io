@@ -5,6 +5,7 @@ import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
 import { UPGRADES } from '../sim/upgrades.ts';
 import { ELEMENT_IDS, STATES, STATE_IDS } from '../sim/types.ts';
 import type { Charge, Element, State, Status, Stats, Tower, TowerId, UpgradeId } from '../sim/types.ts';
+import { AUTHORED_ROUNDS, freeplayShape } from '../sim/freeplay.ts';
 import { WAVES } from '../sim/waves.ts';
 import { overridesOf } from '../sim/world.ts';
 
@@ -163,6 +164,65 @@ export function roundHint(opts: { waveIndex: number; freeplay: boolean }): strin
   if (opts.freeplay) return `Freeplay round ${opts.waveIndex + 1}. It does not stop.`;
   const hint = WAVES[opts.waveIndex]?.hint;
   return hint ? `Wave ${opts.waveIndex + 1}: ${hint}` : '';
+}
+
+/** One line of the round preview: a layer, how many of it, and how tough. */
+export interface PreviewRow {
+  state: State;
+  count: number;
+  /** Toughness multiplier. 1 means a layer at its printed HP. */
+  hpScale: number;
+  /** True when the real toughness is jittered around this figure at spawn. */
+  approx: boolean;
+}
+
+/**
+ * What the coming round contains: the strip above Start wave.
+ *
+ * `roundHint` gives the round an adjective; this gives it a composition. The
+ * three things a player plans against are what is coming, how many, and how
+ * tough, and none of them used to be on screen -- the only way to learn what
+ * round 17 held was to lose to it once.
+ *
+ * Never builds a freeplay wave. `freeplayWave` draws from the seeded RNG, and
+ * this runs while the interface is merely sitting there, so a roll spent here
+ * would desynchronise the browser from `npm run sim`. It reads `freeplayShape`
+ * instead, which is the same composition with the toughness jitter left off --
+ * hence `approx` on those rows, and not on the slab, which takes no roll.
+ *
+ * Groups sharing a layer *and* a toughness are summed, so the strip stays a few
+ * lines. Toughness is deliberately not folded together: round 20's x55 Crystal
+ * slab standing as its own row beside x17 Ore is the entire point, because the
+ * board draws them at the same size.
+ */
+export function roundPreview(opts: { waveIndex: number; freeplay: boolean }): PreviewRow[] {
+  const groups: PreviewRow[] = [];
+  if (opts.waveIndex < AUTHORED_ROUNDS) {
+    for (const g of WAVES[opts.waveIndex]?.groups ?? []) {
+      groups.push({ state: g.state, count: g.count, hpScale: g.hpScale ?? 1, approx: false });
+    }
+  } else if (opts.freeplay) {
+    const { slab, bulk } = freeplayShape(opts.waveIndex + 1);
+    // Spawn order, so the strip reads in the order the lane will.
+    if (slab) groups.push({ state: slab.state, count: slab.count, hpScale: slab.hpScale ?? 1, approx: false });
+    for (const g of bulk) {
+      groups.push({ state: g.state, count: g.count, hpScale: g.hpScale ?? 1, approx: true });
+    }
+  }
+
+  const rows: PreviewRow[] = [];
+  for (const g of groups) {
+    const merged = rows.find(
+      (r) => r.state === g.state && Math.round(r.hpScale) === Math.round(g.hpScale),
+    );
+    if (merged) {
+      merged.count += g.count;
+      merged.approx = merged.approx || g.approx;
+    } else {
+      rows.push({ ...g });
+    }
+  }
+  return rows;
 }
 
 /**

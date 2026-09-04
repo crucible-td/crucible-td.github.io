@@ -15,6 +15,7 @@ import {
   ownedResistance,
   panelKey,
   roundHint,
+  roundPreview,
   waveLabel,
 } from './decisions.ts';
 import { RESISTANCE } from '../sim/resistance.ts';
@@ -176,6 +177,9 @@ export class Ui {
   /** What the Matter panel currently describes, same idea, for the board. */
   private shownMatter: string | null = null;
 
+  /** Which round the preview strip describes, so it is not rebuilt every frame. */
+  private shownPreview: string | null = null;
+
   /**
    * `hoveredState` is the layer the pointer is over on the lane, if any.
    *
@@ -242,6 +246,8 @@ export class Ui {
       hint.textContent = roundHint({ waveIndex: world.waveIndex, freeplay: world.freeplay });
     }
 
+    this.syncPreview(world);
+
     const overlay = el('overlay');
     const result = endOverlay({
       status: world.status,
@@ -254,6 +260,48 @@ export class Ui {
       el('overlayBody').textContent = result.body;
       el<HTMLButtonElement>('freeplay').hidden = !result.canContinue;
     }
+  }
+
+  /**
+   * The strip naming what the round contains.
+   *
+   * Shown while a round is idle or running: before it starts it is what the
+   * player plans against, and during it, it is what they are watching arrive.
+   * Rebuilt only when the round changes, because it is markup and this runs
+   * every frame.
+   *
+   * Toughness is the plain multiplier rather than a word ladder, because the
+   * jump from x17 trash to a x55 slab is the information, and "heavy" hides
+   * it. Omitted entirely at x1 so the early rounds stay quiet.
+   */
+  private syncPreview(world: World): void {
+    const panel = el('preview');
+    const showing = world.status === 'idle' || world.status === 'running';
+    panel.hidden = !showing;
+    if (!showing) return;
+
+    const key = `${world.waveIndex}|${world.freeplay}`;
+    if (key === this.shownPreview) return;
+    this.shownPreview = key;
+
+    const rows = roundPreview({ waveIndex: world.waveIndex, freeplay: world.freeplay });
+    panel.innerHTML = rows
+      .map((r) => {
+        const def = STATES[r.state];
+        const scale = Math.round(r.hpScale);
+        const tough =
+          scale > 1
+            ? `<span class="tough" title="Toughness: ${scale} times this layer's usual health">` +
+              `${r.approx ? '&asymp;' : ''}&times;${scale}</span>`
+            : '';
+        return (
+          `<span class="prow" style="--layer: ${def.color}">` +
+          `${svgMarkup(MONSTER_ART[r.state], def.color, 14)}` +
+          `<span class="pname">${def.label}</span>` +
+          `<span class="pcount">&times;${r.count}</span>${tough}</span>`
+        );
+      })
+      .join('');
   }
 
   /**

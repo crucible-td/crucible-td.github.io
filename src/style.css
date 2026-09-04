@@ -180,6 +180,30 @@ canvas {
 #inspectClose:hover { color: var(--ink); }
 #inspect .taken { color: var(--dim); font-size: 12px; }
 
+/* The round preview: what is coming, how many, and how tough.
+ *
+ * Two columns of tight rows rather than one per line, because the sidebar's
+ * scarcest resource is vertical space -- the Matter panel below it already
+ * runs past the fold, and a five-row strip would push it further. */
+#preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 2px 10px;
+  margin-top: 8px;
+}
+.prow { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+.prow svg { flex: none; }
+.pname { color: var(--layer); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcount { margin-left: auto; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tough {
+  flex: none;
+  padding: 0 4px;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  color: var(--hot);
+  font-variant-numeric: tabular-nums;
+}
+
 #startWave {
   width: 100%;
   padding: 9px;
@@ -350,6 +374,7 @@ canvas {
   .readout b { font-size: 17px; }
   #towerList, #upgradeList { grid-template-columns: minmax(0, 1fr); }
   #startWave, #speedControls { max-width: none; }
+  #preview { grid-template-columns: minmax(0, 1fr); }
 
   /* Touch targets: the speed controls are the smallest thing on the page. */
   #speedControls button { padding: 11px; }

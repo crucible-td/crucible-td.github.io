@@ -195,28 +195,37 @@ While in that file: the `Math.random` check strips comments before matching and
 the DOM check does not, so a `src/sim` file that merely *mentions* `window.` in
 a doc comment fails it. Harmless today; confusing on the day it fires.
 
-## A round preview the player can plan against
+## A round preview the player can plan against -- shipped
 
-`roundHint` puts a sentence under the board before a round starts — "Slabs and
-gas together. Something must cover what the Hammers cannot." It is good prose
-and it is the wrong shape of information.
+A strip above Start wave now names what the round contains: each layer's glyph,
+how many of it, and its toughness as a plain multiplier, omitted at x1. It
+answers the three things a player actually plans against, none of which used to
+be on screen -- the only way to learn what round 17 held was to lose to it once.
+`roundHint`'s sentence stays under the board; it was good prose about the round's
+character and a poor substitute for its composition.
 
-In a game about bringing the right counter, the planning inputs are what is
-coming, how many of them, and how tough. None of the three is visible. The
-player is handed an adjective where they need a composition, and the only way to
-learn what round 17 actually contains is to lose to it once.
+Two details worth keeping:
 
-A strip above Start Wave carrying each layer's glyph, its count and some mark of
-toughness would do it. The artwork exists — `MONSTER_ART` already draws all five
-in the Matter panel — and the data is a plain read of the wave, with one
-constraint: a freeplay round must not be *built* in order to display it, because
-`freeplayWave` draws from the seeded RNG and spending a roll on a preview would
-desynchronise the browser from `npm run sim`. That constraint is already
-documented on `roundHint` for exactly the same reason, so the shape of the
-answer is known.
+- **Freeplay is previewed without being built.** `freeplayWave` draws from the
+  seeded RNG, so a preview that called it would desynchronise the browser from
+  `npm run sim` on every frame. `freeplayShape` is the same composition with the
+  toughness jitter left off; the strip marks those rows approximate (`~x29`) and
+  the leading slab, which takes no roll, exact. `npm run sim -- --all-waves` and
+  the reference campaign were required to produce byte-identical output across
+  the split.
+- **Toughness is not folded together.** Groups merge only when the layer *and*
+  the rounded toughness match, so round 20's x55 Crystal slab keeps its own row
+  beside the x17 Ore. That is the whole point: the board draws them at the same
+  size, because `chargeRadius` caps its toughness term far below where the late
+  rounds live -- see the open item above.
 
-Probably the cheapest change on this list that turns the pre-round moment into a
-decision rather than a button.
+**Possible later improvement: a word ladder instead of the number.** "Tough /
+heavy / slab" would read more easily than `x55`, and for a player who is not
+reading the number as a multiplier it would teach the mechanic better. It was
+not shipped first because bucketing hides the size of the jump -- x17 and x55
+would both be "slab" -- and that jump is the information the strip exists to
+carry. Worth revisiting as a label *beside* the number rather than instead of
+it.
 
 ## Small, verified, low-risk
 

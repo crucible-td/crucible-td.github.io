@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUTHORED_ROUNDS, freeplayWave, waveAt } from '../src/sim/freeplay.ts';
+import { AUTHORED_ROUNDS, freeplayShape, freeplayWave, waveAt } from '../src/sim/freeplay.ts';
 import { Rng } from '../src/sim/rng.ts';
 import { STATE_IDS } from '../src/sim/types.ts';
 import { WAVES } from '../src/sim/waves.ts';
@@ -116,5 +116,41 @@ describe('wave lookup', () => {
 
   it('agrees with the authored count, so the campaign ends where it says', () => {
     expect(AUTHORED_ROUNDS).toBe(WAVES.length);
+  });
+});
+
+describe('freeplayShape', () => {
+  const round = AUTHORED_ROUNDS + 5;
+
+  it('describes a round without drawing from the RNG', () => {
+    // The whole reason it exists: the preview strip runs every frame, and a
+    // roll spent there would desynchronise the browser from npm run sim.
+    const rng = new Rng(7);
+    freeplayShape(round);
+    freeplayShape(round);
+    expect(rng.range(0, 1)).toBe(new Rng(7).range(0, 1));
+  });
+
+  it('is the wave freeplayWave builds, minus the toughness jitter', () => {
+    const shape = freeplayShape(round);
+    const wave = freeplayWave(round, new Rng(3));
+    const groups = [...(shape.slab ? [shape.slab] : []), ...shape.bulk];
+
+    expect(wave.groups.map((g) => g.state)).toEqual(groups.map((g) => g.state));
+    expect(wave.groups.map((g) => g.count)).toEqual(groups.map((g) => g.count));
+    // The slab takes no roll, so its toughness is exact either way.
+    expect(wave.groups[0]!.hpScale).toBe(shape.slab!.hpScale);
+    // Every bulk group's real toughness lands inside the documented jitter.
+    for (let i = 0; i < shape.bulk.length; i++) {
+      const actual = wave.groups[i + 1]!.hpScale!;
+      const base = shape.bulk[i]!.hpScale;
+      expect(actual).toBeGreaterThanOrEqual(base * 0.9 - 0.01);
+      expect(actual).toBeLessThanOrEqual(base * 1.2 + 0.01);
+    }
+  });
+
+  it('has no slab except on every fifth round, matching the wave it feeds', () => {
+    expect(freeplayShape(AUTHORED_ROUNDS + 5).slab).not.toBeNull();
+    expect(freeplayShape(AUTHORED_ROUNDS + 4).slab).toBeNull();
   });
 });
