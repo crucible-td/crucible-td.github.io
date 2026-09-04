@@ -20,6 +20,9 @@
       <main>
         <canvas id="board" width="960" height="600"></canvas>
         <p id="hint"></p>
+        <!-- What the round contains, beside the sentence naming it: both
+             describe the round, and the sidebar is the column with no room. -->
+        <div id="preview" hidden></div>
       </main>
 
       <aside id="build">
@@ -34,13 +37,11 @@
           <div id="upgradeList"></div>
         </section>
 
-        <!-- What the round contains, above the button that starts it: the
-             pre-round moment is meant to be a decision rather than a click. -->
-        <div id="preview" hidden></div>
-
-        <button id="startWave">Start wave</button>
-
-        <div id="speedControls">
+        <!-- Every control that runs the round on one line. Two rows of
+             buttons cost 35px of a sidebar that could not spare it, and the
+             Matter panel below is what was paying. -->
+        <div id="controls">
+          <button id="startWave">Start wave</button>
           <button id="pause" title="Pause or resume (P)">Pause</button>
           <button id="speed" title="Cycle 1x / 2x / 3x (F)">1&times;</button>
         </div>

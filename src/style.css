@@ -24,7 +24,13 @@ body {
      240px the tower blurbs wrapped to four lines each and pushed the Matter
      panel off the bottom of the screen, which defeats the point of having
      opened it up at all. The board simply scales to whatever is left. */
-  grid-template-columns: minmax(0, 960px) 285px;
+  /* The board yields height rather than pushing the sidebar's last rows off
+     the screen. 1.6 is the board's own 960/600 aspect, so this is "as wide as
+     960, or as wide as the viewport's height allows" -- at 720 tall the board
+     draws 920x575 and a cell is 38px instead of 40; at 745 and taller it is
+     the full 960 it always was. `toBoard()` maps clicks through
+     getBoundingClientRect, so nothing about input or the simulation notices. */
+  grid-template-columns: minmax(0, min(960px, (100vh - 145px) * 1.6)) 285px;
   grid-template-rows: auto 1fr;
   gap: 16px;
   padding: 16px;
@@ -104,8 +110,8 @@ canvas {
   border-left: 3px solid var(--slot, var(--edge));
   border-radius: 0;
   color: var(--ink);
-  padding: 7px 9px;
-  margin-bottom: 4px;
+  padding: 5px 9px;
+  margin-bottom: 3px;
   cursor: pointer;
   font: inherit;
 }
@@ -157,7 +163,7 @@ canvas {
   align-items: center;
   gap: 4px;
 }
-.tower .blurb { display: block; color: var(--dim); font-size: 11px; line-height: 1.38; margin-top: 2px; }
+.tower .blurb { display: block; color: var(--dim); font-size: 11px; line-height: 1.3; margin-top: 1px; }
 /* Concrete before/after numbers, set apart from the flavour line above them. */
 .tower .change { color: var(--ink); font-variant-numeric: tabular-nums; opacity: 0.85; }
 /* The lingering effect, tinted with the tower's own colour: it is a property
@@ -182,19 +188,21 @@ canvas {
 
 /* The round preview: what is coming, how many, and how tough.
  *
- * Two columns of tight rows rather than one per line, because the sidebar's
- * scarcest resource is vertical space -- the Matter panel below it already
- * runs past the fold, and a five-row strip would push it further. */
+ * One horizontal line under the board, beside the sentence naming the round.
+ * It started in the sidebar as a two-column block, which was the wrong column:
+ * the sidebar's scarce resource is vertical space and it was pushing the
+ * Matter panel's last rows off the screen, while the board's column had room
+ * to spare. Wraps to as many lines as a narrow screen needs. */
 #preview {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: 2px 10px;
-  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 18px;
+  margin: 4px 2px 0;
 }
 .prow { display: flex; align-items: center; gap: 5px; font-size: 11px; }
 .prow svg { flex: none; }
 .pname { color: var(--layer); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pcount { margin-left: auto; color: var(--ink); font-variant-numeric: tabular-nums; }
+.pcount { color: var(--ink); font-variant-numeric: tabular-nums; }
 .tough {
   flex: none;
   padding: 0 4px;
@@ -217,9 +225,14 @@ canvas {
 }
 #startWave:disabled { background: var(--edge); color: var(--dim); cursor: not-allowed; }
 
-#speedControls { display: flex; gap: 6px; margin-top: 5px; }
-#speedControls button {
-  flex: 1;
+/* Start wave, Pause and the speed cycle on one line: the button that starts
+   the round and the two that govern it are one decision, and stacking them
+   cost 35px of a sidebar whose last rows were falling off the screen. */
+#controls { display: flex; gap: 6px; align-items: stretch; }
+#controls #startWave { flex: 1 1 auto; width: auto; margin-top: 0; }
+#controls button:not(#startWave) {
+  flex: 0 0 auto;
+  min-width: 58px;
   padding: 6px;
   background: var(--panel);
   border: 1px solid var(--edge);
@@ -228,10 +241,10 @@ canvas {
   font: 600 12px/1 inherit;
   cursor: pointer;
 }
-#speedControls button:hover { color: var(--ink); border-color: var(--dim); }
+#controls button:not(#startWave):hover { color: var(--ink); border-color: var(--dim); }
 /* Lit when the control is doing something other than its default, so "is this
    paused or just slow?" is answerable at a glance. */
-#speedControls button.active { background: #2b2420; border-color: var(--hot); color: var(--hot); }
+#controls button:not(#startWave).active { background: #2b2420; border-color: var(--hot); color: var(--hot); }
 #speed { font-variant-numeric: tabular-nums; }
 
 /* --- The Matter panel ------------------------------------------------------
@@ -245,8 +258,8 @@ canvas {
  * immunity is a wall rather than an empty meter, because "does nothing" is a
  * different kind of fact from "does very little".
  */
-#matter { margin-top: 10px; }
-#matter h2 { margin-bottom: 8px; }
+#matter { margin-top: 8px; }
+#matter h2 { margin-bottom: 5px; }
 #matter table { border-collapse: collapse; width: 100%; }
 #matter th, #matter td { padding: 2px; text-align: left; font-weight: 400; vertical-align: middle; }
 #matter thead th, #matter tr:first-child th { text-align: center; }
@@ -364,8 +377,12 @@ canvas {
     gap: 8px;
   }
 
-  /* Reachable with a thumb rather than stretched across the full width. */
-  #startWave, #speedControls { max-width: 420px; }
+  /* Reachable with a thumb rather than stretched across the full width, and
+     back to full-width blocks: a shared row is a desktop space saving, and
+     space is not what a phone is short of. */
+  #controls { flex-wrap: wrap; max-width: 420px; }
+  #controls #startWave { flex: 1 0 100%; }
+  #controls button:not(#startWave) { flex: 1 1 0; }
 }
 
 @media (max-width: 520px) {
@@ -373,11 +390,10 @@ canvas {
   #hud h1 { font-size: 16px; letter-spacing: 0.16em; }
   .readout b { font-size: 17px; }
   #towerList, #upgradeList { grid-template-columns: minmax(0, 1fr); }
-  #startWave, #speedControls { max-width: none; }
-  #preview { grid-template-columns: minmax(0, 1fr); }
+  #controls { max-width: none; }
 
   /* Touch targets: the speed controls are the smallest thing on the page. */
-  #speedControls button { padding: 11px; }
+  #controls button:not(#startWave) { padding: 11px; }
   #inspectClose { padding: 6px 10px; font-size: 16px; }
 }
 

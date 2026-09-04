@@ -53,17 +53,37 @@ against a 40px lane -- made the crowd measurably harder to read, so it went back
 to 2.1 and the ring channel carries the range instead. Do not re-propose the cap
 without looking at round 20 first.
 
-## Three of the Matter panel's five rows are below the fold
+## The Matter panel is fully on screen -- shipped
 
-The panel now rebuilds from the best cell the player actually owns rather than
-from the base `RESISTANCE` table, so buying Absolute Zero visibly lifts
-Crystal/Cold off the wall instead of being denied by the interface. What is
-left is that most of it cannot be seen.
+The panel rebuilds from the best cell the player actually owns, and now all five
+of its rows are visible without scrolling. At 1280x720 the page was **809px tall
+against a 720px viewport**, with the panel running 637 to 793, so about two and
+a half rows of the reference the interface treats as the entire game were on
+screen. It is **720 exactly** now, with the panel ending at 698 -- measured in
+three states, including a freeplay round whose preview strip carries five
+entries.
 
-At 1280×720 the sidebar runs to 789px against a 720px viewport, so three of its
-five rows sit below the fold. An earlier pass compacted the sidebar to get the
-panel on screen, and it is on screen — but only two rows of it are. This is the reference the interface treats
-as the entire game, and most players see 40% of it without scrolling.
+The sidebar was the taller column, so that is where the work went, and none of
+it removed a word of the copy that teaches:
+
+- **The round preview strip moved out of the sidebar** to under the board beside
+  the hint. Both describe the round, and the left column was the one with room.
+- **The board yields height rather than the panel yielding rows.** The board
+  column is `min(960px, (100vh - 145px) * 1.6)`, where 1.6 is its own 960/600
+  aspect: at 720 tall it draws 920x575 and a cell is 38px instead of 40; at 745
+  and taller it is the full 960 it always was. `toBoard()` maps clicks through
+  `getBoundingClientRect`, so placement was unaffected -- verified by clicking
+  a cell at the new size and checking where the tower landed.
+- **Start wave, Pause and the speed cycle share one row** instead of stacking,
+  worth 35px. Under 900px they go back to stacked full-width blocks, because on
+  a phone the constraint is the touch target rather than the space.
+- **Card padding, margins and blurb line-height came down**, worth about 7px per
+  card.
+
+One state still overflows and is meant to: opening a tower's upgrade panel adds
+its own height to the sidebar. That panel is transient and the player opened it
+deliberately, which is a different thing from the permanent reference being cut
+off.
 
 ## Selling towers
 
