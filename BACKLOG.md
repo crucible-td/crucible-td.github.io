@@ -6,57 +6,19 @@ not mean rediscovering why it mattered.
 
 ## Verified defects from a review pass
 
-Three findings, each reproduced before being written down, and the first of them
-is two bugs with one cause.
+One left of the three. The other two shipped: a splash that cleared the cascade
+it had just created, because both `advanceProjectiles` and `advanceEffects`
+walked `w.charges` while `breakLayer` pushed children onto it; and a hover tag
+that quoted a layer's base HP while the health bar beside it showed the real
+number.
 
-They are grouped because the simulation ones share a lesson worth keeping: both
-sit on lines `npm run coverage` already reports as covered. `src/sim/world.ts`
-is at 100% statements and 96.75% branches, and neither was caught. Statement
-coverage measures which lines ran, not which properties hold. (The third lives
-in `src/main.ts`, which coverage excludes on purpose as an entry point — a
-reasonable exclusion that happens to mean nothing watches the dev console
-handle at all.)
-
-### A splash clears the cascade it is documented not to clear
-
-**Status: verified, and fixing it moves measured balance.**
-
-`advanceProjectiles` walks `w.charges` with `for...of` while `breakLayer` pushes
-children onto that same array, so a child born mid-loop is hit by the very
-splash that created it. Reproduced directly: one splash landing beside a Crystal
-produced seven breaks and three kills — the entire stack, out of a single shot.
-
-That contradicts the comment in `breakLayer` which exists to deny it: "Children
-are nudged apart so a splash cannot clear a whole cascade with one hit." The
-nudge is ±12px against a splash radius of 36 to 64, so it was never going to
-hold on its own, and the re-entrant loop makes it moot regardless.
-
-`advanceEffects` has the same shape and the same cause: a damage-over-time tick
-that breaks a layer appends children to the array being iterated, and those
-children take their own inherited corrode tick within the same tick. Five breaks
-in a single `step()`.
-
-The fix is to snapshot the array, or iterate against a captured length, in both
-places. It is a few lines and it is **not** a drive-by change — it makes the Vat
-meaningfully weaker against deep stacks, and the Vat is precisely the tower the
-resistance table has already had to be careful about, having once been mandatory
-in every winning build. It goes through the `balance-pass` skill with
-`npm run diversity` on the far side.
-
-There is a second reason to want it beyond the balance question. Which charges a
-splash hits currently depends on array insertion order, and that is a
-determinism hazard `tests/architecture.test.ts` has no way to see.
-
-### The hover tag reports a charge's base HP and never its real one
-
-`chargeReadout()` takes a `State` and nothing else, so the tag drawn beside a
-charge reads HP straight out of `STATES` and cannot know about `scale`. A round
-20 Crystal slab carrying 1139 hp displays "22 hp". The health bar drawn a few
-lines earlier in the same function is correct, because it multiplies by `scale`
-— so two surfaces on the same screen disagree by a factor of fifty-two.
-
-Passing the charge rather than the state fixes it. Worth doing alongside the
-toughness item below, since they are one complaint approached from two sides.
+The lesson the splash one left is worth keeping. It sat on a line `npm run
+coverage` already reported as covered -- `src/sim/world.ts` is at 100%
+statements -- under a comment stating the exact property it broke, and nothing
+caught it for as long as nobody checked. Statement coverage measures which
+lines ran, not which properties hold. The one below lives in `src/main.ts`,
+which coverage excludes on purpose as an entry point: a reasonable exclusion
+that happens to mean nothing watches the dev console handle at all.
 
 ### `crucible.advance()` returns aliased statistics
 
@@ -88,33 +50,21 @@ enormous — it was capped so it would not swallow the lane, which is a layout
 problem rather than a reason. Or add a channel that is not size: a heavier rim,
 a repeated mark, or simply the real number in the tag.
 
-The tag is the cheap half and should ship first, because there it is a bug fix
-rather than a design change.
+The tag half has shipped -- it quotes the charge's real HP now, so a slab at
+least announces its own number when asked. What is left is the harder half: a
+player reading the board rather than hovering it still has nothing to read,
+because size is capped flat well below where the late rounds live.
 
-## The Matter panel never learns what the player bought
+## Three of the Matter panel's five rows are below the fold
 
-`buildMatterPanel()` runs once, in the `Ui` constructor, and reads the base
-`RESISTANCE` table. `sync()` only toggles highlight classes on the rows built at
-startup. The panel is therefore a static picture of the game as it shipped, and
-it becomes wrong the moment a player buys the most interesting thing in it.
+The panel now rebuilds from the best cell the player actually owns rather than
+from the base `RESISTANCE` table, so buying Absolute Zero visibly lifts
+Crystal/Cold off the wall instead of being denied by the interface. What is
+left is that most of it cannot be seen.
 
-Absolute Zero costs 445 gold across three tiers and lifts Crystal/Cold from
-immune to ×1.75. The panel goes on showing that cell as an immunity wall. So do
-Blast Furnace, Universal Acid and Full Spectrum — every tier-3 that lifts a
-wall, which `upgrades.ts` calls the strongest thing a player can buy and the
-clearest way a build covers a gap it was not designed for. The player pays for
-it and the interface denies it happened.
-
-The fix is to rebuild the panel from the best cell the player actually owns for
-each element across their placed towers, rather than from `RESISTANCE`. That
-also answers a question the panel cannot currently answer at all — "given what I
-have built, what am I still blind to" — which is close to the question the whole
-game is about.
-
-A second and separate problem with the same panel: at 1280×720 the sidebar runs
-to 789px against a 720px viewport, so three of its five rows sit below the fold.
-An earlier pass compacted the sidebar to get the panel on screen, and it is on
-screen — but only two rows of it are. This is the reference the interface treats
+At 1280×720 the sidebar runs to 789px against a 720px viewport, so three of its
+five rows sit below the fold. An earlier pass compacted the sidebar to get the
+panel on screen, and it is on screen — but only two rows of it are. This is the reference the interface treats
 as the entire game, and most players see 40% of it without scrolling.
 
 ## Selling towers
@@ -226,14 +176,9 @@ answer here rather than working it out again.
 
 ## Checks that do not run where the policy says they do
 
-Two small gaps, both between a rule this project states and the thing meant to
-enforce it.
-
-**CI never sees a pull request.** The workflow triggers on `push` to `main` and
-on manual dispatch. The git policy is that nothing lands on `main` directly and
-substantial work gets a branch and a PR — so the first time CI runs against a
-change is *after* it has been merged. Adding `pull_request` to the trigger list
-is a two-line change and makes the pipeline agree with the policy it serves.
+One gap left between a rule this project states and the thing meant to enforce
+it. The other closed: CI now triggers on `pull_request` as well as on a push to
+`main`, so a change is verified before it merges rather than after.
 
 **The purity rule is enforced for two of its three clauses.** CLAUDE.md
 describes the simulation as "a pure function of (state, input, seed): fixed 60Hz
