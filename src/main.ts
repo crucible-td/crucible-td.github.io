@@ -7,7 +7,14 @@
 import { Renderer } from './render/canvas.ts';
 import { createClock, nextSpeed, ticksFor } from './render/clock.ts';
 import type { Speed } from './render/clock.ts';
-import { armTower, boardAction, chargeRadius, pickCharge, towerForKey } from './render/decisions.ts';
+import {
+  armTower,
+  boardAction,
+  chargeRadius,
+  pickCharge,
+  statsSnapshot,
+  towerForKey,
+} from './render/decisions.ts';
 import { Ui } from './render/ui.ts';
 import { BOARD, isBuildableCell, pointAt } from './sim/path.ts';
 import type { Charge, Tower, TowerId, UpgradeId } from './sim/types.ts';
@@ -240,7 +247,16 @@ if (import.meta.env.DEV) {
       },
       advance(ticks: number) {
         for (let i = 0; i < ticks; i++) step(world);
-        return { tick: world.tick, gold: world.gold, lives: world.lives, status: world.status, ...world.stats };
+        // Snapshotted, not spread: `stats.leaksByState` is an object, so a
+        // shallow copy hands back the live counter and every reading taken
+        // across a session reports the final numbers.
+        return {
+          tick: world.tick,
+          gold: world.gold,
+          lives: world.lives,
+          status: world.status,
+          ...statsSnapshot(world.stats),
+        };
       },
       place: (def: TowerId, col: number, row: number) => placeTower(world, def, col, row),
       startWave: () => startWave(world),

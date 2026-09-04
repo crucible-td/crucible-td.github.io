@@ -226,6 +226,24 @@ export function roundPreview(opts: { waveIndex: number; freeplay: boolean }): Pr
 }
 
 /**
+ * A reading of the counters that will not change under the reader.
+ *
+ * `Stats` holds `leaksByState`, an object, so a shallow spread of `world.stats`
+ * hands back the live counter rather than a copy of it. The dev console handle
+ * did exactly that: three `crucible.advance()` readings taken across a session
+ * all reported the final numbers, because all three were the same object. A
+ * debugging tool that lies is the worst kind.
+ *
+ * `src/campaign.ts` already copies the map inline everywhere it records a
+ * round; this is that move with a name, in a file a test can reach --
+ * `src/main.ts`, where the defect lived, is excluded from coverage as an entry
+ * point, which is why nothing caught it.
+ */
+export function statsSnapshot(stats: Stats): Stats {
+  return { ...stats, leaksByState: { ...stats.leaksByState } };
+}
+
+/**
  * What the end-of-run overlay says, and whether it offers freeplay.
  *
  * `canContinue` is true only on a win: a lost run never offers freeplay, and a

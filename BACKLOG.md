@@ -4,29 +4,27 @@ Things known to be worth doing, in no strict order. Items move out of here when
 they ship; the reasoning behind each is kept so that picking one up later does
 not mean rediscovering why it mattered.
 
-## Verified defects from a review pass
+## Verified defects from a review pass -- all three shipped
 
-One left of the three. The other two shipped: a splash that cleared the cascade
-it had just created, because both `advanceProjectiles` and `advanceEffects`
-walked `w.charges` while `breakLayer` pushed children onto it; and a hover tag
-that quoted a layer's base HP while the health bar beside it showed the real
-number.
+The three were: a splash that cleared the cascade it had just created, because
+both `advanceProjectiles` and `advanceEffects` walked `w.charges` while
+`breakLayer` pushed children onto it; a hover tag that quoted a layer's base HP
+while the health bar beside it showed the real number; and a dev console handle
+that returned aliased statistics.
 
-The lesson the splash one left is worth keeping. It sat on a line `npm run
-coverage` already reported as covered -- `src/sim/world.ts` is at 100%
-statements -- under a comment stating the exact property it broke, and nothing
-caught it for as long as nobody checked. Statement coverage measures which
-lines ran, not which properties hold. The one below lives in `src/main.ts`,
-which coverage excludes on purpose as an entry point: a reasonable exclusion
-that happens to mean nothing watches the dev console handle at all.
+The last one is worth a note because of where the copy went. `crucible.advance()`
+spread `world.stats` shallowly, so `leaksByState` in every reading was the same
+live object and three readings taken across a session all reported the final
+numbers. The fix is one copy -- but the reason nobody caught it is that the
+handle lives in `src/main.ts`, which coverage excludes on purpose as an entry
+point, so nothing watched it at all. So the copy is now `statsSnapshot()` in
+`src/render/decisions.ts`, where a test holds it.
 
-### `crucible.advance()` returns aliased statistics
-
-The dev console handle spreads `world.stats` shallowly, so `leaksByState` in
-every snapshot it returns is the *same live object*. Take three readings across
-a session and all three report the final values. Small, but a debugging tool
-that lies is the worst kind, and this one cost time during the review that found
-it. Copying the counter rather than aliasing it is the whole fix.
+The lesson the splash one left still stands. It sat on a line `npm run coverage`
+already reported as covered -- `src/sim/world.ts` is at 100% statements -- under
+a comment stating the exact property it broke, and nothing caught it for as long
+as nobody checked. **Statement coverage measures which lines ran, not which
+properties hold.**
 
 ## The player cannot see how tough anything is -- shipped
 
@@ -194,56 +192,24 @@ carefully and this is the one place the defence does not quite reach, and becaus
 whoever eventually asks "why does a projectile have a colour" should find the
 answer here rather than working it out again.
 
-## Checks that do not run where the policy says they do
+## Checks now run where the policy says they do -- shipped
 
-One gap left between a rule this project states and the thing meant to enforce
-it. The other closed: CI now triggers on `pull_request` as well as on a push to
-`main`, so a change is verified before it merges rather than after.
+All three gaps closed. CI triggers on `pull_request` as well as on a push to
+`main`, so a change is verified before it merges rather than after. And
+`tests/architecture.test.ts` now asserts the purity rule's third clause: no
+`Date.now`, no `performance.now`, no `new Date` in `src/sim`. A clock there
+would have passed every other check in this repo while quietly making the
+browser and `npm run sim` disagree about the same seed, which invalidates every
+number in BALANCE.md without anything going red.
 
-**The purity rule is enforced for two of its three clauses.** CLAUDE.md
-describes the simulation as "a pure function of (state, input, seed): fixed 60Hz
-timestep, one seeded RNG, no wall-clock time", and `tests/architecture.test.ts`
-asserts the render-import ban, the DOM ban and the `Math.random` ban. It does
-not assert the third clause. A `Date.now()` or `performance.now()` in `src/sim`
-would pass every check in this repo and silently desynchronise the browser from
-`npm run sim`, which is the exact failure that file exists to prevent. One more
-assertion, in the style of the three already there.
+Comments are now stripped once, in `simFiles()`, for every check rather than
+only for the `Math.random` one -- a `src/sim` file that merely *mentioned*
+`window.` in a doc comment used to fail a rule it had not broken.
 
-While in that file: the `Math.random` check strips comments before matching and
-the DOM check does not, so a `src/sim` file that merely *mentions* `window.` in
-a doc comment fails it. Harmless today; confusing on the day it fires.
-
-## A round preview the player can plan against -- shipped
-
-A strip above Start wave now names what the round contains: each layer's glyph,
-how many of it, and its toughness as a plain multiplier, omitted at x1. It
-answers the three things a player actually plans against, none of which used to
-be on screen -- the only way to learn what round 17 held was to lose to it once.
-`roundHint`'s sentence stays under the board; it was good prose about the round's
-character and a poor substitute for its composition.
-
-Two details worth keeping:
-
-- **Freeplay is previewed without being built.** `freeplayWave` draws from the
-  seeded RNG, so a preview that called it would desynchronise the browser from
-  `npm run sim` on every frame. `freeplayShape` is the same composition with the
-  toughness jitter left off; the strip marks those rows approximate (`~x29`) and
-  the leading slab, which takes no roll, exact. `npm run sim -- --all-waves` and
-  the reference campaign were required to produce byte-identical output across
-  the split.
-- **Toughness is not folded together.** Groups merge only when the layer *and*
-  the rounded toughness match, so round 20's x55 Crystal slab keeps its own row
-  beside the x17 Ore. That is the whole point: the board draws them at the same
-  size, because `chargeRadius` caps its toughness term far below where the late
-  rounds live -- see the open item above.
-
-**Possible later improvement: a word ladder instead of the number.** "Tough /
-heavy / slab" would read more easily than `x55`, and for a player who is not
-reading the number as a multiplier it would teach the mechanic better. It was
-not shipped first because bucketing hides the size of the jump -- x17 and x55
-would both be "slab" -- and that jump is the information the strip exists to
-carry. Worth revisiting as a label *beside* the number rather than instead of
-it.
+Both new behaviours were verified the way this file is meant to be: a
+`Date.now()` was added to `src/sim/stats.ts` under a comment mentioning
+`window.` and `document.body`, and the suite went red on the wall-clock
+assertion **and stayed green on the DOM one** before the probe was reverted.
 
 ## Small, verified, low-risk
 

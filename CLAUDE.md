@@ -40,7 +40,8 @@ playtesting, which is the most valuable thing this project has. If you need
 rendering state, keep it in `src/render/`.
 
 `tests/architecture.test.ts` enforces this by reading the source -- no import
-from `src/render` inside `src/sim`, no DOM, no `Math.random()`. It has been
+from `src/render` inside `src/sim`, no DOM, no `Math.random()`, no wall
+clock. It has been
 verified to fail when violated.
 
 ## Where things live
@@ -67,8 +68,8 @@ verified to fail when violated.
 
 ```bash
 npm run dev        # play it at localhost:5173
-npm test           # vitest: 220 tests
-npm run test:fast  # the 199 that are not balance measurements -- under a second
+npm test           # vitest: 235 tests
+npm run test:fast  # the 214 that are not balance measurements -- under a second
 npm run test:sampled # whole suite, weak diversity verdict -- 8s not 55s
 npm run coverage   # where the tests are, and are not
 npm run typecheck  # tsc --noEmit
@@ -165,7 +166,7 @@ surfaces immediately. Edits to other file types exit 0 without running
 anything.
 
 `test:fast` is `npm test` minus `tests/campaign.test.ts`,
-`tests/diversity.test.ts` and `tests/breadth.test.ts` -- 199 of the 220 tests,
+`tests/diversity.test.ts` and `tests/breadth.test.ts` -- 214 of the 235 tests,
 about half a second against roughly thirty for the full run. Those three files
 are almost the entire cost, and they answer a question about balance rather
 than about whether the edit just made compiles. **Run `npm test` yourself after
@@ -224,7 +225,7 @@ This applies to every session and every subagent.
 
 v2.1 is current: HP and damage, layers that break inward, money per layer, 5
 towers with two three-tier upgrade paths each, 20 authored rounds, seeded
-freeplay past them, and four harnesses. `npm test` (220 tests), `npm run
+freeplay past them, and four harnesses. `npm test` (235 tests), `npm run
 typecheck` and `npm run build` all pass. [BALANCE.md](BALANCE.md) records how
 it got here.
 
