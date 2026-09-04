@@ -471,7 +471,13 @@ function findTarget(w: World, t: Tower): Charge | undefined {
     // real outcome starts it.
     if (isImmune(c.state, def.element, overrides)) continue;
     const p = pointAt(c.dist);
-    if (Math.hypot(p.x - t.x, p.y - t.y) > def.range) continue;
+    // Squared, both sides. This is a threshold, so the square root is thrown
+    // away either way, and it is the single hottest comparison in the sim --
+    // every tower against every charge, every tick, and a tower that finds no
+    // legal target never takes a cooldown and so rescans forever.
+    const dx = p.x - t.x;
+    const dy = p.y - t.y;
+    if (dx * dx + dy * dy > def.range * def.range) continue;
     // Target the charge furthest along the lane -- the most urgent one.
     if (!best || c.dist > best.dist) best = c;
   }
@@ -514,8 +520,11 @@ function advanceProjectiles(w: World): void {
     const tp = pointAt(target.dist);
     const dx = tp.x - p.x;
     const dy = tp.y - p.y;
-    const d = Math.hypot(dx, dy);
-    if (d <= IMPACT_RADIUS) {
+    // Compared squared, then rooted only on the branch that actually needs the
+    // distance -- the projectile's movement vector divides by it, the impact
+    // test does not.
+    const dSq = dx * dx + dy * dy;
+    if (dSq <= IMPACT_RADIUS * IMPACT_RADIUS) {
       // Who this splash may hit is decided before the hit lands, and never
       // again. breakLayer pushes children onto w.charges, so walking the live
       // array meant a splash hit the very layers it had just exposed -- and
@@ -533,12 +542,17 @@ function advanceProjectiles(w: World): void {
         for (const c of candidates) {
           if (!c.alive || c.id === target.id) continue;
           const cp = pointAt(c.dist);
-          if (Math.hypot(cp.x - tp.x, cp.y - tp.y) <= p.splash) applyElement(w, c, p.element, p.damage, p.overrides);
+          const sx = cp.x - tp.x;
+          const sy = cp.y - tp.y;
+          if (sx * sx + sy * sy <= p.splash * p.splash) {
+            applyElement(w, c, p.element, p.damage, p.overrides);
+          }
         }
       }
       p.speed = -1;
       continue;
     }
+    const d = Math.sqrt(dSq);
     p.x += (dx / d) * p.speed;
     p.y += (dy / d) * p.speed;
   }
