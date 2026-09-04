@@ -93,43 +93,45 @@ partial answer to the surplus recorded below. It wants `npm run campaign` and
 `npm run diversity` on the far side, and the refund fraction should be treated
 as the dial to measure rather than a number to guess once.
 
-## The simulation spends three-quarters of its time deciding what to shoot
+## What the hot path pass measured -- mostly shipped
 
-Measured with `node --cpu-prof` over round 20 against a 40-tower board: 1629
-ticks, 44 charges on the lane on average, 85ms of work.
+The item that used to sit here said the simulation spent three-quarters of its
+time deciding what to shoot, from a `node --cpu-prof` run over round 20 against
+a 40-tower board. Two of its three fixes shipped and the 720-build diversity
+sweep fell from **37.8s to 23.6s**, taking `npm test` from about 53s to 32s.
+Every step was checked by requiring the sweep and the reference campaign to
+produce output identical to the baseline, byte for byte.
 
-| Self time | Function |
-|---|---|
-| 19.1% | `findTarget` |
-| 13.5% | `fireTowers` |
-| 10.3% | `pointAt` |
-| 6.2% | garbage collector |
-| 3.5% | `resolveResistance` |
+What shipped, and what each was actually worth:
 
-The mechanism matters more than the totals. A tower only takes a cooldown when
-it actually *fires*, so a tower that finds no legal target rescans every charge
-on the lane every tick, indefinitely. That is the O(towers × charges) worst
-case, and it arrives precisely when a build is badly matched to the round in
-front of it — which is most of what `npm run diversity` does, since most of its
-720 sampled builds lose.
+- **Squared distances instead of `Math.hypot`** in the range, splash and impact
+  thresholds -- 37.8s to 28.1s, by far the largest single win. The root is
+  discarded either way; the projectile's movement vector still takes it, on the
+  branch that uses it.
+- **A cached lane position on `Charge`** -- 28.1s to 23.6s. `pointAt` scans the
+  lane's segments and allocates a point on every call, and it was called per
+  charge per tower, then again per projectile, per splash candidate and per
+  event.
 
-Three fixes, none of which touches behaviour, in value order:
+Two results worth keeping, because both contradict what this file predicted:
 
-1. **Compare squared distances instead of calling `Math.hypot`.** The range
-   check in `findTarget` and the splash check in `advanceProjectiles` are both
-   pure thresholds, so the square root is discarded either way. Benchmarked at
-   **7.8×** — 101ms against 13ms over five million iterations.
-2. **Resolve each charge's lane position once per tick** in `advanceCharges` and
-   cache it. `pointAt` currently runs per charge per tower, then again per
-   projectile, per splash candidate, and per emitted event.
-3. **Build an id-to-charge map once per tick** for `advanceProjectiles`, which
-   currently does a linear `find` for every projectile in flight.
+- **The id-to-charge map made it slower and was dropped.** Replacing
+  `advanceProjectiles`'s linear `find` with a `Map` built once per tick cost a
+  consistent 1.85s across three runs each way -- 29.96-30.12s against
+  28.16-28.23s. There are usually only a handful of projectiles in flight
+  against forty-odd charges, so building the index every tick costs more than
+  the scans it saves. Do not re-propose it without measuring first.
+- **Resolving each tower's stats once instead of twice did not move the clock**,
+  despite `fireTowers` holding 13.5% self time in the profile. It was kept
+  anyway, because it is strictly less work and one tower resolving its own
+  stats twice per tick read as a mistake.
 
-Worth doing for one reason above tidiness. `npm test` takes about fifty seconds
-and almost all of it is the diversity sweep, so all of the above is a straight
-multiplier on the slowest part of the feedback loop. None of it can change a
-balance number, which makes it unusually safe work — and one of the few tasks
-here that is a good candidate for delegation, in a way balance work never is.
+Still open, and small: `src/render/canvas.ts` calls `pointAt(c.dist)` where it
+could now read `c.x`/`c.y`. It is not on the simulation's hot path, so it buys
+frame time rather than harness time.
+
+The general lesson is the one the numbers keep repeating: a profile names the
+expensive function, not the profitable change.
 
 ## The simulation carries the interface's data
 

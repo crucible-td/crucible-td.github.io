@@ -122,6 +122,22 @@ export interface Charge {
   state: State;
   /** Distance travelled along the path, in pixels. */
   dist: number;
+  /**
+   * Where `dist` puts this charge on the lane -- derived, never a source of
+   * truth. Kept because `pointAt` was being called per charge per tower in
+   * findTarget, then again per projectile, per splash candidate and per
+   * emitted event, and it scans the lane's segments and allocates a fresh
+   * point on every call.
+   *
+   * Maintained wherever `dist` is written, which is exactly three places:
+   * `spawnCharge`, `advanceCharges` and the Kinetic shove in `applyRider`.
+   * The shove is the awkward one -- it moves a charge mid-tick, after towers
+   * have fired, so the splash loop later in the same tick has to see the new
+   * position. `tests/sim.test.ts` asserts the invariant every tick of a whole
+   * campaign rather than trusting this comment.
+   */
+  x: number;
+  y: number;
   /** Damage this layer can still absorb. */
   hp: number;
   /**

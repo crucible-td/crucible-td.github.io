@@ -217,10 +217,13 @@ export function startWave(w: World): boolean {
  * cannot silently leave a test charge half-initialised.
  */
 export function spawnCharge(w: World, state: State, dist: number, scale = 1): Charge {
+  const start = pointAt(dist);
   const c: Charge = {
     id: w.nextId++,
     state,
     dist,
+    x: start.x,
+    y: start.y,
     hp: STATES[state].hp * scale,
     scale,
     speedMult: 1,
@@ -238,14 +241,20 @@ export function spawnCharge(w: World, state: State, dist: number, scale = 1): Ch
   return c;
 }
 
+/** Refresh a charge's derived lane position. Call after every write to `dist`. */
+function syncPosition(c: Charge): void {
+  const p = pointAt(c.dist);
+  c.x = p.x;
+  c.y = p.y;
+}
+
 function award(w: World, gold: number): void {
   w.gold += gold;
   w.stats.goldEarned += gold;
 }
 
 function emit(w: World, type: SimEvent['type'], c: Charge, text?: string): void {
-  const p = pointAt(c.dist);
-  w.events.push({ type, x: p.x, y: p.y, state: c.state, ...(text ? { text } : {}) });
+  w.events.push({ type, x: c.x, y: c.y, state: c.state, ...(text ? { text } : {}) });
 }
 
 /**
@@ -391,6 +400,10 @@ function applyRider(w: World, c: Charge, element: Element, mult: number): void {
       // is a slab that never arrives, and toughness is the dial every boss and
       // every freeplay round is built out of.
       c.dist = Math.max(0, c.dist - (rider.pixels * mult) / Math.sqrt(c.scale));
+      // Mid-tick, after the towers have fired: the splash loop still to come
+      // in this same tick reads the position, so it is refreshed here and not
+      // left to the next advanceCharges.
+      syncPosition(c);
       return;
     }
   }
@@ -442,6 +455,7 @@ function advanceCharges(w: World): void {
     if (!c.alive) continue;
     if (c.flash > 0) c.flash--;
     c.dist += STATES[c.state].speed * c.speedMult;
+    syncPosition(c);
     if (c.dist >= PATH_LENGTH) {
       c.alive = false;
       const cost = STATES[c.state].leakCost;
@@ -454,9 +468,22 @@ function advanceCharges(w: World): void {
   }
 }
 
-function findTarget(w: World, t: Tower): Charge | undefined {
-  const def = effective(t);
-  const overrides = overridesOf(t);
+/**
+ * The charge this tower should shoot, or none.
+ *
+ * Takes the resolved stats rather than resolving them, because `fireTowers`
+ * needs the same two values for the same tower on the same tick and both
+ * allocate -- `effective` a fresh object every call, `overridesOf` another
+ * whenever the tower has upgrades. Resolving twice per tower per tick was most
+ * of why `fireTowers` and the collector between them cost a fifth of the
+ * simulation's time.
+ */
+function findTarget(
+  w: World,
+  t: Tower,
+  def: ReturnType<typeof effective>,
+  overrides: ResistanceOverrides | undefined,
+): Charge | undefined {
   let best: Charge | undefined;
   for (const c of w.charges) {
     if (!c.alive) continue;
@@ -470,8 +497,13 @@ function findTarget(w: World, t: Tower): Charge | undefined {
     // melting the player's own Crystal -- and one that turns 'none' into a
     // real outcome starts it.
     if (isImmune(c.state, def.element, overrides)) continue;
-    const p = pointAt(c.dist);
-    if (Math.hypot(p.x - t.x, p.y - t.y) > def.range) continue;
+    // Squared, both sides. This is a threshold, so the square root is thrown
+    // away either way, and it is the single hottest comparison in the sim --
+    // every tower against every charge, every tick, and a tower that finds no
+    // legal target never takes a cooldown and so rescans forever.
+    const dx = c.x - t.x;
+    const dy = c.y - t.y;
+    if (dx * dx + dy * dy > def.range * def.range) continue;
     // Target the charge furthest along the lane -- the most urgent one.
     if (!best || c.dist > best.dist) best = c;
   }
@@ -484,10 +516,10 @@ function fireTowers(w: World): void {
       t.cooldown--;
       continue;
     }
-    const target = findTarget(w, t);
-    if (!target) continue;
     const def = effective(t);
     const overrides = overridesOf(t);
+    const target = findTarget(w, t, def, overrides);
+    if (!target) continue;
     t.cooldown = def.cooldown;
     w.projectiles.push({
       id: w.nextId++,
@@ -511,11 +543,13 @@ function advanceProjectiles(w: World): void {
       p.speed = -1; // marked for removal
       continue;
     }
-    const tp = pointAt(target.dist);
-    const dx = tp.x - p.x;
-    const dy = tp.y - p.y;
-    const d = Math.hypot(dx, dy);
-    if (d <= IMPACT_RADIUS) {
+    const dx = target.x - p.x;
+    const dy = target.y - p.y;
+    // Compared squared, then rooted only on the branch that actually needs the
+    // distance -- the projectile's movement vector divides by it, the impact
+    // test does not.
+    const dSq = dx * dx + dy * dy;
+    if (dSq <= IMPACT_RADIUS * IMPACT_RADIUS) {
       // Who this splash may hit is decided before the hit lands, and never
       // again. breakLayer pushes children onto w.charges, so walking the live
       // array meant a splash hit the very layers it had just exposed -- and
@@ -528,17 +562,27 @@ function advanceProjectiles(w: World): void {
       // cannot see: which charges a splash caught depended on where children
       // happened to land in the array mid-loop.
       const candidates = p.splash > 0 ? [...w.charges] : null;
+      // Where the projectile struck, captured before the hit lands. Kinetic
+      // shoves its target, so reading the target's position afterwards would
+      // centre the splash on where the charge was knocked to rather than on
+      // where it was hit.
+      const hx = target.x;
+      const hy = target.y;
       applyElement(w, target, p.element, p.damage, p.overrides);
       if (candidates) {
         for (const c of candidates) {
           if (!c.alive || c.id === target.id) continue;
-          const cp = pointAt(c.dist);
-          if (Math.hypot(cp.x - tp.x, cp.y - tp.y) <= p.splash) applyElement(w, c, p.element, p.damage, p.overrides);
+          const sx = c.x - hx;
+          const sy = c.y - hy;
+          if (sx * sx + sy * sy <= p.splash * p.splash) {
+            applyElement(w, c, p.element, p.damage, p.overrides);
+          }
         }
       }
       p.speed = -1;
       continue;
     }
+    const d = Math.sqrt(dSq);
     p.x += (dx / d) * p.speed;
     p.y += (dy / d) * p.speed;
   }

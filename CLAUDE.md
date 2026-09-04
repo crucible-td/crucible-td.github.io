@@ -67,8 +67,8 @@ verified to fail when violated.
 
 ```bash
 npm run dev        # play it at localhost:5173
-npm test           # vitest: 218 tests
-npm run test:fast  # the 197 that are not balance measurements -- under a second
+npm test           # vitest: 220 tests
+npm run test:fast  # the 199 that are not balance measurements -- under a second
 npm run test:sampled # whole suite, weak diversity verdict -- 8s not 55s
 npm run coverage   # where the tests are, and are not
 npm run typecheck  # tsc --noEmit
@@ -117,7 +117,7 @@ structural rules the resistance table must obey, and the lessons past tunings
 cost real time to learn.** Read it before changing a cell. The `balance-pass`
 skill is the workflow that runs against it.
 
-`npm test` spends almost all of its fifty-odd seconds on one line: the
+`npm test` spends almost all of its thirty-odd seconds on one line: the
 720-build diversity sweep, which runs at module load. `npm run test:sampled`
 drops that to 120 builds and the suite to eight seconds, for iterating on a
 balance edit. It **skips the mandatory-tower and tower-usefulness verdicts and
@@ -165,8 +165,8 @@ surfaces immediately. Edits to other file types exit 0 without running
 anything.
 
 `test:fast` is `npm test` minus `tests/campaign.test.ts`,
-`tests/diversity.test.ts` and `tests/breadth.test.ts` -- 197 of the 218 tests,
-about half a second against roughly fifty for the full run. Those three files
+`tests/diversity.test.ts` and `tests/breadth.test.ts` -- 199 of the 220 tests,
+about half a second against roughly thirty for the full run. Those three files
 are almost the entire cost, and they answer a question about balance rather
 than about whether the edit just made compiles. **Run `npm test` yourself after
 a balance change.** CI runs the full suite on every push before it will deploy,
@@ -224,7 +224,7 @@ This applies to every session and every subagent.
 
 v2.1 is current: HP and damage, layers that break inward, money per layer, 5
 towers with two three-tier upgrade paths each, 20 authored rounds, seeded
-freeplay past them, and four harnesses. `npm test` (218 tests), `npm run
+freeplay past them, and four harnesses. `npm test` (220 tests), `npm run
 typecheck` and `npm run build` all pass. [BALANCE.md](BALANCE.md) records how
 it got here.
 

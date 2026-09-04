@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../src/sim/economy.ts';
 import { AUTHORED_ROUNDS } from '../src/sim/freeplay.ts';
-import { PATH_LENGTH, isBuildableCell } from '../src/sim/path.ts';
+import { PATH_LENGTH, isBuildableCell, pointAt } from '../src/sim/path.ts';
 import { STATES } from '../src/sim/types.ts';
 import type { State } from '../src/sim/types.ts';
 import {
@@ -286,5 +286,58 @@ describe('a hit resolves once per charge per tick', () => {
     }
     assertOneBreakPerChargePerTick(w, 400);
     expect(w.stats.breaks).toBeGreaterThan(0);
+  });
+});
+
+describe("a charge's cached position never drifts from its distance", () => {
+  /**
+   * `Charge.x`/`y` are derived from `dist`, and the simulation reads them on
+   * the hot path instead of calling `pointAt` per charge per tower per tick.
+   * That is only safe while every write to `dist` refreshes them, and there
+   * are three: `spawnCharge`, `advanceCharges`, and the Kinetic shove in
+   * `applyRider`, which moves a charge mid-tick after the towers have fired.
+   *
+   * Asserted rather than commented, because the last invariant this file
+   * trusted to a comment -- that a splash could not clear a cascade -- was
+   * false for as long as nobody checked it.
+   */
+  function assertPositionsAgree(w: World, where: string): void {
+    for (const c of w.charges) {
+      if (!c.alive) continue;
+      const p = pointAt(c.dist);
+      expect(c.x, `${where}: charge ${c.id} x`).toBe(p.x);
+      expect(c.y, `${where}: charge ${c.id} y`).toBe(p.y);
+    }
+  }
+
+  it('holds every tick of several rounds, with towers firing', () => {
+    const w = createWorld(5);
+    w.gold = 1000; // placement is not what this test is about
+    // Hammers, because Kinetic is the rider that moves a charge mid-tick, and
+    // an Acid Tank so that layers break and children are born under the same
+    // assertion.
+    placeTower(w, 'stamp', 5, 9);
+    placeTower(w, 'stamp', 8, 9);
+    placeTower(w, 'vat', 6, 9);
+    expect(w.towers).toHaveLength(3);
+
+    for (let round = 0; round < 6; round++) {
+      startWave(w);
+      for (let i = 0; i < 1200 && w.charges.length + w.spawnQueue.length > 0; i++) {
+        step(w);
+        assertPositionsAgree(w, `round ${round} tick ${w.tick}`);
+      }
+    }
+    expect(w.stats.breaks).toBeGreaterThan(0);
+  });
+
+  it('holds for a charge the moment it is shoved backwards', () => {
+    const w = createWorld(3);
+    const c = seedCharge(w, 'ORE', 400);
+    const before = c.dist;
+    // Kinetic carries the shove, and Ore is x1.5 to it, so this lands.
+    applyElement(w, c, 'KINETIC', 1);
+    expect(c.dist).toBeLessThan(before);
+    assertPositionsAgree(w, 'after a shove');
   });
 });
