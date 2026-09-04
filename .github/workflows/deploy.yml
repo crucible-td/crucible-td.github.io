@@ -24,11 +24,22 @@ permissions:
   pages: write
   id-token: write
 
-# Never let two deploys race. Queue rather than cancel, so a push that follows
-# a green build cannot leave the site on the older of the two.
+# Two different questions, so two different keys.
+#
+# A push to main deploys, and two deploys must never race: those share the
+# `pages` group and queue rather than cancel, so a push that follows a green
+# build cannot leave the site on the older of the two.
+#
+# A pull request deploys nothing -- every Pages step below is gated to `push`
+# -- so it has no reason to serialize against anything but itself. Sharing the
+# `pages` group cost real time: GitHub keeps only one *pending* run per group,
+# so opening four pull requests at once cancelled two of their checks outright
+# and they had to be re-run by hand, one at a time. Each ref now gets its own
+# group, and a new push to a branch supersedes the check still running for the
+# commit it replaced.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'push' && 'pages' || format('checks-{0}', github.ref) }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 jobs:
   build:
