@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { MONSTER_ART, TOWER_ART, path, svgMarkup } from '../src/render/art.ts';
+import { MONSTER_ART, MONSTER_NAME, TOWER_ART, path, svgMarkup } from '../src/render/art.ts';
 import { TOWER_IDS } from '../src/sim/towers.ts';
-import { STATE_IDS } from '../src/sim/types.ts';
+import { STATES, STATE_IDS } from '../src/sim/types.ts';
 
 /**
  * Artwork gets the same treatment the resistance table gets: every tower and
@@ -24,6 +24,26 @@ describe('artwork coverage', () => {
       expect(MONSTER_ART[s], s).toBeDefined();
       expect(MONSTER_ART[s].body.length, s).toBeGreaterThan(10);
       expect(MONSTER_ART[s].eyes, `${s} needs a face`).toBeDefined();
+    }
+  });
+
+  it('names every layer as a creature, and keeps its material word', () => {
+    // The property, not a coincidence: "Lava" is the word that makes "Heat
+    // does nothing to it" land, and this game is read by people for whom
+    // English is a second language. A creature name that dropped the material
+    // word would read better and teach less, so the name has to carry it.
+    const seen = new Set<string>();
+    for (const s of STATE_IDS) {
+      const name = MONSTER_NAME[s];
+      expect(name, s).toBeDefined();
+      expect(name, `${s} name should be lowercase, to drop into a sentence`).toBe(
+        name.toLowerCase(),
+      );
+      expect(name, `${s} must keep the word ${STATES[s].label}`).toContain(
+        STATES[s].label.toLowerCase(),
+      );
+      expect(seen.has(name), `${s} shares a name with another layer`).toBe(false);
+      seen.add(name);
     }
   });
 

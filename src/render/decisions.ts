@@ -1,4 +1,4 @@
-import { MONSTER_SCALE } from './art.ts';
+import { MONSTER_NAME, MONSTER_SCALE } from './art.ts';
 import { RESISTANCE, resolveResistance } from '../sim/resistance.ts';
 import { RIDERS } from '../sim/riders.ts';
 import { TOWERS, TOWER_IDS } from '../sim/towers.ts';
@@ -258,14 +258,14 @@ export function endOverlay(opts: {
   if (opts.status === 'won') {
     return {
       title: 'Furnace cold',
-      body: `All ${WAVES.length} rounds held. ${opts.stats.breaks} layers broken, ${opts.stats.kills} charges destroyed, ${opts.stats.goldEarned} gold earned.`,
+      body: `All ${WAVES.length} rounds held. ${opts.stats.breaks} layers broken, ${opts.stats.kills} monsters destroyed, ${opts.stats.goldEarned} gold earned.`,
       canContinue: true,
     };
   }
   if (opts.status === 'lost') {
     return {
       title: 'Breach',
-      body: `The line failed on round ${opts.waveIndex + 1}. ${opts.stats.leaks} charges got through, and ${opts.stats.wasted} shots landed on something immune to them.`,
+      body: `The line failed on round ${opts.waveIndex + 1}. ${opts.stats.leaks} monsters got through, and ${opts.stats.wasted} shots landed on something immune to them.`,
       canContinue: false,
     };
   }
@@ -448,8 +448,11 @@ export function chargeReadout(c: Pick<Charge, 'state' | 'scale'>): ChargeReadout
     floats: def.floats,
     counters,
     immunities,
+    // Named as the creature rather than the layer: this line is the one that
+    // decides whether breaking a shell is a good idea, and "2 lava beasts" is
+    // a thing a player can picture where "2 x Lava" is a table lookup.
     breaksInto: child
-      ? { state: child, label: STATES[child].label, count: def.childCount }
+      ? { state: child, label: MONSTER_NAME[child], count: def.childCount }
       : null,
   };
 }

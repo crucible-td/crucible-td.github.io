@@ -48,41 +48,41 @@ export interface Wave {
  */
 export const WAVES: Wave[] = [
   {
-    hint: 'Raw ore. Nothing resists you yet -- open with whatever you fancy.',
+    hint: 'Ore golems, and nothing resists you yet -- open with whatever you fancy.',
     groups: [{ state: 'ORE', count: 6, gap: 78, delay: 0 }],
   },
   {
-    hint: 'More ore, arriving faster. One tower will not keep up for long.',
+    hint: 'More golems, arriving faster. One tower will not keep up for long.',
     groups: [{ state: 'ORE', count: 11, gap: 48, delay: 0 }],
   },
   {
-    hint: 'Ore breaks into Ash, and Ash is quick. Watch what you leave behind.',
+    hint: 'An ore golem breaks open and an ash crawler runs out. Watch what you leave behind.',
     groups: [
       { state: 'ORE', count: 14, gap: 34, delay: 0 },
       { state: 'SLAG', count: 6, gap: 50, delay: 260 },
     ],
   },
   {
-    hint: 'Lava. Heat does nothing to it at all -- bring Cold or Acid.',
+    hint: 'Lava beasts. Heat does nothing to them at all -- bring Cold or Acid.',
     groups: [{ state: 'MOLTEN', count: 14, gap: 62, delay: 0 }],
   },
   {
-    hint: 'Mixed feed. Heat still clears the ore; something else must take the lava.',
+    hint: 'Golems and lava beasts together. Heat still clears the golems; something else must take the beasts.',
     groups: [
       { state: 'ORE', count: 27, gap: 32, delay: 0, hpScale: 1.08 },
       { state: 'MOLTEN', count: 10, gap: 70, delay: 180, hpScale: 1.08 },
     ],
   },
   {
-    hint: 'Gas floats over Hammers and ignores Impact. Dissolve it or chill it.',
+    hint: 'Gas ghosts float over Hammers and ignore Impact. Dissolve them or chill them.',
     groups: [{ state: 'VAPOR', count: 12, gap: 72, delay: 0, hpScale: 1.08 }],
   },
   {
-    hint: 'Crystal. Cold is wasted on it; shatter it, or melt it back down.',
+    hint: 'Crystal giants. Cold is wasted on them; shatter them, or melt them back down.',
     groups: [{ state: 'CRYSTAL', count: 10, gap: 88, delay: 0, hpScale: 1.08 }],
   },
   {
-    hint: 'Everything so far, together.',
+    hint: 'Every creature you have met, walking together.',
     groups: [
       { state: 'ORE', count: 26, gap: 34, delay: 0, hpScale: 1.08 },
       { state: 'MOLTEN', count: 17, gap: 58, delay: 200, hpScale: 1.08 },
@@ -90,7 +90,7 @@ export const WAVES: Wave[] = [
     ],
   },
   {
-    hint: 'Heavy shells. Every crystal is three layers of somebody else problem.',
+    hint: 'Heavy shells. Every crystal giant is three creatures wearing one skin.',
     groups: [
       { state: 'CRYSTAL', count: 17, gap: 66, delay: 0, hpScale: 1.08 },
       { state: 'MOLTEN', count: 18, gap: 50, delay: 180, hpScale: 1.08 },
@@ -98,7 +98,7 @@ export const WAVES: Wave[] = [
     ],
   },
   {
-    hint: 'Full pour. Everything you have learned, at once.',
+    hint: 'Full pour. Every creature and every lesson, at once.',
     groups: [
       { state: 'ORE', count: 24, gap: 30, delay: 0, hpScale: 1.7 },
       { state: 'MOLTEN', count: 16, gap: 48, delay: 150, hpScale: 1.7 },
@@ -142,35 +142,35 @@ export const WAVES: Wave[] = [
   // buys -- a board that never upgrades now dies on round 17, at every tower
   // count it can afford, up to and including a maximum 83-tower board.
   {
-    hint: 'Reinforced ore. The same rock, considerably more of it.',
+    hint: 'Reinforced golems. The same creature, carrying considerably more rock.',
     groups: [
       { state: 'ORE', count: 20, gap: 26, delay: 0, hpScale: 3.5 },
       { state: 'SLAG', count: 11, gap: 40, delay: 300, hpScale: 2.5 },
     ],
   },
   {
-    hint: 'A lava flood. Heat is dead weight here unless you have paid to fix it.',
+    hint: 'A flood of lava beasts. Heat is dead weight here unless you have paid to fix it.',
     groups: [
       { state: 'MOLTEN', count: 19, gap: 32, delay: 0, hpScale: 4.0 },
       { state: 'ORE', count: 11, gap: 40, delay: 240, hpScale: 3.0 },
     ],
   },
   {
-    hint: 'Heavy shells over hot cores.',
+    hint: 'Crystal giants with lava beasts inside them.',
     groups: [
       { state: 'CRYSTAL', count: 13, gap: 52, delay: 0, hpScale: 5.0 },
       { state: 'VAPOR', count: 10, gap: 60, delay: 300, hpScale: 3.5 },
     ],
   },
   {
-    hint: 'A gas cloud. Impact is worthless and the ground towers cannot see it.',
+    hint: 'A drift of gas ghosts. Impact is worthless and the ground towers cannot see them.',
     groups: [
       { state: 'VAPOR', count: 19, gap: 40, delay: 0, hpScale: 6.5 },
       { state: 'MOLTEN', count: 10, gap: 54, delay: 320, hpScale: 4.0 },
     ],
   },
   {
-    hint: 'Everything, and more of it than you have seen.',
+    hint: 'Every creature at once, and more of them than you have seen.',
     groups: [
       { state: 'ORE', count: 19, gap: 26, delay: 0, hpScale: 7.5 },
       { state: 'MOLTEN', count: 13, gap: 40, delay: 180, hpScale: 5.0 },
@@ -179,28 +179,28 @@ export const WAVES: Wave[] = [
     ],
   },
   {
-    hint: 'First slab: one shell, enormously thick, with a great deal beneath it.',
+    hint: 'The first slab: a crystal giant grown enormous, with a great deal inside it.',
     groups: [
       { state: 'CRYSTAL', count: 4, gap: 150, delay: 0, hpScale: 40 },
       { state: 'ORE', count: 17, gap: 30, delay: 120, hpScale: 12 },
     ],
   },
   {
-    hint: 'Slabs and gas together. Something must cover what the Hammers cannot.',
+    hint: 'Slabs and gas ghosts together. Something must cover what the Hammers cannot.',
     groups: [
       { state: 'CRYSTAL', count: 4, gap: 140, delay: 0, hpScale: 45 },
       { state: 'VAPOR', count: 14, gap: 44, delay: 200, hpScale: 13 },
     ],
   },
   {
-    hint: 'A hot flood under pressure.',
+    hint: 'Lava beasts under pressure, and giants coming behind them.',
     groups: [
       { state: 'MOLTEN', count: 24, gap: 26, delay: 0, hpScale: 16 },
       { state: 'CRYSTAL', count: 10, gap: 60, delay: 300, hpScale: 14 },
     ],
   },
   {
-    hint: 'Everything at weight. This is what the whole board is for.',
+    hint: 'Every creature at weight. This is what the whole board is for.',
     groups: [
       { state: 'ORE', count: 23, gap: 24, delay: 0, hpScale: 16 },
       { state: 'MOLTEN', count: 17, gap: 34, delay: 160, hpScale: 15 },
@@ -209,7 +209,7 @@ export const WAVES: Wave[] = [
     ],
   },
   {
-    hint: 'The pour. Hold this and the crucible is yours.',
+    hint: 'The pour. Hold the giants back and the crucible is yours.',
     groups: [
       { state: 'CRYSTAL', count: 5, gap: 130, delay: 0, hpScale: 55 },
       { state: 'ORE', count: 24, gap: 22, delay: 100, hpScale: 17 },

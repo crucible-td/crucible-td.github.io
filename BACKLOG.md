@@ -326,18 +326,38 @@ charges, would be a genuinely different shape of tower rather than a different
 outcome on impact. The same constraint applies -- it has to be a new kind of
 outcome, not a special case in tower code.
 
-## Enemies as monsters
+## Enemies as monsters -- shipped
 
-Charges are abstract at the moment: an Ore is a grey circle, a Molten an orange
-one. Naming and drawing them as creatures — a lava-monster for Molten, whatever
-Crystal and Vapor want to be — would make the layer system read the way it
-actually behaves. "A crystal shell cracks and two lava monsters climb out" is a
-thing a player can picture; "CRYSTAL breaks into 2 MOLTEN" is a spec.
+Charges are creatures now, in the artwork and in the words. The artwork half had
+already shipped without this file noticing: `MONSTER_ART` draws all five with
+faces and its comment names them, but those names lived only in a code comment
+no player could read.
 
-Worth noting how cheap this is: the simulation does not care. States are five
-entries in `STATES` and twenty cells in the resistance table, and none of that
-changes. This is naming, artwork in `drawCharge()`, and the hint text — no
-balance implications, so it cannot break the diversity property.
+They are now real, as `MONSTER_NAME` in `src/render/art.ts`: **ore golem, ash
+crawler, lava beast, crystal giant, gas ghost**. The hover tag's last line reads
+"Breaks into 2 lava beasts" rather than "Breaks into 2 x Lava" -- that is the
+line that decides whether breaking a shell is a good idea, and it is now a
+sentence rather than a lookup. All twenty wave hints were rewritten to talk
+about creatures while each keeps the single mechanical fact it teaches, and the
+end-of-run overlay counts monsters rather than charges.
+
+Two decisions worth keeping:
+
+- **Each creature name contains its layer's own label**, and
+  `tests/art.test.ts` holds that property. "Lava" is the word that makes "Heat
+  does nothing to it" land, and this game is read by people for whom English is
+  a second language, so a name that replaced the material word would read
+  better and teach less.
+- **The Matter panel keeps the short label.** "2x lava beast" wraps the Crystal
+  row in a 285px sidebar, which costs 21px and puts the panel's last row back
+  under the fold -- measured, at 735px against a 720px viewport. The hover tag
+  has the room and says it in full; the panel does not and does not.
+
+`MONSTER_NAME` sits in the render layer rather than on `StateDef`, which is the
+one place this project's architecture does not quite reach (see below): the
+simulation already carries five labels, five colours and five radii that belong
+to the interface, and a name for a drawing is not the field that should make
+that worse.
 
 ## Deferred, with the work already partly done
 
