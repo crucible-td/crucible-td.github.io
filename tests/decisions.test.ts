@@ -12,6 +12,8 @@ import {
   barsFor,
   chargeRadius,
   chargeReadout,
+  matterKey,
+  ownedResistance,
   endOverlay,
   layersRemaining,
   matterRows,
@@ -24,6 +26,7 @@ import {
 } from '../src/render/decisions.ts';
 import { TOWERS, TOWER_IDS } from '../src/sim/towers.ts';
 import { UPGRADES } from '../src/sim/upgrades.ts';
+import { RESISTANCE } from '../src/sim/resistance.ts';
 import { ELEMENT_IDS, STATES, STATE_IDS } from '../src/sim/types.ts';
 import type { Stats } from '../src/sim/types.ts';
 import { WAVES } from '../src/sim/waves.ts';
@@ -479,5 +482,52 @@ describe('endOverlay', () => {
     const result = endOverlay({ status: 'lost', waveIndex: 9, stats: zeroStats() });
     expect(result?.canContinue).toBe(false);
     expect(result?.title).toBe('Breach');
+  });
+});
+
+describe('the Matter panel reads the board, not the shipped game', () => {
+  it('reproduces the base table exactly when nothing is placed', () => {
+    const owned = ownedResistance([]);
+    for (const state of STATE_IDS) {
+      for (const e of ELEMENT_IDS) {
+        expect(owned[state][e], `${state}/${e}`).toBe(RESISTANCE[state][e]);
+      }
+    }
+  });
+
+  it('lifts a wall the player actually paid to lift', () => {
+    // Absolute Zero costs 245 on top of two earlier tiers and takes
+    // Crystal/Cold from immune to x1.75. The panel used to go on drawing that
+    // cell as a wall, which is the interface denying the most expensive
+    // purchase in the game.
+    expect(RESISTANCE.CRYSTAL.COLD).toBe(0);
+    const owned = ownedResistance([{ def: 'chiller', upgrades: ['depo1', 'depo2', 'depo3'] }]);
+    expect(owned.CRYSTAL.COLD).toBe(1.75);
+  });
+
+  it('credits an override only to the element the tower actually throws', () => {
+    // A tower throws one element. Folding its overrides into any other column
+    // would tell the player they own an answer they cannot fire.
+    const owned = ownedResistance([{ def: 'forge', upgrades: ['depo1', 'depo2', 'depo3'] }]);
+    expect(owned.CRYSTAL.COLD).toBe(RESISTANCE.CRYSTAL.COLD);
+  });
+
+  it('keeps the best cell owned, not the last one placed', () => {
+    const owned = ownedResistance([
+      { def: 'chiller', upgrades: ['depo1', 'depo2', 'depo3'] },
+      { def: 'chiller', upgrades: [] },
+    ]);
+    expect(owned.CRYSTAL.COLD).toBe(1.75);
+  });
+
+  it('does not rebuild the panel when towers are merely placed in another order', () => {
+    const a = [{ def: 'chiller' as const, upgrades: [] }, { def: 'forge' as const, upgrades: ['kiln1' as const] }];
+    expect(matterKey(a)).toBe(matterKey([...a].reverse()));
+  });
+
+  it('rebuilds the panel when a tier is bought', () => {
+    expect(matterKey([{ def: 'chiller', upgrades: ['depo1'] }])).not.toBe(
+      matterKey([{ def: 'chiller', upgrades: ['depo1', 'depo2'] }]),
+    );
   });
 });
