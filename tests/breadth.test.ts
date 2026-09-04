@@ -5,6 +5,7 @@ import { breadthPlan, depthPlan, laneCells } from '../src/diversity.ts';
 import { parseLoadout } from '../src/sim/loadout.ts';
 import { TOWERS } from '../src/sim/towers.ts';
 import { UPGRADES, chainCost } from '../src/sim/upgrades.ts';
+import type { TowerId } from '../src/sim/types.ts';
 
 /**
  * Breadth versus depth: is an upgrade ever worth buying?
@@ -67,15 +68,45 @@ describe('a board that never upgrades', () => {
 });
 
 describe('the same board, upgraded', () => {
-  it('wins where the bare board of equal size loses', () => {
+  it('gets further than the bare board of equal size, on every seed', () => {
     // The comparison the whole change is about: identical towers in identical
     // positions, differing only in what the gold was spent on.
-    const bare = play(breadthPlan(18, WIDEST));
-    const climbed = play(depthPlan(18, WIDEST));
+    //
+    // Stated as distance rather than as an outright win, and across three
+    // compositions and three seeds rather than one of each. It used to assert
+    // that a stamp+vat board won on seed 1, and that held partly because a
+    // splash walked the live charge array and cleared cascades it had just
+    // created -- the strongest 18-tower depth board in the game was drawing
+    // eight lives from a defect. Fixing that left the old assertion resting on
+    // the single board and the single seed where the bug paid best.
+    //
+    // Depth beating breadth pound for pound is the property. Winning outright
+    // at eighteen towers was only ever the witness that happened to be handy,
+    // and the reference plan below carries that half on every seed.
+    const comps: TowerId[][] = [
+      ['stamp', 'vat'],
+      ['stamp', 'chiller'],
+      ['forge', 'stamp', 'vat'],
+    ];
+    for (const comp of comps) {
+      for (const seed of [1, 2, 3]) {
+        const where = `${comp.join('+')} seed ${seed}`;
+        const bare = runCampaign(parseLoadout(breadthPlan(18, comp)), seed, 20000, 20);
+        const climbed = runCampaign(parseLoadout(depthPlan(18, comp)), seed, 20000, 20);
 
-    expect(bare.won).toBe(false);
-    expect(climbed.won).toBe(true);
-    expect(climbed.upgradesBought).toBeGreaterThan(20);
+        expect(bare.won, `${where}: a bare board won`).toBe(false);
+        expect(bare.upgradesBought, where).toBe(0);
+        // How many tiers a climbed board manages varies with how far it gets,
+        // since it buys them out of gold the later rounds pay for: 16 on the
+        // run that dies at round 14, 49 on the one that reaches 19. The floor
+        // is only here to prove the plan really is the depth twin.
+        expect(climbed.upgradesBought, where).toBeGreaterThan(10);
+        expect(
+          climbed.wavesCleared,
+          `${where}: climbed cleared ${climbed.wavesCleared}, bare cleared ${bare.wavesCleared}`,
+        ).toBeGreaterThan(bare.wavesCleared);
+      }
+    }
   });
 
   it('is what the reference plan does, and it clears the campaign', () => {

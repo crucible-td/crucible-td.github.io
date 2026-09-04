@@ -237,3 +237,54 @@ describe('entering freeplay', () => {
     expect(w.waveIndex).toBe(AUTHORED_ROUNDS + 1);
   });
 });
+
+describe('a hit resolves once per charge per tick', () => {
+  /**
+   * The property `breakLayer` has always claimed and never held.
+   *
+   * Both `advanceProjectiles` and `advanceEffects` walked `w.charges` while
+   * `breakLayer` pushed children onto that same array, so a layer born mid-loop
+   * was hit by the very splash -- or ticked by the very corrosion -- that had
+   * just exposed it. One shot beside a Crystal produced seven breaks and three
+   * kills: the whole stack, from a single projectile.
+   *
+   * Stated as a count rather than as a scenario, because the scenario is not
+   * the bug: a charge breaks at most once per tick, so no `step()` can ever
+   * break more layers than there were charges alive when it began. That holds
+   * for splash, for burn, for corrode and for anything added later, and it is
+   * the assertion the comment in `breakLayer` was standing in for.
+   */
+  function assertOneBreakPerChargePerTick(w: World, ticks: number): void {
+    for (let i = 0; i < ticks; i++) {
+      const alive = w.charges.filter((c) => c.alive).length;
+      const before = w.stats.breaks;
+      step(w);
+      const broke = w.stats.breaks - before;
+      expect(broke, `tick ${w.tick}: ${broke} breaks from ${alive} charges`).toBeLessThanOrEqual(alive);
+    }
+  }
+
+  it('never lets one splash clear a cascade it just created', () => {
+    const w = createWorld(7);
+    // Acid Tanks, because they are the only tower that splashes, and Lava --
+    // which Solvent beats at x1.6 and whose Ash remnant it beats at x1.25, so
+    // a break and the child's break are both reachable from one shot.
+    placeTower(w, 'vat', 5, 9);
+    placeTower(w, 'vat', 6, 9);
+    for (let i = 0; i < 8; i++) seedCharge(w, 'MOLTEN', 300 + i * 10);
+    assertOneBreakPerChargePerTick(w, 600);
+    expect(w.stats.breaks).toBeGreaterThan(0);
+  });
+
+  it('never lets a corrode tick tick the layer it just uncovered', () => {
+    const w = createWorld(11);
+    for (const c of [seedCharge(w, 'CRYSTAL', 320), seedCharge(w, 'CRYSTAL', 330)]) {
+      // Corrosion is the one rider that survives a break, so it is the tick
+      // that can chain: it follows both Lava cores out of the shell it ate.
+      c.corrodeTicks = 400;
+      c.corrodeDamage = 40;
+    }
+    assertOneBreakPerChargePerTick(w, 400);
+    expect(w.stats.breaks).toBeGreaterThan(0);
+  });
+});

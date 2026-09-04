@@ -399,7 +399,12 @@ function applyRider(w: World, c: Charge, element: Element, mult: number): void {
  * order effects resolve in cannot be an accident of where a call sits.
  */
 function advanceEffects(w: World): void {
-  for (const c of w.charges) {
+  // Snapshot, because a burn or corrode tick that breaks a layer pushes the
+  // children onto w.charges. Iterating the live array meant those children
+  // took their own inherited corrode tick inside the same tick that created
+  // them -- five breaks out of one step(). A rider resolves once per tick,
+  // and a layer born this tick starts ticking on the next one.
+  for (const c of [...w.charges]) {
     if (!c.alive) continue;
     if (c.shoveCd > 0) c.shoveCd--;
 
@@ -505,9 +510,21 @@ function advanceProjectiles(w: World): void {
     const dy = tp.y - p.y;
     const d = Math.hypot(dx, dy);
     if (d <= IMPACT_RADIUS) {
+      // Who this splash may hit is decided before the hit lands, and never
+      // again. breakLayer pushes children onto w.charges, so walking the live
+      // array meant a splash hit the very layers it had just exposed -- and
+      // then theirs, and then theirs: one shot beside a Crystal produced seven
+      // breaks and three kills, clearing the whole stack. That is the property
+      // the nudge in breakLayer claims to protect and never could, at +-12px
+      // against a splash of 36 to 64.
+      //
+      // Snapshotting also settles a determinism hazard the architecture test
+      // cannot see: which charges a splash caught depended on where children
+      // happened to land in the array mid-loop.
+      const candidates = p.splash > 0 ? [...w.charges] : null;
       applyElement(w, target, p.element, p.damage, p.overrides);
-      if (p.splash > 0) {
-        for (const c of w.charges) {
+      if (candidates) {
+        for (const c of candidates) {
           if (!c.alive || c.id === target.id) continue;
           const cp = pointAt(c.dist);
           if (Math.hypot(cp.x - tp.x, cp.y - tp.y) <= p.splash) applyElement(w, c, p.element, p.damage, p.overrides);

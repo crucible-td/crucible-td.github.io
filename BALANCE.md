@@ -24,10 +24,11 @@ All measurable, all reproducible from the commands in CLAUDE.md.
 
 - **Every one of the five towers clears round 1 on its own.** That is
   deliberate: the opening is a preference, not a puzzle.
-- **61 of 720 sampled 18-tower compositions clear all twenty rounds**, in 61
+- **53 of 720 sampled 18-tower compositions clear all twenty rounds**, in 53
   distinct compositions, and no tower appears in every winner. The win rate
-  halved when upgrades were made to matter, which is the cost of that change
-  and is still comfortably inside the 5-50% band the meter asserts.
+  halved when upgrades were made to matter, which is the cost of that change,
+  and gave up a further eight builds when the splash cascade defect was fixed.
+  Still comfortably inside the 5-50% band the meter asserts.
 - **The reference plan wins on every seed with 11-15 of 20 lives left**,
   climbing 46 upgrade tiers across all eighteen of its towers.
 - **Freeplay continues the authored curve rather than restarting it.** Round 21
@@ -76,6 +77,27 @@ produced exactly one Vat-free winner out of 34 and the tuning after produced
 none out of 34 -- a pass and a fail one build apart, from a change that moved
 the Vat's presence among winners not at all (99% at 960 builds, before and
 after). The test now samples 720, which is where the verdict stops flipping.
+
+### A defect can be load-bearing, so fixing one is a balance change
+
+`advanceProjectiles` and `advanceEffects` walked `w.charges` while `breakLayer`
+pushed children onto it, so a splash hit the layers it had just exposed, and
+theirs, and theirs. One shot beside a Crystal broke seven layers.
+
+Fixing it was three lines and it moved real numbers: winning builds 61 to 53
+out of 720, and a stamp+vat board -- half of it Acid Tanks, the tower the table
+has always had to be careful about -- fell from 11 lives to 0 on one seed. The
+reference plan did not move at all (13/20 lives, 46 tiers, the same two leaks),
+which is the shape to expect: a bug that pays a specific build pays nothing to
+a board that was not leaning on it.
+
+Two things to carry forward. A test asserting an outright win is a test resting
+on whichever board is strongest today, and the strongest board is the most
+likely to be the one living off a defect -- `tests/breadth.test.ts` now compares
+how far a climbed board gets against its bare twin, across three compositions
+and three seeds, which is the property rather than one witness of it. And the
+Vat's presence among winners barely moved (97% to 96%), so a fix that costs a
+tower real power is not the same as one that costs it its place.
 
 ### When the meter names a mandatory tower, hand-build a board without it
 
